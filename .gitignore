@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Environment / secrets
+.env
+*.env.local
+
+# Node
+node_modules/
+dist/
+
+# Data and generated output (keep folder structure only)
+data/raw/*
+data/processed/*
+data/reference/*
+reports/*
+uploads/
+!**/.gitkeep
+
+# Local databases
+*.sqlite
+*.db
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
