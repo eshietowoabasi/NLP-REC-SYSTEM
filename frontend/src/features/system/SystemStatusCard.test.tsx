@@ -1,31 +1,15 @@
 import { screen } from '@testing-library/react'
-import { AxiosError, AxiosHeaders, type AxiosResponse } from 'axios'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-import { api } from '@/lib/api'
+import { healthyStatus } from '@/test/fixtures'
+import { fail, mockApi, networkDown, ok, pending } from '@/test/server'
 import { renderWithProviders } from '@/test/utils'
 
 import { SystemStatusCard } from './SystemStatusCard'
 
-function axiosFailure(status: number, data: unknown): AxiosError {
-  const config = { headers: new AxiosHeaders() }
-  const response = { status, data, statusText: '', headers: {}, config } as AxiosResponse
-  return new AxiosError('Request failed', 'ERR_BAD_RESPONSE', config, null, response)
-}
-
 describe('SystemStatusCard', () => {
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
-
   it('shows every service as available when the API is healthy', async () => {
-    vi.spyOn(api, 'get').mockResolvedValue({
-      status: 200,
-      data: {
-        success: true,
-        data: { status: 'ok', version: '0.1.0', checks: { database: 'ok', redis: 'ok' } },
-      },
-    })
+    mockApi({ 'GET /health': ok(healthyStatus) })
 
     renderWithProviders(<SystemStatusCard />)
 
@@ -35,16 +19,12 @@ describe('SystemStatusCard', () => {
   })
 
   it('explains a degraded API and marks the failing service', async () => {
-    vi.spyOn(api, 'get').mockRejectedValue(
-      axiosFailure(503, {
-        success: false,
-        error: {
-          code: 'SERVICE_UNAVAILABLE',
-          message: 'One or more backend services are unavailable.',
-          details: { version: '0.1.0', checks: { database: 'ok', redis: 'unavailable' } },
-        },
+    mockApi({
+      'GET /health': fail(503, 'SERVICE_UNAVAILABLE', 'One or more services are unavailable.', {
+        version: '0.1.0',
+        checks: { database: 'ok', redis: 'unavailable' },
       }),
-    )
+    })
 
     renderWithProviders(<SystemStatusCard />)
 
@@ -54,7 +34,7 @@ describe('SystemStatusCard', () => {
   })
 
   it('shows an error when the API cannot be reached', async () => {
-    vi.spyOn(api, 'get').mockRejectedValue(new AxiosError('Network Error', 'ERR_NETWORK'))
+    networkDown()
 
     renderWithProviders(<SystemStatusCard />)
 
@@ -63,7 +43,7 @@ describe('SystemStatusCard', () => {
   })
 
   it('shows a loading state while the first check is in flight', () => {
-    vi.spyOn(api, 'get').mockReturnValue(new Promise(() => undefined))
+    mockApi({ 'GET /health': pending })
 
     renderWithProviders(<SystemStatusCard />)
 
