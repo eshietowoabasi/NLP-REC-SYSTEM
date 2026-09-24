@@ -8,6 +8,7 @@ the environment; nothing sensitive has a usable default in production.
 from __future__ import annotations
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from sqlalchemy.engine import make_url
@@ -45,6 +46,23 @@ class BaseConfig:
     # separately during upload validation.
     MAX_CONTENT_LENGTH = 100 * 1024 * 1024
 
+    # Session cookie (Flask-Login stores the user's session token in it).
+    SESSION_COOKIE_NAME = "nlprs_session"
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = False
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=8)
+
+    # CSRF: token valid for the whole session, sent in the X-CSRFToken header.
+    WTF_CSRF_TIME_LIMIT = None
+    WTF_CSRF_HEADERS = ["X-CSRFToken"]
+
+    BCRYPT_ROUNDS = 12
+
+    # Number of reverse proxies (Nginx) in front of Flask whose X-Forwarded-* headers are
+    # trusted, so audit logs record the client IP rather than the proxy's.
+    PROXY_COUNT = int(_env("PROXY_COUNT", "1") or "1")
+
     TESTING = False
     DEBUG = False
 
@@ -74,13 +92,16 @@ class TestingConfig(BaseConfig):
 
     TESTING = True
     SECRET_KEY = "test-secret-key"
+    BCRYPT_ROUNDS = 4  # fast hashing; the algorithm is the same
     SQLALCHEMY_DATABASE_URI = resolve_test_database_url()
     # Same Redis server as development, but logical database 15.
     REDIS_URL = _env("TEST_REDIS_URL") or BaseConfig.REDIS_URL.rsplit("/", 1)[0] + "/15"
 
 
 class ProductionConfig(BaseConfig):
-    """Production: every secret must come from the environment."""
+    """Production: every secret must come from the environment; cookies only over HTTPS."""
+
+    SESSION_COOKIE_SECURE = True
 
     @classmethod
     def validate(cls) -> None:

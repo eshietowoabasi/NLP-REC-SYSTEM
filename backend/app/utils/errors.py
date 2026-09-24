@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 
 from flask import Flask, Response
+from flask_wtf.csrf import CSRFError
 from werkzeug.exceptions import HTTPException
 
 from app.utils.responses import error
@@ -55,6 +56,15 @@ def register_error_handlers(app: Flask) -> None:
     @app.errorhandler(ApiError)
     def handle_api_error(exc: ApiError) -> tuple[Response, int]:
         return error(exc.code, exc.message, exc.status, exc.details)
+
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(exc: CSRFError) -> tuple[Response, int]:
+        logger.info("CSRF check failed: %s", exc.description)
+        return error(
+            "CSRF_FAILED",
+            "Your security token is missing or has expired. Please try again.",
+            400,
+        )
 
     @app.errorhandler(HTTPException)
     def handle_http_exception(exc: HTTPException) -> tuple[Response, int]:
