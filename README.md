@@ -16,8 +16,8 @@ University of Uyo.
 | Sprint | Scope | State |
 |--------|-------|-------|
 | 1 | Project setup, database foundation, auth, RBAC, audit, error model | ✅ Done |
-| 2 | Document upload, validation, parsing, preprocessing | ⏳ Next |
-| 3 | TF-IDF, NER, SBERT, BERTopic, background jobs | — |
+| 2 | Document upload, validation, parsing, preprocessing, session creation | ✅ Done |
+| 3 | TF-IDF, NER, SBERT, BERTopic, background jobs | ⏳ Next |
 | 4 | Semantic overlap and recommendation engine | — |
 | 5 | Remaining APIs, Vue dashboard, mapping, reports | — |
 | 6 | Evaluation, security hardening, deployment | — |
@@ -75,10 +75,34 @@ All errors use the same shape:
 | POST | `/api/auth/login` | – | `{username, password, remember?}` → sets session cookie |
 | POST | `/api/auth/logout` | any role | End the session |
 | GET | `/api/auth/me` | any role | Current user |
+| GET | `/api/documents` | any role | List documents. Filters: `source_category`, `status`, `q` (title search), `mine=1`. Paginated with `page` and `per_page`. |
+| POST | `/api/documents` | Planner, Admin | Multipart upload with `file`, `source_category` and an optional `title`. The file is validated, stored and parsed immediately. |
+| GET | `/api/documents/{id}` | any role | Document metadata, processing status and parse error |
+| GET | `/api/documents/{id}/text` | any role | Extracted text. `?view=clean` applies the noise cleanup. |
+| DELETE | `/api/documents/{id}` | owner or Admin | Delete a document and its file. Not allowed while a processing session uses it. |
+| GET | `/api/sessions` | any role | List sessions. Filters: `status`, `mine=1`. |
+| POST | `/api/sessions` | Planner, Admin | `{session_name, document_ids, parameter_config?}`: up to 50 documents, all of which must be parsed |
+| GET | `/api/sessions/{id}` | any role | Session detail, including `document_ids` in processing order |
+| DELETE | `/api/sessions/{id}` | owner or Admin | Delete a session. Not allowed while it is processing. |
+
+Uploads are checked for extension *and* file content (a renamed `.exe` is
+rejected), a 25 MB limit, and exact duplicates (SHA-256). Only Admins can
+upload or delete **NUC Core Reference** documents.
 
 Roles: **Admin** (full access), **Curriculum Planner** (upload, run, review,
 map, report), **Viewer** (read-only). Roles are enforced on the server with
 `app.utils.rbac.roles_required`.
+
+## Document processing
+
+| Stage | Module | What it does |
+|-------|--------|--------------|
+| Parse | `services/ingestion/parsers.py` | PDF (PyMuPDF): extracts text page by page, drops running headers, footers and page numbers, and re-joins words hyphenated across line breaks. DOCX (python-docx): extracts body paragraphs and tables in reading order, skipping headers and footers. TXT: decodes UTF-8, falling back to cp1252. |
+| Clean | `services/preprocessing/normalize.py` | NFKC normalisation, standardised quotes and dashes, and removal of invisible characters, URLs, emails, table-of-contents entries (with or without page numbers) and lines with no letters |
+| Preprocess | `services/preprocessing/pipeline.py` | spaCy `en_core_web_sm` produces normalised sentences (used for SBERT and NER) and lowercased content-word lemmas with stop words removed (used for TF-IDF) |
+
+Scanned (image-only) PDFs are marked `Failed` with a clear reason. OCR is out
+of scope.
 
 ## Project layout
 

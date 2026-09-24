@@ -27,6 +27,11 @@ class Document(db.Model):
     original_filename: Mapped[str | None] = mapped_column(sa.String(255))
     file_size: Mapped[int | None] = mapped_column(sa.Integer)
     error_message: Mapped[str | None] = mapped_column(sa.Text)
+    # Parsing output (docs/DECISIONS.md, D10). Text is deferred: list views never load it.
+    content_hash: Mapped[str | None] = mapped_column(sa.String(64), unique=True)
+    extracted_text: Mapped[str | None] = mapped_column(sa.Text, deferred=True)
+    word_count: Mapped[int | None] = mapped_column(sa.Integer)
+    page_count: Mapped[int | None] = mapped_column(sa.Integer)
 
     owner = relationship("User", back_populates="documents")
     session_links = relationship(
@@ -45,4 +50,6 @@ class Document(db.Model):
             "original_filename": self.original_filename,
             "file_size": self.file_size,
             "error_message": self.error_message,
+            "word_count": self.word_count,
+            "page_count": self.page_count,
         }

@@ -43,3 +43,8 @@ def login(client):
         return client.post("/api/auth/login", json={"username": username, "password": password})
 
     return _login
+
+
+@pytest.fixture(autouse=True)
+def _upload_folder(app, tmp_path):
+    app.config["UPLOAD_FOLDER"] = str(tmp_path / "uploads")

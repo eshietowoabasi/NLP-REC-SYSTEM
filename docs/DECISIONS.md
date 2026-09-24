@@ -18,6 +18,7 @@ This log records how each one is resolved. **Status** is one of:
 | D7 | File storage | Files are stored on the local filesystem under `UPLOAD_FOLDER` (`data/raw` in development, a Docker volume at `/data/raw` in containers) and named with UUIDs rather than the uploaded filename. | Decided |
 | D8 | Report formats | PDF as the primary format, with DOCX as an optional second format. | Open |
 | D9 | Retention, deletion and backup | Deleting a document removes the file and its session links. Nightly `pg_dump` and a backup of the uploads volume. The retention period is still to be agreed with the department. | Open |
+| D10 | When documents are parsed and where the text is stored | Documents are parsed as soon as they are uploaded, so a broken file is marked `Failed` with a reason straight away instead of failing mid-analysis. The extracted text is stored in `documents.extracted_text`, which list endpoints never load. Preprocessing (spaCy) runs as part of the analysis pipeline and its output is not stored. | Decided |
 
 ## Other decisions made during implementation
 
@@ -25,4 +26,8 @@ This log records how each one is resolved. **Status** is one of:
 - **Document diagnostics**: `original_filename`, `file_size` and `error_message` were added to `Document`, and `progress_stage` and `error_message` to `AnalysisSession`. These support the "failed documents are diagnosable" requirement (§7.2) and progress display (§15).
 - **Document statuses**: `Uploaded`, `Parsed` and `Failed`. The specification lists statuses only for sessions.
 - **Enums**: stored as their human-readable values in `VARCHAR` columns with `CHECK` constraints rather than native PostgreSQL enums. This makes migrations easier when values change.
+- **Duplicate uploads**: a file identical to one already in the library (same SHA-256 hash, stored in `documents.content_hash`) is rejected with `409 DUPLICATE_DOCUMENT`. Counting the same job-advert dump twice would inflate TF-IDF and NER frequencies.
+- **Document visibility**: every signed-in user can read every document and session, because the corpus is shared across the department. Planners can delete only their own uploads. Only Admins can upload or delete `NUC Core Reference` documents (§14).
+- **Session inputs**: every document in a session must be `Parsed`. Duplicate IDs are removed, and the order given in the request becomes `processing_order`.
+- **TF-IDF tokens**: only content-word parts of speech are kept (`NOUN`, `PROPN`, `VERB`, `ADJ` and `X`). spaCy's stop-word list misses modal verbs such as *shall*, which dominated the sample constitutions.
 - **AuditLog.user_id**: nullable, so failed logins and system actions can still be recorded.
