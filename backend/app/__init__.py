@@ -18,6 +18,7 @@ from app.config import BACKEND_DIR, get_config
 from app.extensions import csrf, db, init_redis, migrate
 from app.routes import register_blueprints
 from app.utils.errors import register_error_handlers
+from app.utils.tls import use_system_certificates
 
 
 def configure_logging(level: str) -> None:
@@ -40,6 +41,8 @@ def create_app(config_name: str | None = None) -> Flask:
     app.config.from_object(config)
     app.json.sort_keys = False  # keep envelope fields in the order they are built
     configure_logging(app.config["LOG_LEVEL"])
+    if app.config["USE_SYSTEM_CERTS"]:
+        use_system_certificates()
 
     if app.config["PROXY_COUNT"] > 0:
         count = app.config["PROXY_COUNT"]

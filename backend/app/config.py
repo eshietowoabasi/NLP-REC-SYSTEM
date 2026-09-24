@@ -11,9 +11,16 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+from flask.cli import load_dotenv
 from sqlalchemy.engine import make_url
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
+
+# The settings below are read from the environment when this module is imported, so the
+# repository .env must be loaded first. This makes every entry point (flask CLI, the RQ worker,
+# Gunicorn, tests) see the same values. Variables already set (e.g. by Docker) take precedence,
+# and without a .env file (as in the Docker images) this does nothing.
+load_dotenv()
 
 
 def _env(name: str, default: str | None = None) -> str | None:
@@ -39,6 +46,11 @@ class BaseConfig:
 
     REDIS_URL: str = _env("REDIS_URL", "redis://localhost:6379/0") or ""
     RQ_QUEUE_NAME = "default"
+    JOB_TIMEOUT_SECONDS = 900
+    # Verify outgoing HTTPS (model downloads) against the OS certificate store; see utils/tls.py.
+    USE_SYSTEM_CERTS = (_env("USE_SYSTEM_CERTS", "false") or "").lower() == "true"
+    # Run background jobs synchronously instead of through Redis (tests only).
+    TASKS_EAGER = False
 
     STORAGE_DIR: str = _env("STORAGE_DIR", str(BACKEND_DIR / "storage")) or ""
 
@@ -93,6 +105,7 @@ class TestingConfig(BaseConfig):
     TESTING = True
     SECRET_KEY = "test-secret-key"
     BCRYPT_ROUNDS = 4  # fast hashing; the algorithm is the same
+    TASKS_EAGER = True
     SQLALCHEMY_DATABASE_URI = resolve_test_database_url()
     # Same Redis server as development, but logical database 15.
     REDIS_URL = _env("TEST_REDIS_URL") or BaseConfig.REDIS_URL.rsplit("/", 1)[0] + "/15"
