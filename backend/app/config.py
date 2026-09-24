@@ -32,6 +32,23 @@ class Config:
 
     BCRYPT_ROUNDS = 12
 
+    # NLP pipeline (docs/DECISIONS.md, D1)
+    SPACY_MODEL = os.environ.get("SPACY_MODEL", "en_core_web_sm")
+    EMBEDDING_BACKEND = os.environ.get("EMBEDDING_BACKEND", "sbert")  # sbert | hashing
+    SBERT_MODEL = os.environ.get("SBERT_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+    TFIDF_TOP_N = 25
+    TFIDF_CORPUS_TOP_N = 50
+
+    # Background jobs (docs/DECISIONS.md, D3)
+    REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+    CELERY = {
+        "broker_url": REDIS_URL,
+        "task_ignore_result": True,
+        "task_acks_late": True,
+        "worker_prefetch_multiplier": 1,
+        "broker_connection_retry_on_startup": True,
+    }
+
 
 class DevelopmentConfig(Config):
     DEBUG = True
@@ -41,6 +58,9 @@ class TestingConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:")
     BCRYPT_ROUNDS = 4  # fast hashing in tests
+    EMBEDDING_BACKEND = "hashing"  # no model downloads in tests
+    # Run jobs inline so tests exercise the whole pipeline without Redis.
+    CELERY = {"task_always_eager": True, "task_ignore_result": True}
 
 
 class ProductionConfig(Config):

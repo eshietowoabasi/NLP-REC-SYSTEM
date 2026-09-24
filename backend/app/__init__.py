@@ -19,6 +19,10 @@ def create_app(config_name=None):
     migrate.init_app(app, db, render_as_batch=True)
     login_manager.init_app(app)
 
+    from .tasks import init_celery
+
+    init_celery(app)
+
     from . import models  # noqa: F401  (register models with SQLAlchemy)
     from .routes import register_blueprints
     from .utils.errors import register_error_handlers

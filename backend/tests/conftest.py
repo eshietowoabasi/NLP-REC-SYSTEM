@@ -13,6 +13,7 @@ def app():
         yield app
         _db.session.remove()
         _db.drop_all()
+        _db.engine.dispose()  # each test builds a new app; release its connection pool
 
 
 @pytest.fixture()

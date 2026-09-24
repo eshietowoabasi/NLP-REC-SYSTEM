@@ -1,7 +1,7 @@
 """Analysis sessions (spec §6 steps 5–6). Running the pipeline arrives with the NLP stages."""
 from flask import Blueprint, current_app, jsonify, request
 from flask_login import current_user
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from ..extensions import db
 from ..models import AnalysisSession, Document, DocumentSession, DocumentStatus, Role, SessionStatus
@@ -11,6 +11,10 @@ from ..utils.errors import ApiError, ConflictError, NotFoundError, ValidationErr
 from ..utils.pagination import paginate
 from ..utils.params import parse_enum
 from ..utils.rbac import WRITE_ROLES, login_required, roles_required
+
+# A Completed session keeps its results (and, later, planner decisions); re-analysing
+# means creating a new session.
+RUNNABLE_STATUSES = (SessionStatus.PENDING, SessionStatus.FAILED)
 
 bp = Blueprint("sessions", __name__)
 
@@ -109,3 +113,54 @@ def delete_session(session_id):
     db.session.delete(session)
     db.session.commit()
     return jsonify({"success": True})
+
+
+@bp.post("/<int:session_id>/run")
+@roles_required(*WRITE_ROLES)
+def run_session(session_id):
+    """Start the NLP pipeline in the background; returns 202 immediately (spec §12.2, §15)."""
+    session = get_session_or_404(session_id)
+    if current_user.role is not Role.ADMIN and session.user_id != current_user.user_id:
+        raise ApiError("You can only run your own sessions", code="FORBIDDEN", status_code=403)
+    previous_status = session.status
+
+    # Conditional update so two concurrent requests cannot both start the same session.
+    claimed = db.session.execute(
+        update(AnalysisSession)
+        .where(AnalysisSession.session_id == session_id, AnalysisSession.status.in_(RUNNABLE_STATUSES))
+        .values(status=SessionStatus.PROCESSING, progress_stage="queued", error_message=None, completed_at=None)
+    ).rowcount
+    if not claimed:
+        db.session.rollback()
+        raise ConflictError(
+            f"Session cannot be run while {previous_status.value}",
+            code="SESSION_NOT_RUNNABLE",
+            details={"status": previous_status.value, "runnable_statuses": [s.value for s in RUNNABLE_STATUSES]},
+        )
+    record_audit("SESSION_RUN", "AnalysisSession", session_id, commit=False)
+    db.session.commit()
+
+    from ..tasks import run_analysis_task
+
+    try:
+        run_analysis_task.delay(session_id)
+    except Exception:
+        current_app.logger.exception("Could not queue analysis for session %s", session_id)
+        db.session.execute(
+            update(AnalysisSession)
+            .where(AnalysisSession.session_id == session_id)
+            .values(status=previous_status, progress_stage=None)
+        )
+        db.session.commit()
+        raise ApiError("The analysis queue is unavailable; try again shortly",
+                       code="QUEUE_UNAVAILABLE", status_code=503)
+
+    db.session.expire_all()
+    session = get_session_or_404(session_id)
+    return jsonify({
+        "success": True,
+        "session_id": session_id,
+        "status": session.status.value,
+        "message": "Analysis started",
+        "progress": session.progress(),
+    }), 202

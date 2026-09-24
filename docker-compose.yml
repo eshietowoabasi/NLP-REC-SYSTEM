@@ -13,16 +13,41 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   backend:
     build: ./backend
-    environment:
+    environment: &backend-env
       APP_CONFIG: ${APP_CONFIG:-development}
       SECRET_KEY: ${SECRET_KEY:-dev-insecure-key}
       DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-nlprs}:${POSTGRES_PASSWORD:-nlprs}@postgres:5432/${POSTGRES_DB:-nlprs}
+      REDIS_URL: redis://redis:6379/0
+      EMBEDDING_BACKEND: ${EMBEDDING_BACKEND:-sbert}
     volumes:
       - uploads:/data/raw
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Runs the NLP pipeline (spec §15). Scale with `docker compose up --scale worker=2`.
+  worker:
+    build: ./backend
+    command: ["celery", "-A", "celery_worker.celery", "worker", "--loglevel=info", "--concurrency=1"]
+    environment: *backend-env
+    volumes:
+      - uploads:/data/raw
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   nginx:
