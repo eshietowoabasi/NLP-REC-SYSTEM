@@ -84,3 +84,16 @@ def aggregate_skill_demand(per_document: dict[int, DocumentEntities]) -> list[di
         for (name, label), n in mentions.items()
     ]
     return sorted(rows, key=lambda r: (-r["document_frequency"], -r["mentions"], r["text"]))
+
+
+def entity_spans(texts: list[str], labels=CUSTOM_LABELS, model_name: str = DEFAULT_SPACY_MODEL) -> list[list[dict]]:
+    """Character-level entities per text, for evaluation against annotated spans (spec §17.1)."""
+    nlp = load_ner_nlp(model_name)
+    results = []
+    for doc in nlp.pipe(texts, batch_size=64):
+        results.append([
+            {"start": e.start_char, "end": e.end_char, "text": e.text, "label": e.label_,
+             "canonical": e.ent_id_ or e.text}
+            for e in doc.ents if e.label_ in labels
+        ])
+    return results

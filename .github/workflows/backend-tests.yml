@@ -42,5 +42,9 @@ jobs:
           flask db upgrade
           flask db check
           flask db downgrade base
+      - name: Dependency vulnerability audit
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt --progress-spinner off
       - name: Unit tests (PostgreSQL)
         run: python -m pytest --cov=app --cov-report=term-missing --cov-fail-under=85

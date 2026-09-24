@@ -48,7 +48,7 @@ SKILLS = {
     "Software Testing": ["software testing", "unit testing", "test automation", "quality assurance"],
     "Version Control": ["version control", "source control"],
     "Agile Methods": ["agile", "scrum", "kanban", "agile methodology"],
-    "UI/UX Design": ["UI/UX", "user experience", "user interface design", "UX design", "UI design"],
+    "UI/UX Design": ["UI/UX design", "UI/UX", "user experience", "user interface design", "UX design", "UI design"],
     "Blockchain": ["blockchain", "smart contracts", "distributed ledger"],
     "Internet of Things": ["internet of things", "IoT", "embedded systems"],
     "Robotics": ["robotics", "robotic process automation", "RPA"],

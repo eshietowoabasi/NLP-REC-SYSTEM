@@ -1,0 +1,11 @@
+pair_id,candidate_topic,core_topic,expert_overlap
+p01,Cloud infrastructure with Kubernetes and Terraform,Computer networks and data communication,0
+p02,Penetration testing and ethical hacking techniques,Computer security: threats and penetration testing,1
+p03,Machine learning model deployment (MLOps),Artificial intelligence: search and knowledge representation,0
+p04,Relational database design and SQL queries,Database design and management systems using SQL,1
+p05,Mobile app development with Flutter,Operating systems: processes and memory management,0
+p06,Object-oriented programming in Java,Object-oriented programming with Java,1
+p07,Fintech and digital payment systems,Discrete structures and mathematical logic,0
+p08,Data structures: stacks queues and trees,Data structures and algorithms: stacks queues trees,1
+p09,DevOps: continuous integration and delivery,Software engineering process models,0
+p10,Network security and firewalls,Computer and network security fundamentals,1

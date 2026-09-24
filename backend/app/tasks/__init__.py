@@ -18,6 +18,17 @@ def init_celery(app):
     return celery
 
 
+@shared_task(name="analysis.fail_stale_runs", ignore_result=True)
+def fail_stale_runs_task() -> None:
+    from flask import current_app
+
+    from ..services.analysis import fail_stale_runs
+
+    failed = fail_stale_runs(current_app.config["STALE_RUN_MINUTES"])
+    if failed:
+        current_app.logger.warning("Marked stale analysis sessions as failed: %s", failed)
+
+
 @shared_task(name="analysis.run", ignore_result=True)
 def run_analysis_task(session_id: int) -> None:
     from ..services.analysis import run_analysis

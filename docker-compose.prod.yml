@@ -1,0 +1,44 @@
+# Production overrides. Usage:
+#   cp .env.production.example .env   # fill in real values
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# See docs/DEPLOYMENT.md.
+x-backend-env: &backend-env
+  APP_CONFIG: production
+  SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+  DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:?}
+  REDIS_URL: redis://redis:6379/0
+  EMBEDDING_BACKEND: sbert
+  REPORT_FOLDER: /data/reports
+  INSTITUTION_NAME: ${INSTITUTION_NAME:-Department of Computer Science, Faculty of Computing, University of Uyo}
+  BEHIND_PROXY: "1"
+
+services:
+  postgres:
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+
+  redis:
+    restart: unless-stopped
+
+  backend:
+    restart: unless-stopped
+    environment: *backend-env
+    command: ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120", "--access-logfile", "-", "wsgi:app"]
+
+  worker:
+    restart: unless-stopped
+    environment: *backend-env
+
+  scheduler:
+    restart: unless-stopped
+    environment: *backend-env
+
+  frontend:
+    restart: unless-stopped
+    ports: !override
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx-https.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${TLS_CERT_DIR:?set TLS_CERT_DIR to the folder holding fullchain.pem and privkey.pem}:/etc/nginx/certs:ro

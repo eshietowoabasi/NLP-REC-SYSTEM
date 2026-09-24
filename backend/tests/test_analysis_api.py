@@ -176,3 +176,39 @@ def test_run_requires_a_core_reference(client, planner):
     resp = client.post(f"/api/sessions/{session_id}/run")
     assert resp.status_code == 409 and resp.json["error"]["code"] == "NO_CORE_REFERENCE"
     assert client.get(f"/api/sessions/{session_id}").json["session"]["status"] == "Pending"
+
+
+def test_stale_runs_are_failed_and_retryable(app, client, db, job_session):
+    from datetime import datetime, timedelta, timezone
+
+    from app.services.analysis import fail_stale_runs
+
+    session_id, _ = job_session
+    session = db.session.get(AnalysisSession, session_id)
+    session.status = SessionStatus.PROCESSING
+    session.progress_stage = "topics"
+    session.heartbeat_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+    db.session.commit()
+    assert fail_stale_runs(30) == []  # recent heartbeat: still running
+
+    session.heartbeat_at = datetime.now(timezone.utc) - timedelta(minutes=45)
+    db.session.commit()
+    assert fail_stale_runs(30) == [session_id]
+    data = client.get(f"/api/sessions/{session_id}").json["session"]
+    assert data["status"] == "Failed" and "stopped responding (stage: topics)" in data["error_message"]
+    assert db.session.query(AuditLog).filter_by(action_type="SESSION_RUN_STALE").count() == 1
+    assert client.post(f"/api/sessions/{session_id}/run").status_code == 202  # retry works
+
+    result = app.test_cli_runner().invoke(args=["fail-stale-runs", "--minutes", "30"])
+    assert result.exit_code == 0 and "Marked 0 stale" in result.output
+
+
+def test_run_records_heartbeat(client, db, job_session, monkeypatch):
+    from app.tasks import run_analysis_task
+
+    session_id, _ = job_session
+    monkeypatch.setattr(run_analysis_task, "delay", lambda *_: None)  # leave it queued
+    client.post(f"/api/sessions/{session_id}/run")
+    db.session.expire_all()
+    session = db.session.get(AnalysisSession, session_id)
+    assert session.status is SessionStatus.PROCESSING and session.heartbeat_at is not None

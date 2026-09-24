@@ -52,6 +52,17 @@ services:
       redis:
         condition: service_healthy
 
+  # Periodic jobs (celery beat): marks runs whose worker died as Failed (spec §15).
+  scheduler:
+    build: ./backend
+    command: ["celery", "-A", "celery_worker.celery", "beat", "--loglevel=info", "--schedule", "/tmp/celerybeat-schedule"]
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   # Vue frontend + reverse proxy (build context includes docker/nginx.conf).
   frontend:
     build:

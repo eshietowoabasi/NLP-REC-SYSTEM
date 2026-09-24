@@ -4,6 +4,7 @@ Secrets and connection strings come from environment variables (spec §14);
 nothing sensitive is hard-coded here.
 """
 import os
+from datetime import timedelta
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -36,6 +37,16 @@ class Config:
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = False
     REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SAMESITE = "Lax"
+    REMEMBER_COOKIE_DURATION = timedelta(days=7)
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=8)
+    # Extra hosts allowed to send state-changing requests (host[:port]); same-origin
+    # requests are always allowed. Comma-separated in the environment.
+    TRUSTED_ORIGINS = tuple(h.strip() for h in os.environ.get("TRUSTED_ORIGINS", "").split(",") if h.strip())
+
+    # Brute-force protection: lock an account after repeated failed logins.
+    LOGIN_MAX_FAILURES = 5
+    LOGIN_LOCKOUT_MINUTES = 15
 
     BCRYPT_ROUNDS = 12
 
@@ -48,12 +59,18 @@ class Config:
 
     # Background jobs (docs/DECISIONS.md, D3)
     REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+    # A stage that has not reported for this long means the worker died (spec §15).
+    STALE_RUN_MINUTES = int(os.environ.get("STALE_RUN_MINUTES", "30"))
     CELERY = {
         "broker_url": REDIS_URL,
         "task_ignore_result": True,
         "task_acks_late": True,
         "worker_prefetch_multiplier": 1,
         "broker_connection_retry_on_startup": True,
+        # Run by the `scheduler` service (celery beat).
+        "beat_schedule": {
+            "fail-stale-runs": {"task": "analysis.fail_stale_runs", "schedule": 300.0},
+        },
     }
 
 
@@ -76,10 +93,17 @@ class ProductionConfig(Config):
 
     @classmethod
     def validate(cls):
-        if not os.environ.get("SECRET_KEY"):
-            raise RuntimeError("SECRET_KEY must be set in production")
+        """Refuse to start production with unsafe settings."""
+        problems = []
+        secret = os.environ.get("SECRET_KEY", "")
+        if len(secret) < 32 or secret in ("dev-insecure-key", "change-me"):
+            problems.append("SECRET_KEY must be a random value of at least 32 characters")
         if not os.environ.get("DATABASE_URL"):
-            raise RuntimeError("DATABASE_URL must be set in production")
+            problems.append("DATABASE_URL must be set")
+        if os.environ.get("EMBEDDING_BACKEND", "sbert") != "sbert":
+            problems.append("EMBEDDING_BACKEND must be 'sbert' in production (hashing is for tests only)")
+        if problems:
+            raise RuntimeError("Unsafe production configuration: " + "; ".join(problems))
 
 
 CONFIGS = {

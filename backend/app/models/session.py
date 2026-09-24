@@ -27,6 +27,9 @@ class AnalysisSession(db.Model):
     completed_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
     # Progress reporting for async runs (spec §15).
     progress_stage: Mapped[str | None] = mapped_column(sa.String(64))
+    # Updated when a run is queued and at every stage; lets the sweeper spot runs whose
+    # worker died (docs/DECISIONS.md, "Stuck sessions").
+    heartbeat_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
     error_message: Mapped[str | None] = mapped_column(sa.Text)
     # Corpus-level NLP output (keywords, skill demand, topics) and run metadata
     # (models, timings, warnings). Per-document output lives in NLPResult.

@@ -8,7 +8,7 @@ topic modelling so the prescribed core does not count as "demand".
 """
 import time
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
 from flask import current_app
@@ -49,6 +49,7 @@ class _StageTimer:
         self._finish()
         self._stage, self._start = stage, time.perf_counter()
         self.session.progress_stage = stage
+        self.session.heartbeat_at = datetime.now(timezone.utc)
         db.session.commit()  # make progress visible to pollers
 
     def _finish(self):
@@ -331,3 +332,29 @@ def _run(session: AnalysisSession) -> None:
                   "recommendations": len(ranked)},
                  user_id=session.user_id, commit=False)
     db.session.commit()
+
+
+STALE_RUN_MESSAGE = (
+    "The analysis worker stopped responding (stage: {stage}). The run was marked as failed "
+    "so it can be retried."
+)
+
+
+def fail_stale_runs(max_minutes: int) -> list[int]:
+    """Mark sessions stuck in Processing (no heartbeat for ``max_minutes``) as Failed."""
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=max_minutes)
+    stale = db.session.execute(
+        select(AnalysisSession).where(
+            AnalysisSession.status == SessionStatus.PROCESSING,
+            (AnalysisSession.heartbeat_at < cutoff) | AnalysisSession.heartbeat_at.is_(None),
+        )
+    ).scalars().all()
+    for session in stale:
+        session.status = SessionStatus.FAILED
+        session.error_message = STALE_RUN_MESSAGE.format(stage=session.progress_stage or "unknown")
+        record_audit("SESSION_RUN_STALE", "AnalysisSession", session.session_id,
+                     {"stage": session.progress_stage, "max_minutes": max_minutes},
+                     user_id=session.user_id, commit=False)
+        session.progress_stage = None
+    db.session.commit()
+    return [s.session_id for s in stale]

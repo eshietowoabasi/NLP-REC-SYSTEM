@@ -1,4 +1,6 @@
 """Analysis sessions (spec §6 steps 5–6). Running the pipeline arrives with the NLP stages."""
+from datetime import datetime, timezone
+
 from flask import Blueprint, current_app, jsonify, request
 from flask_login import current_user
 from sqlalchemy import select, update
@@ -134,7 +136,8 @@ def run_session(session_id):
     claimed = db.session.execute(
         update(AnalysisSession)
         .where(AnalysisSession.session_id == session_id, AnalysisSession.status.in_(RUNNABLE_STATUSES))
-        .values(status=SessionStatus.PROCESSING, progress_stage="queued", error_message=None, completed_at=None)
+        .values(status=SessionStatus.PROCESSING, progress_stage="queued", error_message=None, completed_at=None,
+                heartbeat_at=datetime.now(timezone.utc))
     ).rowcount
     if not claimed:
         db.session.rollback()

@@ -22,6 +22,22 @@ This log records how each one is resolved. **Status** is one of:
 
 ## Other decisions made during implementation
 
+### Evaluation, security and operations (Sprint 6)
+
+- **Evaluation** is a CLI toolkit (`flask eval …`, `backend/app/evaluation/`) rather than part of the web app. It is run by the project team on collected data, and results are saved as JSON for the write-up.
+  - NER is scored strictly (exact span and label) by default, with lenient (overlapping span) and document-level (entity names) modes for annotations without offsets.
+  - Agreement between the two annotators is reported as pairwise F1 and token-level Cohen's kappa.
+  - Targets are checked as "above" the spec values (P > 0.80, R > 0.75, F1 > 0.75).
+  - The similarity evaluation reports AUC-ROC and the Youden-optimal threshold for calibrating the 0.80 default.
+  - Topic evaluation compares C_v coherence and topic diversity against an LDA with the same number of topics.
+  - The performance benchmark runs the real pipeline against a private in-memory database; it must never touch the configured one.
+- **Cross-site request forgery** protection: requests that change data (POST/PUT/PATCH/DELETE) and carry an `Origin` or `Referer` header must come from the same host (or from `TRUSTED_ORIGINS`), combined with SameSite=Lax cookies. Scripts that send neither header are unaffected, and CSRF tokens aren't needed because the API only accepts JSON or multipart from the app itself.
+- **Brute-force protection** counts `LOGIN_FAILED` audit entries per account since its last successful login. The limit is 5 per 15 minutes (`429 ACCOUNT_LOCKED`), and it holds across all API worker processes. Unknown usernames aren't counted: there is no account to protect, and counting them would reveal which usernames exist. Blocked attempts are logged as `LOGIN_BLOCKED` and don't extend the lockout.
+- **Sessions** last 8 hours (`PERMANENT_SESSION_LIFETIME`). Flask-Login's `session_protection = "strong"` invalidates a session if the client's identity (IP or user agent) changes.
+- **Production refuses to start** if `SECRET_KEY` is shorter than 32 characters or a known default, if `DATABASE_URL` is missing, or if `EMBEDDING_BACKEND` isn't `sbert`.
+- **HTTPS** is terminated at Nginx (`docker/nginx-https.conf`: TLS 1.2/1.3, HSTS, CSP). Flask trusts the forwarded headers only when `BEHIND_PROXY=1`.
+- **Backups:** nightly `pg_dump` plus an archive of uploads and reports (`scripts/backup.sh`, keeping 14 of each), with a confirmed restore script. D9 (the retention period) is still open.
+
 ### Mapping, reports and frontend (Sprint 5)
 
 - **Only Accepted recommendations** can be mapped (`409 NOT_ACCEPTED`). Once a recommendation is mapped, its decision can't move away from Accepted until the mapping is deleted (`409 MAPPING_EXISTS`), which keeps the course-to-evidence trace intact (§16).
@@ -53,8 +69,8 @@ This log records how each one is resolved. **Status** is one of:
 - **Completed sessions can't be re-run.** Their results, and later the planner decisions, are kept; re-analysing means creating a new session. Failed sessions can be retried.
 - **Storage:** corpus-level output (keywords, skill demand, topics with centroid embeddings) is stored in `analysis_sessions.corpus_results`. Run metadata (models, stage timings, counts, warnings) goes in `analysis_sessions.pipeline_info`. Per-document output goes in `nlp_results`, with the mean passage embedding as the document embedding. API responses never include embeddings.
 - **NER patterns** are in `services/ner/patterns.py`. Acronyms and product names that are also ordinary words (`AI`, `Spark`, `Swift`, `Node`) are matched case-sensitively. `Go`, `R` and `C` match only when followed by words like "programming" or "language". Bare "compliance" is not matched because it is too common in legal text.
-- **Gensim LDA baseline** (§8.5/§17.2) is deferred to the evaluation work in Sprint 6.
-- **Stuck sessions:** if a worker is killed mid-run, the session stays `Processing`. A stale-run sweeper, which would fail sessions stuck longer than N minutes, is noted for Sprint 6.
+- **Gensim LDA baseline** (§8.5/§17.2) is part of the evaluation toolkit (`flask eval topics`), not the live pipeline. Planners only need BERTopic's output; LDA exists for the comparison in the write-up.
+- **Stuck sessions:** each stage updates `heartbeat_at`. The `scheduler` service (Celery beat) runs every 5 minutes and marks runs with no heartbeat for `STALE_RUN_MINUTES` (default 30) as Failed with an explanation, so they can be retried. The same check is available as `flask fail-stale-runs`.
 
 ### Data model and documents (Sprints 1–2)
 

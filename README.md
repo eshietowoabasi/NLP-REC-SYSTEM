@@ -8,8 +8,11 @@ overlap with the NUC-prescribed 70% core.
 The case study is the Department of Computer Science, Faculty of Computing,
 University of Uyo.
 
-- Developer guide: [`docs/NLP_RS_Developer_Documentation.docx`](docs/NLP_RS_Developer_Documentation.docx)
-- Implementation decisions for the gaps listed in guide §21: [`docs/DECISIONS.md`](docs/DECISIONS.md)
+- Developer guide (specification): [`docs/NLP_RS_Developer_Documentation.docx`](docs/NLP_RS_Developer_Documentation.docx)
+- [API reference](docs/API.md) · [Database](docs/DATABASE.md) · [Deployment and operations](docs/DEPLOYMENT.md)
+- [Implementation decisions](docs/DECISIONS.md) (including the gaps listed in guide §21)
+- [Definition of Done status](docs/DEFINITION_OF_DONE.md) (spec §22)
+- [Evaluation data formats](data/evaluation/README.md) (spec §17)
 
 ## Status
 
@@ -20,7 +23,7 @@ University of Uyo.
 | 3 | TF-IDF, NER, SBERT, BERTopic, background jobs, results APIs | ✅ Done |
 | 4 | Semantic overlap, recommendation engine, planner decisions | ✅ Done |
 | 5 | Curriculum mapping, PDF/DOCX reports, admin APIs, Vue frontend, end-to-end tests | ✅ Done |
-| 6 | Evaluation (§17), security hardening, deployment | ⏳ Next |
+| 6 | Evaluation toolkit (§17), security hardening, stale-run recovery, production deployment, documentation | ✅ Done |
 
 ## Stack
 
@@ -74,10 +77,14 @@ Without internet access to Hugging Face, set `EMBEDDING_BACKEND=hashing` to
 exercise the pipeline. The results are then lexical rather than semantic and
 are flagged with a warning.
 
-### Docker Compose
+### Docker Compose (development)
+
+For production (HTTPS, required secrets, restart policies, backups) see
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 
 ```bash
-docker compose up --build        # postgres, redis, backend, worker, frontend (Nginx)
+docker compose up --build        # postgres, redis, backend, worker, scheduler, frontend (Nginx)
 docker compose exec backend flask db upgrade
 docker compose exec backend flask create-user
 open http://localhost:8080       # the app; /api/* is proxied to Flask
@@ -221,6 +228,40 @@ cd frontend && npm run build && (npx vite preview --port 4173 &) && npx playwrig
 
 CI (`.github/workflows/frontend.yml`) runs the unit tests, the build and this
 end-to-end suite on every push.
+
+## Evaluation (spec §17)
+
+```bash
+cd backend
+flask eval ner ../data/evaluation/ner_annotations.sample.jsonl        # P/R/F1 + inter-annotator agreement
+flask eval topics --session-id 1                                       # BERTopic vs LDA: C_v, diversity
+flask eval similarity ../data/evaluation/similarity_pairs.sample.csv  # AUC-ROC, recommended threshold
+flask eval sus ../data/evaluation/sus_responses.sample.csv            # SUS mean vs target 70
+flask eval performance                                                 # 20 x 3,000 words vs 60 s
+```
+
+The sample files show the input formats. Replace them with the project's real
+annotation, expert and UAT data, and run with `EMBEDDING_BACKEND=sbert`.
+Results are written as JSON to `reports/evaluation/`.
+
+## Security
+
+- **Access control:** role-based checks on the server for every route. Passwords
+  are hashed with bcrypt. Session cookies are `HttpOnly` and `SameSite=Lax`, and
+  `Secure` in production. Sessions last 8 hours.
+- **Cross-site requests:** state-changing requests must come from the app's own
+  origin.
+- **Brute force:** an account is locked after 5 failed logins within 15 minutes.
+- **Headers:** security headers are set by both Flask and Nginx, and API
+  responses are sent with `no-store`.
+- **Uploads:** checked by extension and by content, stored under random names,
+  and limited to 25 MB.
+- **Audit log:** covers sign-ins, uploads, runs, decisions, mappings, reports
+  and user changes.
+- **Production safeguards:** the app refuses to start with a weak
+  `SECRET_KEY` or with the offline `hashing` embeddings. HTTPS with HSTS is set
+  up in `docker/nginx-https.conf`.
+- **Dependencies:** audited in CI with `pip-audit` and `npm audit`.
 
 ## Project layout
 

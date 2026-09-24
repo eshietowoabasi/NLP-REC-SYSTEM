@@ -31,6 +31,9 @@ hdbscan==0.8.44
 bertopic==0.17.4
 PyYAML==6.0.3
 
+# Evaluation baseline (LDA for `flask eval topics`, spec §17.2)
+gensim==4.4.0
+
 # SBERT. Install the CPU build of torch first to avoid ~3 GB of CUDA wheels:
 #   pip install torch --index-url https://download.pytorch.org/whl/cpu
 sentence-transformers==6.1.0
