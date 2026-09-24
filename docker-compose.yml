@@ -15,6 +15,10 @@ x-backend-env: &backend-env
   DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
   REDIS_URL: redis://redis:6379/0
   STORAGE_DIR: /data/storage
+  ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+  ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+  ADMIN_FULL_NAME: ${ADMIN_FULL_NAME:-}
 
 services:
   backend:
@@ -22,7 +26,8 @@ services:
       context: ./backend
       args:
         INSTALL_DEV: "true"
-    command: flask --app wsgi run --debug --host 0.0.0.0 --port 5000
+    # Apply pending migrations, then start the auto-reloading dev server.
+    command: sh -c "flask --app wsgi db upgrade && flask --app wsgi run --debug --host 0.0.0.0 --port 5000"
     environment: *backend-env
     volumes:
       - ./backend:/app
@@ -55,6 +60,12 @@ services:
     build:
       context: ./frontend
       target: dev
+    # node_modules lives in a volume that survives rebuilds, so reinstall whenever
+    # package-lock.json has changed since the last install, then start Vite.
+    command: >
+      sh -c "sha1sum -c node_modules/.lock-hash >/dev/null 2>&1 ||
+             (npm install --no-audit --no-fund && sha1sum package-lock.json > node_modules/.lock-hash);
+             exec npm run dev"
     environment:
       VITE_API_PROXY_TARGET: http://backend:5000
       VITE_HMR_CLIENT_PORT: ${HTTP_PORT:-8080}
