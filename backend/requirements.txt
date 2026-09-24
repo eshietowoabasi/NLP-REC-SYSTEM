@@ -8,6 +8,10 @@ alembic==1.20.0
     # via
     #   -r requirements.in
     #   flask-migrate
+annotated-types==0.8.0
+    # via pydantic
+bcrypt==5.0.0
+    # via -r requirements.in
 blinker==1.9.0
     # via flask
 click==8.5.0
@@ -16,23 +20,37 @@ click==8.5.0
     #   rq
 croniter==6.2.4
     # via rq
+dnspython==2.8.0
+    # via email-validator
+email-validator==2.3.0
+    # via -r requirements.in
 flask==3.1.3
     # via
     #   -r requirements.in
+    #   flask-login
     #   flask-migrate
     #   flask-sqlalchemy
+    #   flask-wtf
+flask-login==0.6.3
+    # via -r requirements.in
 flask-migrate==4.1.0
     # via -r requirements.in
 flask-sqlalchemy==3.1.1
     # via
     #   -r requirements.in
     #   flask-migrate
+flask-wtf==1.3.0
+    # via -r requirements.in
 greenlet==3.5.6
     # via sqlalchemy
 gunicorn==26.2.0
     # via -r requirements.in
+idna==3.20
+    # via email-validator
 itsdangerous==2.2.0
-    # via flask
+    # via
+    #   flask
+    #   flask-wtf
 jinja2==3.1.6
     # via flask
 mako==1.4.3
@@ -43,10 +61,17 @@ markupsafe==3.0.3
     #   jinja2
     #   mako
     #   werkzeug
+    #   wtforms
+pgvector==0.5.0
+    # via -r requirements.in
 psycopg==3.3.6
     # via -r requirements.in
 psycopg-binary==3.3.6
     # via psycopg
+pydantic==2.13.5
+    # via -r requirements.in
+pydantic-core==2.46.5
+    # via pydantic
 python-dateutil==2.9.0.post0
     # via croniter
 python-dotenv==1.2.3
@@ -68,6 +93,15 @@ typing-extensions==4.16.0
     # via
     #   alembic
     #   psycopg
+    #   pydantic
+    #   pydantic-core
     #   sqlalchemy
+    #   typing-inspection
+typing-inspection==0.4.4
+    # via pydantic
 werkzeug==3.1.8
-    # via flask
+    # via
+    #   flask
+    #   flask-login
+wtforms==3.2.2
+    # via flask-wtf
