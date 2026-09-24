@@ -110,6 +110,22 @@ cosmetic.
   `make_user(role, ...)`, `login_as(role)` → a logged-in `ApiClient` (`.user` holds the
   model). Use `@example.com` emails (reserved TLDs like `.test` fail validation).
 
+## Pipeline conventions (established in Phase 2)
+
+- Pure, DB-free services in `app/services/<stage>/`; jobs in `app/tasks/` do the DB work and are
+  queued with `app.tasks.queue.enqueue("app.tasks.<module>.<func>", *args)` (runs eagerly when
+  `TASKS_EAGER`, i.e. in tests). Jobs call `db.session.remove()` when done.
+- NLP models load once per process: `get_nlp(name)` (spaCy) and `get_encoder(name)` (SBERT), both
+  cached. The worker is an RQ `SimpleWorker`, so the cache survives between jobs.
+- Settings used by the pipeline come from `get_setting(...)` (passage size, model names, ...).
+- Tests: `FakeEncoder` replaces SBERT everywhere (autouse fixture); mark a test
+  `@pytest.mark.real_models` (and use the `app` fixture) to use the real model. Synthetic
+  document builders live in `tests/documents.py`. Uploaded files go to a per-test tmp storage dir.
+- This laptop: `USE_SYSTEM_CERTS=true` in `.env` (Avast re-signs HTTPS); libmagic is missing
+  natively, so validation falls back to signature checks (libmagic tests are skipped locally).
+- Disk space on the dev laptop is tight (~4 GB free): the Docker backend image has NOT been
+  rebuilt with the NLP packages yet; develop in lightweight mode until space allows.
+
 ## Frontend conventions (established in Phase 1)
 
 - API calls go through `apiGet/apiPost/apiPatch/...` in `src/lib/api.ts` (CSRF header, token
@@ -167,9 +183,8 @@ Docker CLI on this machine: `C:\Users\Owoabasi\AppData\Local\Programs\DockerDesk
 
 **Dependencies are pinned exactly.** Frontend: exact versions in `package.json`, `.npmrc`
 `save-exact=true`, committed `package-lock.json`, install with `npm ci`. Backend: edit
-`requirements.in` / `requirements-dev.in`, then regenerate the pip-tools lockfiles
-(`requirements.txt`, `requirements-dev.txt`) in a python:3.11 container; the command is in
-docs/SETUP.md. Never hand-edit the lockfiles.
+`requirements.in` / `requirements-dev.in`, then run `python scripts/lock.py` (uv; resolves for
+Linux/Python 3.11, CPU-only PyTorch). Never hand-edit the lockfiles. numpy stays <2.5 (3.11).
 
 **Tests** use a separate `<db>_test` database on the same Postgres, created automatically by
 `tests/conftest.py`, which refuses any database not named `*_test`.
@@ -179,7 +194,8 @@ docs/SETUP.md. Never hand-edit the lockfiles.
 - [x] **0 Scaffold** — repo layout, compose, app factory + `/api/health`, frontend shell.
 - [x] **1 Data model, auth, roles, audit** — all models + migration `0001_initial_schema`,
   `flask seed`, auth/CSRF/RBAC/audit, admin users API; Login, Profile, Admin Users, 403/404.
-- [ ] **2 Documents and ingestion**
+- [x] **2 Documents and ingestion** — upload validation, storage, ingestion job (parse → clean →
+  passages → normalised text → SBERT), documents + NUC core APIs; Library, Upload, Detail, NUC Core.
 - [ ] **3 Analysis pipeline**
 - [ ] **4 Evidence, recommendations, decisions, mapping**
 - [ ] **5 Reports, dashboard, admin settings**
