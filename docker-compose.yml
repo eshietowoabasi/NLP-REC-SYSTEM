@@ -32,6 +32,7 @@ services:
     volumes:
       - ./backend:/app
       - storage-data:/data/storage
+      - models-data:/data/models
     ports:
       - "${BACKEND_HOST_PORT:-5000}:5000"
     depends_on:
@@ -46,10 +47,13 @@ services:
       args:
         INSTALL_DEV: "true"
     command: python -m app.worker
+    # Jobs run in the worker process (models stay loaded); restart it if it ever stops.
+    restart: unless-stopped
     environment: *backend-env
     volumes:
       - ./backend:/app
       - storage-data:/data/storage
+      - models-data:/data/models
     depends_on:
       postgres:
         condition: service_healthy
@@ -87,3 +91,4 @@ services:
 
 volumes:
   storage-data:
+  models-data:

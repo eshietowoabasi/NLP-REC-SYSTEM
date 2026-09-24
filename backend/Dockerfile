@@ -4,7 +4,14 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    # Downloaded NLP models (SBERT) are cached on a named volume.
+    HF_HOME=/data/models
+
+# libmagic: content-type detection of uploads (python-magic).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libmagic1 \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -17,7 +24,7 @@ RUN pip install --upgrade pip setuptools \
        else pip install -r requirements.txt; fi
 
 COPY . .
-RUN mkdir -p /data/storage && chown -R appuser:appuser /app /data
+RUN mkdir -p /data/storage /data/models && chown -R appuser:appuser /app /data
 
 USER appuser
 EXPOSE 5000
