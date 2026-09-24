@@ -1,46 +1,71 @@
-import { screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { screen, waitFor, within } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
 
-import { api } from '@/lib/api'
-import { routes } from '@/routes/router'
-import { renderRoutes } from '@/test/utils'
+import { adminUser, healthyStatus, plannerUser } from '@/test/fixtures'
+import { mockApi, ok } from '@/test/server'
+import { renderApp } from '@/test/utils'
+import type { User } from '@/types/api'
+
+function signedInAs(user: User) {
+  return mockApi({
+    'GET /auth/me': ok(user),
+    'GET /health': ok(healthyStatus),
+    'POST /auth/logout': ok({ csrf_token: 'fresh-anonymous-token' }),
+  })
+}
 
 describe('AppShell', () => {
-  beforeEach(() => {
-    vi.spyOn(api, 'get').mockResolvedValue({
-      status: 200,
-      data: {
-        success: true,
-        data: { status: 'ok', version: '0.1.0', checks: { database: 'ok', redis: 'ok' } },
-      },
-    })
-  })
+  it('renders the navigation, page title, user and API status on the dashboard', async () => {
+    signedInAs(adminUser)
+    renderApp('/')
 
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
-
-  it('renders the navigation, page title and API status on the dashboard', async () => {
-    renderRoutes(routes, '/')
-
-    expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('data-active', 'true')
-    expect(screen.getByText('Administration')).toBeInTheDocument()
     expect(await screen.findByText('API connected')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Account menu' })).toHaveTextContent('Test Admin')
     await waitFor(() => expect(document.title).toBe('Dashboard · NLP-RS'))
   })
 
-  it('shows screens that are not built yet as disabled, not as links', () => {
-    renderRoutes(routes, '/')
+  it('shows the Administration section to admins only', async () => {
+    signedInAs(adminUser)
+    const { unmount } = renderApp('/')
+    expect(await screen.findByText('Administration')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('href', '/admin/users')
+    unmount()
 
-    expect(screen.queryByRole('link', { name: 'Documents' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Documents' })).toBeDisabled()
+    signedInAs(plannerUser)
+    renderApp('/')
+    expect(await screen.findByText('Workspace')).toBeInTheDocument()
+    expect(screen.queryByText('Administration')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument()
   })
 
-  it('renders the 404 page for unknown paths', () => {
-    renderRoutes(routes, '/no-such-page')
+  it('shows screens that are not built yet as disabled, not as links', async () => {
+    signedInAs(plannerUser)
+    renderApp('/')
 
-    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Documents' })).toBeDisabled()
+    expect(screen.queryByRole('link', { name: 'Documents' })).not.toBeInTheDocument()
+  })
+
+  it('logs out from the account menu and returns to the login page', async () => {
+    const server = signedInAs(plannerUser)
+    const { user } = renderApp('/')
+
+    await user.click(await screen.findByRole('button', { name: 'Account menu' }))
+    const menu = await screen.findByRole('menu')
+    expect(within(menu).getByText('test.planner@example.com')).toBeInTheDocument()
+    await user.click(within(menu).getByRole('menuitem', { name: 'Log out' }))
+
+    expect(await screen.findByRole('heading', { name: 'Sign in to NLP-RS' })).toBeInTheDocument()
+    expect(server.calls('POST', '/auth/logout')).toHaveLength(1)
+  })
+
+  it('renders the 404 page for unknown paths', async () => {
+    signedInAs(plannerUser)
+    renderApp('/no-such-page')
+
+    expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Back to dashboard' })).toHaveAttribute('href', '/')
   })
 })
