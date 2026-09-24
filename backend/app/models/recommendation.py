@@ -33,15 +33,20 @@ class Recommendation(db.Model):
         enum_column(PlannerDecision, "planner_decision")
     )
     planner_notes: Mapped[str | None] = mapped_column(sa.Text)
+    # Position in the ranked list (1 = top). Potential duplicates rank after novel topics.
+    rank: Mapped[int | None] = mapped_column(sa.Integer)
+    # Traceability (spec §16): source topic, passages, documents, skills, closest core segments.
+    evidence: Mapped[dict | None] = mapped_column(sa.JSON, deferred=True)
 
     session = relationship("AnalysisSession", back_populates="recommendations")
     curriculum_maps = relationship(
         "CurriculumMap", back_populates="recommendation", cascade="all, delete-orphan"
     )
 
-    def to_dict(self):
-        return {
+    def to_dict(self, include_evidence=False):
+        data = {
             "rec_id": self.rec_id,
+            "rank": self.rank,
             "session_id": self.session_id,
             "topic_title": self.topic_title,
             "topic_description": self.topic_description,
@@ -54,3 +59,6 @@ class Recommendation(db.Model):
             "planner_decision": self.planner_decision.value if self.planner_decision else None,
             "planner_notes": self.planner_notes,
         }
+        if include_evidence:
+            data["evidence"] = self.evidence
+        return data

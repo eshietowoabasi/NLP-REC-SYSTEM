@@ -35,6 +35,7 @@ class TopicModelResult:
     outlier_count: int
     method: str
     warnings: list[str] = field(default_factory=list)
+    assignments: list[int] = field(default_factory=list)  # topic id per input passage (-1 = outlier)
 
 
 def select_passages(sentences: list[str], document_id: int, source_category: str) -> list[Passage]:
@@ -222,4 +223,4 @@ def model_topics(passages: list[Passage], embeddings: np.ndarray) -> TopicModelR
         ]
         for doc_id, counts in per_doc_topic.items()
     }
-    return TopicModelResult(topics, document_topics, n, outliers, "bertopic", warnings)
+    return TopicModelResult(topics, document_topics, n, outliers, "bertopic", warnings, assignments.tolist())

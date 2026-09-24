@@ -12,7 +12,7 @@ This log records how each one is resolved. **Status** is one of:
 | D1 | SBERT checkpoint and embedding dimension | `sentence-transformers/all-MiniLM-L6-v2` (384 dimensions), set with `SBERT_MODEL` and baked into the Docker image. The embedding backend can be swapped (`EMBEDDING_BACKEND=sbert\|hashing`). `hashing` is a deterministic lexical stand-in for tests and offline development, and every run that uses it carries a warning. `all-mpnet-base-v2` (768 dimensions) is the fallback if the §17.3 evaluation shows too little separation. Embeddings are stored as JSON float arrays. | Decided |
 | D2 | Authentication mechanism | Server-side cookie session using Flask-Login. The cookie is `HttpOnly` and `SameSite=Lax`, and `Secure` in production. The Vue app and API share one origin behind Nginx, so no tokens are held in browser storage. Passwords are hashed with bcrypt. | Decided |
 | D3 | Background jobs and progress transport | Celery with Redis (`worker` service). `POST /run` claims the session with a conditional update, so it can't be started twice, and returns 202. The frontend polls `GET /api/sessions/{id}` for `progress.stage`. If Redis is down, the session is put back to its previous status and the request returns 503 `QUEUE_UNAVAILABLE`. | Decided |
-| D4 | 0–1 normalisation of the NER and topic scores | NER score: `log(1 + freq) / log(1 + max_freq)` across the candidates in a session, which keeps very frequent skills from swamping the rest. Topic score: the candidate's BERTopic probability divided by the session maximum (min–max scaling). Both are clipped to [0, 1]. The database enforces the 0–1 range on every score column. | Proposed |
+| D4 | 0–1 normalisation of the NER and topic scores | **NER score:** `log(1 + m) / log(1 + max m)`, where *m* is the number of SKILL/TOOL/CERT mentions in the candidate topic's passages, counting repeats. The log keeps one very large theme from flattening every other score. **Topic score:** `0.5 · passages / max passages + 0.5 · documents / max documents`, so a theme found across many sources outranks one repeated at length in a single document. BERTopic probabilities aren't used: they are per passage, and computing them costs HDBSCAN time. Both scores are relative to the session's candidates, and the database enforces 0–1 on every score column. | Decided |
 | D5 | Human-readable topic titles | The top 3 non-overlapping c-TF-IDF terms, spelled as they most often appear in the source text (e.g. "CISSP, PyTorch, Cloud"). KeyBERTInspired was dropped because it needs BERTopic to hold its own embedding model, while we pass embeddings in. Planners will be able to rename topics during review (Sprint 5). | Decided |
 | D6 | Dedicated Evidence table | Not in v1. Passages are stored in `nlp_results.topics` and `ner_entities` (JSON with `document_id` and character offsets). This will be revisited if the dashboard needs to query across passages. | Proposed |
 | D7 | File storage | Files are stored on the local filesystem under `UPLOAD_FOLDER` (`data/raw` in development, a Docker volume at `/data/raw` in containers) and named with UUIDs rather than the uploaded filename. | Decided |
@@ -21,6 +21,15 @@ This log records how each one is resolved. **Status** is one of:
 | D10 | When documents are parsed and where the text is stored | Documents are parsed as soon as they are uploaded, so a broken file is marked `Failed` with a reason straight away instead of failing mid-analysis. The extracted text is stored in `documents.extracted_text`, which list endpoints never load. Preprocessing (spaCy) runs as part of the analysis pipeline and its output is not stored. | Decided |
 
 ## Other decisions made during implementation
+
+### Recommendations (Sprint 4)
+
+- **Candidates** are the session's BERTopic topics (Appendix C: `build_topic_candidates`). Outlier passages don't produce candidates. If topic modelling was skipped (too little text), the session completes with no recommendations and a warning.
+- **The core reference** is every parsed NUC Core Reference document in the library, not just those in the session. The run endpoint refuses to start without one (`409 NO_CORE_REFERENCE`), so compute isn't wasted on a run that cannot finish. Core segments are text blocks of 3–60 words (longer blocks become sentence windows), which keeps course titles such as "CSC 421: Cloud Computing" as their own segments.
+- **The threshold test** is `max_similarity > threshold` on the value rounded to 4 decimals (the precision the API reports), so float32 noise can't flip the status at exactly 0.80.
+- **Potential duplicates** stay visible but rank after every novel candidate, and they count towards `max_recommendations`. Accepting one requires planner notes (`422 JUSTIFICATION_REQUIRED`), which puts §9's "should not proceed without planner review" into practice.
+- **Decisions** can be made by the session owner or an Admin. Everyone else can read them. `null` clears a decision, and every change is audited with its previous and new value.
+- **Evidence** (`recommendations.evidence`, JSON) holds the source topic, keywords, representative passages, document IDs, source-category counts, top skills and the closest core segments with their document titles. It gives the traceability required in §16. A separate Evidence table (D6) is still not needed.
 
 ### NLP pipeline (Sprint 3)
 
@@ -35,6 +44,8 @@ This log records how each one is resolved. **Status** is one of:
 - **NER patterns** are in `services/ner/patterns.py`. Acronyms and product names that are also ordinary words (`AI`, `Spark`, `Swift`, `Node`) are matched case-sensitively. `Go`, `R` and `C` match only when followed by words like "programming" or "language". Bare "compliance" is not matched because it is too common in legal text.
 - **Gensim LDA baseline** (§8.5/§17.2) is deferred to the evaluation work in Sprint 6.
 - **Stuck sessions:** if a worker is killed mid-run, the session stays `Processing`. A stale-run sweeper, which would fail sessions stuck longer than N minutes, is noted for Sprint 6.
+
+### Data model and documents (Sprints 1–2)
 
 - **Recommendation.max_similarity**: stored in addition to `novelty_score` (which equals `1 − max_similarity`) so that overlap results can be audited and shown on the similarity endpoint.
 - **Document diagnostics**: `original_filename`, `file_size` and `error_message` were added to `Document`, and `progress_stage` and `error_message` to `AnalysisSession`. These support the "failed documents are diagnosable" requirement (§7.2) and progress display (§15).

@@ -7,7 +7,10 @@ from ..extensions import db
 from .enums import SessionStatus, enum_column
 from .user import utcnow
 
-PIPELINE_STAGES = ("queued", "parsing", "preprocessing", "keywords", "entities", "embeddings", "topics", "saving")
+PIPELINE_STAGES = (
+    "queued", "parsing", "preprocessing", "keywords", "entities", "embeddings", "topics",
+    "overlap", "scoring", "saving",
+)
 
 
 class AnalysisSession(db.Model):

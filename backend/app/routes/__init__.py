@@ -2,6 +2,8 @@ def register_blueprints(app):
     from .auth import bp as auth_bp
     from .documents import bp as documents_bp
     from .health import bp as health_bp
+    from .recommendations import bp as recommendations_bp
+    from .recommendations import sessions_bp as session_recommendations_bp
     from .results import bp as results_bp
     from .sessions import bp as sessions_bp
 
@@ -10,3 +12,5 @@ def register_blueprints(app):
     app.register_blueprint(documents_bp, url_prefix="/api/documents")
     app.register_blueprint(sessions_bp, url_prefix="/api/sessions")
     app.register_blueprint(results_bp, url_prefix="/api/sessions")
+    app.register_blueprint(session_recommendations_bp, url_prefix="/api/sessions")
+    app.register_blueprint(recommendations_bp, url_prefix="/api/recommendations")

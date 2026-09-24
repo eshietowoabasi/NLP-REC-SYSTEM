@@ -124,6 +124,12 @@ def run_session(session_id):
         raise ApiError("You can only run your own sessions", code="FORBIDDEN", status_code=403)
     previous_status = session.status
 
+    from ..services.analysis import NO_CORE_MESSAGE, core_reference_available
+
+    # Overlap detection (spec §9) needs the NUC core; fail fast instead of mid-run.
+    if session.status in RUNNABLE_STATUSES and not core_reference_available():
+        raise ConflictError(NO_CORE_MESSAGE, code="NO_CORE_REFERENCE")
+
     # Conditional update so two concurrent requests cannot both start the same session.
     claimed = db.session.execute(
         update(AnalysisSession)

@@ -1,6 +1,6 @@
 """spaCy NER with custom Computing patterns and skill-demand aggregation (spec §8.3)."""
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 
 from ..preprocessing.pipeline import DEFAULT_SPACY_MODEL
@@ -29,6 +29,8 @@ def load_ner_nlp(model_name: str = DEFAULT_SPACY_MODEL):
 @dataclass
 class DocumentEntities:
     entities: list[dict]  # [{"text", "label", "count"}], custom labels first, by count
+    # SKILL/TOOL/CERT (name, label) pairs found in each input sentence, aligned with the input.
+    sentence_entities: list[list[tuple[str, str]]] = field(default_factory=list)
 
     def custom(self):
         return [e for e in self.entities if e["label"] in CUSTOM_LABELS]
@@ -37,17 +39,24 @@ class DocumentEntities:
 def extract_entities(sentences: list[str], model_name: str = DEFAULT_SPACY_MODEL) -> DocumentEntities:
     nlp = load_ner_nlp(model_name)
     counts = Counter()
+    per_sentence = []
     for doc in nlp.pipe(sentences, batch_size=128):
+        found = []
         for ent in doc.ents:
             if ent.label_ not in KEPT_LABELS:
                 continue
             name = ent.ent_id_ or " ".join(ent.text.split())
             counts[(name, ent.label_)] += 1
+            if ent.label_ in CUSTOM_LABELS:
+                found.append((name, ent.label_))
+        per_sentence.append(found)
 
     custom = [(k, n) for k, n in counts.items() if k[1] in CUSTOM_LABELS]
     standard = [(k, n) for k, n in counts.items() if k[1] not in CUSTOM_LABELS]
     ordered = sorted(custom, key=lambda kv: (-kv[1], kv[0])) + sorted(standard, key=lambda kv: (-kv[1], kv[0]))[:_MAX_STANDARD_ENTITIES]
-    return DocumentEntities([{"text": name, "label": label, "count": n} for (name, label), n in ordered])
+    return DocumentEntities(
+        [{"text": name, "label": label, "count": n} for (name, label), n in ordered], per_sentence
+    )
 
 
 def aggregate_skill_demand(per_document: dict[int, DocumentEntities]) -> list[dict]:

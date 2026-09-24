@@ -1,13 +1,13 @@
-"""Analysis pipeline orchestration (spec §6 steps 7–12, §15, Appendix C).
+"""Analysis pipeline orchestration (spec §6 steps 7–15, §15, Appendix C).
 
-parse -> preprocess -> TF-IDF -> NER -> SBERT -> BERTopic -> persist.
-Semantic overlap and recommendation scoring (steps 13–15) plug in after "topics".
+parse -> preprocess -> TF-IDF -> NER -> SBERT -> BERTopic -> overlap -> scoring -> persist.
 
 NUC Core Reference documents in a session are processed but treated as the
 comparison baseline: they are excluded from corpus keywords, skill demand and
 topic modelling so the prescribed core does not count as "demand".
 """
 import time
+from collections import Counter
 from datetime import datetime, timezone
 
 import numpy as np
@@ -16,13 +16,24 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload, undefer
 
 from ..extensions import db
-from ..models import AnalysisSession, Document, DocumentSession, NLPResult, SessionStatus, SourceCategory
+from ..models import (
+    AnalysisSession,
+    Document,
+    DocumentSession,
+    DocumentStatus,
+    NLPResult,
+    Recommendation,
+    SessionStatus,
+    SourceCategory,
+)
 from ..utils.audit import record_audit
 from .embeddings import get_embedder, mean_embedding
 from .ingestion import parse_document
 from .ner import aggregate_skill_demand, extract_entities
 from .preprocessing import preprocess
 from .preprocessing.normalize import split_blocks
+from .recommendations import Candidate, rank_candidates, score_candidates
+from .similarity import build_core_index, detect_overlap
 from .tfidf import extract_keywords
 from .topics import model_topics, select_passages
 
@@ -55,6 +66,102 @@ def _document_text(document: Document) -> str:
         return document.extracted_text
     with open(document.file_path, "rb") as fh:  # parsed text missing: re-parse the stored file
         return parse_document(fh.read(), document.file_type).text
+
+
+NO_CORE_MESSAGE = (
+    "No parsed NUC Core Reference document is available for overlap detection. "
+    "An Admin must upload the CCMAS core curriculum first."
+)
+
+
+class NoCoreReferenceError(RuntimeError):
+    pass
+
+
+def core_reference_available() -> bool:
+    return db.session.execute(
+        select(Document.document_id).where(
+            Document.source_category == SourceCategory.NUC_CORE,
+            Document.processing_status == DocumentStatus.PARSED,
+        ).limit(1)
+    ).first() is not None
+
+
+def _core_reference_documents():
+    """All parsed NUC Core Reference documents in the library (a session's own core
+    references are part of the library too)."""
+    return db.session.execute(
+        select(Document)
+        .where(Document.source_category == SourceCategory.NUC_CORE,
+               Document.processing_status == DocumentStatus.PARSED)
+        .order_by(Document.document_id)
+        .options(undefer(Document.extracted_text))
+    ).scalars().all()
+
+
+def _build_candidates(topic_result, passages, sentence_entities) -> list[Candidate]:
+    """One candidate per BERTopic topic (Appendix C: build_topic_candidates)."""
+    members = {}
+    for passage, topic_id in zip(passages, topic_result.assignments):
+        if topic_id != -1:
+            members.setdefault(topic_id, []).append(passage)
+    candidates = []
+    for topic in topic_result.topics:
+        topic_members = members.get(topic["topic_id"], [])
+        mentions, in_passages, seen = Counter(), Counter(), set()
+        for passage in topic_members:
+            found = sentence_entities.get((passage.document_id, passage.text), [])
+            mentions.update(found)
+            key = " ".join(passage.text.lower().split())
+            if key not in seen:  # distinct passages, matching distinct_passages
+                seen.add(key)
+                in_passages.update(set(found))
+        candidates.append(Candidate(
+            topic_id=topic["topic_id"],
+            topic_label=topic["label"],
+            embedding=np.asarray(topic["embedding"], dtype=np.float32),
+            passage_count=topic["size"],
+            distinct_passages=topic.get("distinct_passages", topic["size"]),
+            document_ids=[c["document_id"] for c in topic["document_counts"]],
+            source_category_counts=topic["source_category_counts"],
+            keywords=[k["term"] for k in topic["keywords"]],
+            representative_passages=topic["representative_passages"],
+            entity_mentions=mentions,
+            entity_passages=in_passages,
+        ))
+    return candidates
+
+
+def _recommendation(session_id, rank, candidate, core_titles) -> Recommendation:
+    return Recommendation(
+        session_id=session_id,
+        rank=rank,
+        topic_title=candidate.title,
+        topic_description=candidate.description,
+        ner_score=candidate.ner_score,
+        topic_score=candidate.topic_score,
+        novelty_score=candidate.novelty_score,
+        composite_score=candidate.composite_score,
+        max_similarity=candidate.max_similarity,
+        overlap_status=candidate.overlap_status,
+        evidence={
+            "topic_id": candidate.topic_id,
+            "topic_label": candidate.topic_label,
+            "keywords": candidate.keywords[:10],
+            "passage_count": candidate.passage_count,
+            "document_ids": candidate.document_ids,
+            "source_category_counts": candidate.source_category_counts,
+            "passages": candidate.representative_passages,
+            "skills": [
+                {"text": name, "label": label, "mentions": n}
+                for (name, label), n in candidate.entity_mentions.most_common(10)
+            ],
+            "core_matches": [
+                {**match, "document_title": core_titles.get(match["document_id"])}
+                for match in candidate.core_matches
+            ],
+        },
+    )
 
 
 def run_analysis(session_id: int) -> None:
@@ -98,8 +205,6 @@ def _run(session: AnalysisSession) -> None:
     analysis_links = [link for link in links if not is_reference[link.doc_session_id]]
     if not analysis_links:
         raise ValueError("Session contains only NUC Core Reference documents; add documents to analyse")
-    if len(analysis_links) == len(links):
-        warnings.append("No NUC Core Reference documents in this session; overlap detection will use the library's core references.")
 
     # --- preprocessing
     timer.start("preprocessing")
@@ -144,8 +249,39 @@ def _run(session: AnalysisSession) -> None:
     topic_result = model_topics(topic_passages, topic_vectors)
     warnings.extend(topic_result.warnings)
 
+    # --- semantic overlap with the NUC core (spec §9)
+    timer.start("overlap")
+    params = session.parameter_config
+    core_documents = _core_reference_documents()
+    if not core_documents:
+        raise NoCoreReferenceError(NO_CORE_MESSAGE)
+    core_index = build_core_index(
+        ((d.document_id, d.content_hash or str(d.document_id), _document_text(d)) for d in core_documents), embedder
+    )
+    if len(core_index) == 0:
+        raise NoCoreReferenceError("The NUC Core Reference documents contain no usable text segments")
+    sentence_entities = {
+        (link.document_id, sentence): found
+        for link in analysis_links
+        for sentence, found in zip(pre[link.doc_session_id].sentences, entities[link.doc_session_id].sentence_entities)
+    }
+    candidates = _build_candidates(topic_result, topic_passages, sentence_entities)
+    overlaps = detect_overlap(np.array([c.embedding for c in candidates]), core_index,
+                              params["similarity_threshold"]) if candidates else []
+    if not candidates:
+        warnings.append("No candidate topics were found, so no recommendations were generated.")
+
+    # --- recommendation scoring and ranking (spec §10)
+    timer.start("scoring")
+    score_candidates(candidates, overlaps, params)
+    ranked = rank_candidates(candidates, params["max_recommendations"])
+    core_titles = {d.document_id: d.title for d in core_documents}
+
     # --- persist
     timer.start("saving")
+    db.session.execute(delete(Recommendation).where(Recommendation.session_id == session.session_id))
+    for position, candidate in enumerate(ranked, start=1):
+        db.session.add(_recommendation(session.session_id, position, candidate, core_titles))
     db.session.execute(delete(NLPResult).where(NLPResult.doc_session_id.in_(order)))
     for link in links:
         ds_id = link.doc_session_id
@@ -179,6 +315,11 @@ def _run(session: AnalysisSession) -> None:
         "passage_count": topic_result.passage_count,
         "topic_count": len(topic_result.topics),
         "outlier_passages": topic_result.outlier_count,
+        "core_document_ids": core_index.document_ids,
+        "core_segment_count": len(core_index),
+        "candidate_count": len(candidates),
+        "recommendation_count": len(ranked),
+        "potential_duplicates": sum(c.overlap_status.value == "Potential Duplicate" for c in ranked),
         "warnings": warnings,
     }
     session.status = SessionStatus.COMPLETED
@@ -186,6 +327,7 @@ def _run(session: AnalysisSession) -> None:
     session.error_message = None
     session.completed_at = datetime.now(timezone.utc)
     record_audit("SESSION_RUN_COMPLETED", "AnalysisSession", session.session_id,
-                 {"total_seconds": session.pipeline_info["total_seconds"], "topics": len(topic_result.topics)},
+                 {"total_seconds": session.pipeline_info["total_seconds"], "topics": len(topic_result.topics),
+                  "recommendations": len(ranked)},
                  user_id=session.user_id, commit=False)
     db.session.commit()

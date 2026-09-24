@@ -18,8 +18,8 @@ University of Uyo.
 | 1 | Project setup, database foundation, auth, RBAC, audit, error model | ✅ Done |
 | 2 | Document upload, validation, parsing, preprocessing, session creation | ✅ Done |
 | 3 | TF-IDF, NER, SBERT, BERTopic, background jobs, results APIs | ✅ Done |
-| 4 | Semantic overlap and recommendation engine | ⏳ Next |
-| 5 | Remaining APIs, Vue dashboard, mapping, reports | — |
+| 4 | Semantic overlap, recommendation engine, planner decisions | ✅ Done |
+| 5 | Curriculum mapping, reports, Vue dashboard | ⏳ Next |
 | 6 | Evaluation, security hardening, deployment | — |
 
 ## Stack
@@ -101,15 +101,20 @@ All errors use the same shape:
 | POST | `/api/sessions` | Planner, Admin | `{session_name, document_ids, parameter_config?}`: up to 50 documents, all of which must be parsed |
 | GET | `/api/sessions/{id}` | any role | Session detail, including `document_ids` in processing order |
 | DELETE | `/api/sessions/{id}` | owner or Admin | Delete a session. Not allowed while it is processing. |
-| POST | `/api/sessions/{id}/run` | owner or Admin | Queue the NLP pipeline and return **202** at once. Allowed only from `Pending` or `Failed`. |
+| POST | `/api/sessions/{id}/run` | owner or Admin | Queue the NLP pipeline and return **202** at once. Allowed only from `Pending` or `Failed`, and only when the library has at least one parsed NUC Core Reference document (otherwise `409 NO_CORE_REFERENCE`). |
 | GET | `/api/sessions/{id}/results` | any role | All NLP output: pipeline info, corpus results and per-document results |
 | GET | `/api/sessions/{id}/keywords` | any role | TF-IDF keywords for the corpus and for each document |
 | GET | `/api/sessions/{id}/entities` | any role | Skill demand and per-document entities. `?label=SKILL\|TOOL\|CERT\|ORG\|PRODUCT\|GPE` filters by type. |
 | GET | `/api/sessions/{id}/topics` | any role | BERTopic topics (label, keywords, size, relevance, representative passages) and each document's topic shares |
+| GET | `/api/sessions/{id}/recommendations` | any role | Ranked recommendations. Filters: `overlap_status`, `decision` (`Accepted`, `Rejected`, `Flagged` or `pending`), `include_evidence=1`. |
+| GET | `/api/sessions/{id}/similarity` | any role | Overlap results: threshold, core documents used, and each recommendation's closest core segments |
+| GET | `/api/recommendations/{id}` | any role | One recommendation with its evidence (source topic, passages, documents, skills, core matches) |
+| PATCH | `/api/recommendations/{id}/decision` | session owner or Admin | `{decision: Accepted\|Rejected\|Flagged\|null, notes?}`. Accepting a potential duplicate requires notes. |
 
 While a run is in progress, `GET /api/sessions/{id}` returns
 `progress: {stage, step, total_steps}`. The stages are queued → parsing →
-preprocessing → keywords → entities → embeddings → topics → saving. Results
+preprocessing → keywords → entities → embeddings → topics → overlap →
+scoring → saving. Results
 endpoints return `409 RESULTS_NOT_READY` until the session is `Completed`.
 
 Uploads are checked for extension *and* file content (a renamed `.exe` is
@@ -135,7 +140,35 @@ map, report), **Viewer** (read-only). Roles are enforced on the server with
 
 NUC Core Reference documents in a session are processed, but kept out of skill
 demand, corpus keywords and topics. They are the baseline for overlap
-detection in Sprint 4.
+detection.
+
+## Recommendations
+
+Each BERTopic topic becomes a candidate curriculum topic. It carries the
+topic's centroid embedding, its evidence passages, and the skills and tools
+mentioned in those passages.
+
+1. **Overlap** (`services/similarity/`): every parsed NUC Core Reference
+   document in the library is split into segments (course titles, outlines,
+   sentences) and embedded, with a cache per worker process. For each
+   candidate, `max_similarity` is its highest cosine similarity to any core
+   segment and `novelty = 1 − max_similarity`. Above the session threshold
+   (default 0.80) the candidate is marked **Potential Duplicate**, and its 3
+   closest core segments are kept as evidence.
+2. **Scores** (`services/recommendations/`), each normalised to 0–1 across the
+   session's candidates:
+   - `ner_score = log(1+m) / log(1+max m)`, where *m* is the number of
+     SKILL/TOOL/CERT mentions in the candidate's passages
+   - `topic_score` = the average of the candidate's passage share and
+     document spread, each relative to the session's largest
+   - `novelty_score` = 1 − max similarity
+3. **Composite** `= 0.40·NER + 0.35·Topic + 0.25·Novelty` (the weights come
+   from the session's `parameter_config`).
+4. **Ranking:** novel candidates come first by composite score, then potential
+   duplicates. The list is capped at `max_recommendations` (default 20).
+5. **Title:** the dominant skill's name (found in at least 20% of the topic's
+   passages; skills before tools), for example "Cloud Computing and
+   Kubernetes". If there is none, the topic label is used.
 
 Scanned (image-only) PDFs are marked `Failed` with a clear reason. OCR is out
 of scope.

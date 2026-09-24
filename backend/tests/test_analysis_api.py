@@ -25,7 +25,7 @@ def upload_text(client, text, name, category="Job Market Data"):
 
 
 @pytest.fixture()
-def job_session(client, planner):
+def job_session(client, planner, core_document):
     ids = [upload_text(client, theme_text(theme), f"{theme}.txt") for theme in ("cloud", "security", "data")]
     resp = client.post("/api/sessions", json={"session_name": "Jobs 2026", "document_ids": ids})
     return resp.json["session"]["session_id"], ids
@@ -43,7 +43,9 @@ def test_run_pipeline_end_to_end(client, db, job_session):
 
     info = session["pipeline_info"]
     assert info["embedding_backend"] == "hashing" and info["document_count"] == 3
-    assert set(info["stage_seconds"]) == {"parsing", "preprocessing", "keywords", "entities", "embeddings", "topics", "saving"}
+    assert set(info["stage_seconds"]) == {
+        "parsing", "preprocessing", "keywords", "entities", "embeddings", "topics", "overlap", "scoring", "saving"
+    }
     assert any("Hashing embeddings" in w for w in info["warnings"])
     assert db.session.query(NLPResult).count() == 3
 
@@ -128,7 +130,7 @@ def test_queue_unavailable_restores_status(client, job_session, monkeypatch):
     assert client.get(f"/api/sessions/{session_id}").json["session"]["status"] == "Pending"
 
 
-def test_reference_documents_excluded_from_demand(client, make_user, login, db):
+def test_reference_documents_excluded_from_demand(client, make_user, login, db, core_document):
     make_user("admin", role=Role.ADMIN)
     login("admin")
     job = upload_text(client, theme_text("cloud"), "cloud.txt")
@@ -146,7 +148,7 @@ def test_reference_documents_excluded_from_demand(client, make_user, login, db):
     assert topics and all([c["document_id"] for c in t["document_counts"]] == [job] for t in topics)
 
 
-def test_reference_only_session_fails_with_reason(client, make_user, login):
+def test_reference_only_session_fails_with_reason(client, make_user, login, core_document):
     make_user("admin", role=Role.ADMIN)
     login("admin")
     core = upload_text(client, theme_text("security"), "core.txt", category="NUC Core Reference")
@@ -166,3 +168,11 @@ def test_permissions(client, job_session, make_user, login):
     make_user("other", role=Role.PLANNER)
     login("other")
     assert client.post(f"/api/sessions/{session_id}/run").status_code == 403
+
+
+def test_run_requires_a_core_reference(client, planner):
+    doc = upload_text(client, theme_text("cloud"), "cloud.txt")
+    session_id = client.post("/api/sessions", json={"session_name": "s", "document_ids": [doc]}).json["session"]["session_id"]
+    resp = client.post(f"/api/sessions/{session_id}/run")
+    assert resp.status_code == 409 and resp.json["error"]["code"] == "NO_CORE_REFERENCE"
+    assert client.get(f"/api/sessions/{session_id}").json["session"]["status"] == "Pending"
