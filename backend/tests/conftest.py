@@ -11,6 +11,7 @@ All users and data created here are synthetic test fixtures.
 
 from __future__ import annotations
 
+import zlib
 from collections.abc import Callable, Iterator
 from typing import Any
 
@@ -19,6 +20,7 @@ from flask.cli import load_dotenv
 
 load_dotenv()
 
+import numpy as np  # noqa: E402
 import pytest  # noqa: E402
 from flask import Flask  # noqa: E402
 from flask.testing import FlaskClient  # noqa: E402
@@ -105,10 +107,38 @@ def _test_database() -> str:
     return url
 
 
+class FakeEncoder:
+    """Deterministic stand-in for the SBERT model: a hashed bag of words, L2-normalised.
+
+    Texts sharing words get similar vectors, which is enough to test storage and similarity
+    plumbing without loading a 90 MB model in every test.
+    """
+
+    model_name = "test-fake-encoder"
+    dimension = 32
+
+    def encode(self, texts: list[str]) -> np.ndarray:
+        vectors = np.zeros((len(texts), self.dimension), dtype=np.float32)
+        for row, sample in enumerate(texts):
+            for word in sample.lower().split():
+                vectors[row, zlib.crc32(word.encode()) % self.dimension] += 1.0
+        norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+        return vectors / np.where(norms == 0, 1, norms)
+
+
+@pytest.fixture(autouse=True)
+def fake_encoder(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Use FakeEncoder everywhere except in tests marked ``real_models``."""
+    if "real_models" in request.keywords:
+        return
+    monkeypatch.setattr("app.tasks.ingestion.get_encoder", lambda _name: FakeEncoder())
+
+
 @pytest.fixture
-def app(_test_database: str) -> Iterator[Flask]:
+def app(_test_database: str, tmp_path) -> Iterator[Flask]:
     application = create_app("testing")
     application.extensions["redis"] = FakeRedis()
+    application.config["STORAGE_DIR"] = str(tmp_path / "storage")
     with application.app_context():
         yield application
         db.session.rollback()
