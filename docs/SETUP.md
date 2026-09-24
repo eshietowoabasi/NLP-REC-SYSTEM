@@ -11,9 +11,29 @@ All modes read settings from `.env` at the repository root:
 
 ```bash
 cp .env.example .env
-# Edit .env: set SECRET_KEY and POSTGRES_PASSWORD (and the password inside DATABASE_URL).
+# Edit .env: set SECRET_KEY, POSTGRES_PASSWORD (and the password inside DATABASE_URL),
+# and the ADMIN_* values for the first administrator account.
 python -c "import secrets; print(secrets.token_hex(32))"   # a value for SECRET_KEY
 ```
+
+## First run: database and first admin
+
+The database schema is created by migrations, and the initial data by `flask seed`:
+
+- the first **admin** user, from `ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` and
+  `ADMIN_FULL_NAME` in `.env` (only created if no admin exists yet);
+- the default settings (score weights, similarity threshold, passage size, models, ...);
+- the starter skill patterns (172 skills, tools, languages and certifications) and domain stop
+  words.
+
+The seed never overwrites existing rows, so it is safe to run again. After the first sign-in,
+change the admin password from the **Profile** page. Additional accounts are created by the
+admin under **Administration → Users**; there is no public sign-up.
+
+| Mode | Migrations | Seed |
+|---|---|---|
+| Full Docker stack | Applied automatically when the `backend` container starts | `docker compose exec backend flask --app wsgi seed` |
+| Lightweight / native (from `backend/`) | `flask --app wsgi db upgrade` | `flask --app wsgi seed` |
 
 ## 1. Full Docker stack
 
@@ -38,7 +58,10 @@ should both show the API as connected, with PostgreSQL and Redis available.
 | `redis` | Job queue | localhost:6379 |
 
 Source folders are bind-mounted, so code changes reload automatically. The worker does not
-reload itself: after changing job code, run `docker compose restart worker`.
+reload itself: after changing job code, run `docker compose restart worker`. When
+`frontend/package-lock.json` changes, the frontend container reinstalls its packages
+automatically on the next start (`docker compose up -d`). After Python dependency changes,
+rebuild with `docker compose up --build -d`.
 
 ```bash
 docker compose ps                          # service state
@@ -107,6 +130,21 @@ On Windows, run the backend tests natively (lightweight mode). They also work wi
 `docker compose exec backend pytest`, but Docker Desktop's file sharing makes them about ten
 times slower.
 
+## Database migrations
+
+Models live in `backend/app/models/`; every schema change needs a migration (from `backend/`,
+with the dev database running):
+
+```bash
+flask --app wsgi db migrate -m "Describe the change"   # generates migrations/versions/<id>_*.py
+# Review the generated file, then:
+flask --app wsgi db upgrade                            # apply it to the dev database
+flask --app wsgi db check                              # confirms models and migrations match
+```
+
+The test suite always builds the test database from these migrations, so a broken migration
+fails the tests.
+
 ## Dependencies and lockfiles
 
 Every dependency is pinned to an exact version, and the lockfiles are committed.
@@ -139,6 +177,11 @@ Every dependency is pinned to an exact version, and the lockfiles are committed.
   Check `docker compose logs backend`.
 - **"API degraded"**: the API is up but Postgres or Redis is not. The System status card shows
   which one; check `docker compose ps`.
+- **`flask seed` says no admin exists**: set `ADMIN_USERNAME`, `ADMIN_EMAIL` and
+  `ADMIN_PASSWORD` in `.env` (for Docker, recreate the backend so it sees them:
+  `docker compose up -d backend`), then run the seed again.
+- **Signed out unexpectedly**: sessions last 8 hours, and changing or resetting a password
+  or deactivating the account ends all sessions of that user.
 - **Tests stop with "Cannot connect to PostgreSQL"**: start the services with
   `docker compose -f docker-compose.services.yml up -d --wait`.
 - **Port already in use**: change `HTTP_PORT`, `BACKEND_HOST_PORT`, `POSTGRES_HOST_PORT` or

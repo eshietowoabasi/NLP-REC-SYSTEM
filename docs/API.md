@@ -21,19 +21,83 @@ Base path: `/api`. All requests and responses are JSON unless stated otherwise.
 
 | Status | `error.code` | Meaning |
 |---|---|---|
-| 400 | `BAD_REQUEST` | Malformed request |
-| 401 | `UNAUTHORIZED` | Not logged in |
-| 403 | `FORBIDDEN` | Logged in but the role does not allow this |
+| 400 | `BAD_REQUEST` | Malformed request (e.g. the body is not JSON) |
+| 400 | `CSRF_FAILED` | Missing, invalid or expired CSRF token; fetch a new one and retry |
+| 401 | `UNAUTHORIZED` | Not logged in (or the session has ended) |
+| 401 | `INVALID_CREDENTIALS` | Login failed: wrong username/email or password |
+| 403 | `FORBIDDEN` | Logged in, but the role does not allow this |
+| 403 | `ACCOUNT_DEACTIVATED` | Correct password, but the account has been deactivated |
 | 404 | `NOT_FOUND` | Unknown route or resource |
 | 405 | `METHOD_NOT_ALLOWED` | Route exists but not for this HTTP method |
-| 409 | `CONFLICT` | State conflict (e.g. deleting a document used by a session) |
+| 409 | `CONFLICT` | State conflict (e.g. username already taken, document in use) |
 | 413 | `PAYLOAD_TOO_LARGE` | Request or file too large |
-| 422 | `VALIDATION_ERROR` | Well-formed but invalid input; `details` lists field errors |
+| 422 | `VALIDATION_ERROR` | Well-formed but invalid input; see *Validation errors* |
+| 422 | `SELF_MODIFICATION` | An admin tried to change their own role or deactivate themselves |
 | 429 | `RATE_LIMITED` | Too many requests |
 | 500 | `INTERNAL_ERROR` | Unexpected error (generic message; details are only in server logs) |
 | 503 | `SERVICE_UNAVAILABLE` | A dependency (database, Redis) is unavailable |
 
-List endpoints are paginated with `?page=` and `?per_page=`.
+### Validation errors
+
+422 responses (and 409 conflicts on specific fields) list messages per field:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Some fields are invalid.",
+    "details": { "fields": { "email": ["value is not a valid email address: ..."] } }
+  }
+}
+```
+
+Request bodies reject unknown fields and trim surrounding whitespace from strings.
+
+### Pagination
+
+List endpoints accept `?page=` (from 1, default 1) and `?per_page=` (1–100, default 20) and
+return:
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [ ],
+    "pagination": { "page": 1, "per_page": 20, "total": 42, "pages": 3 }
+  }
+}
+```
+
+### Authentication, sessions and CSRF
+
+- Sessions use an HttpOnly, `SameSite=Lax` cookie (`nlprs_session`; `Secure` in production)
+  that lasts 8 hours.
+- Every **state-changing request** (POST, PUT, PATCH, DELETE) must send the header
+  `X-CSRFToken: <token>`. Get a token from `GET /api/auth/csrf`. Login and logout reset the
+  session and return a new token in `data.csrf_token`, which replaces the old one.
+- Changing or resetting a password, or deactivating a user, ends all of that user's existing
+  sessions.
+- Access is enforced on the server for every route. The *Access* line of each endpoint below
+  lists the roles allowed: **public**, **any** (any signed-in user), or specific roles.
+
+### User object
+
+```json
+{
+  "id": 1,
+  "username": "ada",
+  "email": "ada@example.com",
+  "full_name": "Ada Lovelace",
+  "role": "planner",
+  "is_active": true,
+  "created_at": "2026-09-24T09:00:00+00:00",
+  "last_login_at": "2026-09-24T10:15:00+00:00"
+}
+```
+
+`role` is one of `admin`, `planner`, `viewer`. Password hashes and session tokens are never
+returned.
 
 ---
 
@@ -41,7 +105,7 @@ List endpoints are paginated with `?page=` and `?per_page=`.
 
 ### `GET /api/health`
 
-Public. Reports whether the API can reach PostgreSQL and Redis.
+Access: public. Reports whether the API can reach PostgreSQL and Redis.
 
 **200 OK**
 
@@ -56,7 +120,7 @@ Public. Reports whether the API can reach PostgreSQL and Redis.
 }
 ```
 
-**503 Service Unavailable** — at least one dependency is unreachable:
+**503 Service Unavailable** (at least one dependency is unreachable):
 
 ```json
 {
@@ -71,3 +135,114 @@ Public. Reports whether the API can reach PostgreSQL and Redis.
   }
 }
 ```
+
+---
+
+## Auth
+
+### `GET /api/auth/csrf`
+
+Access: public. Returns a CSRF token for the current session.
+
+**200** `{ "csrf_token": "IjNk..." }`
+
+### `POST /api/auth/login`
+
+Access: public (CSRF token required). Logs in with a username **or** email (case-insensitive).
+
+```json
+{ "identifier": "ada", "password": "••••••••" }
+```
+
+**200**, with the session cookie set:
+
+```json
+{ "user": { "...": "User object" }, "csrf_token": "new-token-for-this-session" }
+```
+
+Errors: `401 INVALID_CREDENTIALS` (same message for unknown users and wrong passwords),
+`403 ACCOUNT_DEACTIVATED`, `422 VALIDATION_ERROR`. Every attempt, successful or not, is
+recorded in the audit log.
+
+### `POST /api/auth/logout`
+
+Access: any. Ends the session. **200** `{ "csrf_token": "token-for-the-anonymous-session" }`
+
+### `GET /api/auth/me`
+
+Access: any. **200** returns the signed-in user (User object). **401** if not signed in.
+
+### `POST /api/auth/change-password`
+
+Access: any. Changes the signed-in user's password. The current session stays signed in; other
+sessions of this user are ended.
+
+```json
+{ "current_password": "••••••••", "new_password": "at least 8 characters" }
+```
+
+**200** `{ "message": "Password changed." }`
+
+Errors: `422 VALIDATION_ERROR` when `current_password` is wrong (reported on that field), the
+new password is shorter than 8 characters or longer than 72 bytes, or it equals the current one.
+
+---
+
+## Admin: users
+
+Users are never deleted; deactivate them instead.
+
+### `GET /api/admin/users`
+
+Access: admin. Paginated list of users, newest first.
+
+| Query parameter | Meaning |
+|---|---|
+| `role` | `admin`, `planner` or `viewer` |
+| `is_active` | `true` or `false` |
+| `search` | Case-insensitive match on username, email or full name |
+| `page`, `per_page` | Pagination |
+
+**200** `{ "items": [User, ...], "pagination": { ... } }`
+
+### `POST /api/admin/users`
+
+Access: admin. Creates a user.
+
+```json
+{
+  "username": "ada",
+  "email": "ada@example.com",
+  "full_name": "Ada Lovelace",
+  "role": "planner",
+  "password": "initial password, 8+ characters"
+}
+```
+
+Usernames are 3–64 characters (letters, digits, `.`, `_`, `-`). Usernames and emails are stored
+in lowercase.
+
+**201** returns the User object. Errors: `409 CONFLICT` if the username or email is taken
+(reported per field), `422 VALIDATION_ERROR`.
+
+### `PATCH /api/admin/users/{id}`
+
+Access: admin. Changes only the fields supplied:
+
+```json
+{
+  "full_name": "New Name",
+  "email": "new@example.com",
+  "role": "viewer",
+  "is_active": false,
+  "new_password": "reset to this password"
+}
+```
+
+- Deactivating a user or resetting their password ends all their sessions.
+- Admins cannot change their own role or deactivate themselves (`422 SELF_MODIFICATION`), so
+  at least one active admin always remains.
+- Each kind of change is audited separately (`user.updated`, `user.role_changed`,
+  `user.activated`, `user.deactivated`, `user.password_reset`); unchanged values are not audited.
+
+**200** returns the updated User object. Errors: `404`, `409 CONFLICT` (email taken), `422`.

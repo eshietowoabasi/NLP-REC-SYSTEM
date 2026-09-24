@@ -3,6 +3,7 @@ import { SidebarTrigger } from '@/components/ui/sidebar'
 import { ApiStatusIndicator } from '@/features/system/ApiStatusIndicator'
 
 import { usePageTitle } from './usePageTitle'
+import { UserMenu } from './UserMenu'
 
 export function TopBar() {
   const title = usePageTitle()
@@ -17,6 +18,7 @@ export function TopBar() {
       <h1 className="truncate text-base font-semibold">{title}</h1>
       <div className="ml-auto flex items-center gap-4">
         <ApiStatusIndicator />
+        <UserMenu />
       </div>
     </header>
   )

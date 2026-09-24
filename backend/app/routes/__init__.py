@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from flask import Flask
 
-from app.routes import health
+from app.routes import admin, auth, health
 
 API_PREFIX = "/api"
 
 
 def register_blueprints(app: Flask) -> None:
     """Mount all API blueprints on ``app``."""
-    app.register_blueprint(health.bp, url_prefix=API_PREFIX)
+    for module in (health, auth, admin):
+        app.register_blueprint(module.bp, url_prefix=API_PREFIX + (module.bp.url_prefix or ""))

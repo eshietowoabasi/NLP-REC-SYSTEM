@@ -12,6 +12,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
+import { useAuth } from '@/features/auth/useAuth'
 
 import { NAV_SECTIONS, type NavItem } from './navigation'
 
@@ -29,6 +30,11 @@ function SidebarNavLink({ item }: { item: NavItem }) {
 }
 
 export function AppSidebar() {
+  const { user } = useAuth()
+  const sections = NAV_SECTIONS.filter(
+    (section) => !section.roles || section.roles.includes(user.role),
+  )
+
   return (
     <Sidebar collapsible="icon" aria-label="Main navigation">
       <SidebarHeader>
@@ -43,7 +49,7 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        {NAV_SECTIONS.map((section) => (
+        {sections.map((section) => (
           <SidebarGroup key={section.id}>
             <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
             <SidebarGroupContent>

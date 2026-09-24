@@ -10,6 +10,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
+import type { UserRole } from '@/types/api'
+
 export interface NavItem {
   label: string
   to: string
@@ -21,13 +23,12 @@ export interface NavItem {
 export interface NavSection {
   id: 'main' | 'admin'
   label: string
+  /** Roles that see this section; omitted means everyone. Cosmetic only: the API enforces. */
+  roles?: UserRole[]
   items: NavItem[]
 }
 
-/**
- * Sidebar structure. Screens are switched on phase by phase as they are built;
- * the Admin section is restricted to admins once authentication lands (Phase 1).
- */
+/** Sidebar structure. Screens are switched on phase by phase as they are built. */
 export const NAV_SECTIONS: NavSection[] = [
   {
     id: 'main',
@@ -42,9 +43,10 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     id: 'admin',
     label: 'Administration',
+    roles: ['admin'],
     items: [
       { label: 'NUC Core Reference', to: '/admin/nuc-core', icon: BookMarked, available: false },
-      { label: 'Users', to: '/admin/users', icon: Users, available: false },
+      { label: 'Users', to: '/admin/users', icon: Users, available: true },
       { label: 'Settings', to: '/admin/settings', icon: Settings, available: false },
       { label: 'Audit Log', to: '/admin/audit-log', icon: ScrollText, available: false },
     ],

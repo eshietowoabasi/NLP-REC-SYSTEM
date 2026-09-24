@@ -91,6 +91,37 @@ cosmetic.
 - Clients get generic messages for unexpected errors; details go to server logs.
 - Shared frontend API types live in `frontend/src/types/api.ts`.
 
+## Backend conventions (established in Phase 1)
+
+- Protect every route: `@role_required(UserRole.ADMIN, ...)` or `@login_required` from
+  `app/auth/decorators.py` (`EDITOR_ROLES` = admin + planner for write routes).
+- Validate input with Pydantic: `parse_body(Model)` / `parse_query(Model)` from
+  `app/utils/validation.py` (422 with `details.fields`). Request models extend `RequestModel`
+  (extra fields forbidden, strings trimmed); responses use `ResponseModel` +
+  `model_dump(mode="json")`. Lists: `paginate(select(...), page, per_page)` →
+  `{"items", "pagination"}`.
+- Audit: `record_audit(AuditAction.X, entity_type, entity_id, detail)` from `app/audit`, in the
+  same transaction as the change; the route commits once. Add new actions to `AuditAction`.
+- Settings: keys and defaults live in `app/settings.py`; read with `get_setting(key)`.
+- Models use `enum_type(...)` (VARCHAR + CHECK), UTC-aware timestamps (`utcnow`), and the
+  metadata naming convention. After a model change: `flask --app wsgi db migrate`, review,
+  `db upgrade`, `db check`.
+- Tests (`backend/tests/conftest.py`): `api` (anonymous `ApiClient` that handles CSRF),
+  `make_user(role, ...)`, `login_as(role)` → a logged-in `ApiClient` (`.user` holds the
+  model). Use `@example.com` emails (reserved TLDs like `.test` fail validation).
+
+## Frontend conventions (established in Phase 1)
+
+- API calls go through `apiGet/apiPost/apiPatch/...` in `src/lib/api.ts` (CSRF header, token
+  refresh and 401 handling are automatic). Types in `src/types/api.ts`.
+- Signed-in user: `useAuth()` (reads the user provided by `<RequireAuth>` through context);
+  `canEdit`/`isAdmin`/`hasRole` only hide controls. Admin-only routes sit under
+  `<RequireRole roles={['admin']}>`.
+- Forms: React Hook Form + Zod + shadcn `Field` components; use `useWatch` (not `watch`) and
+  `applyServerErrors(error, setError, fields)` for 422/409 responses; toasts via `sonner`.
+- Tests: `mockApi({...})` from `src/test/server.ts` (adapter-level, so interceptors run),
+  `renderApp(path)` renders the real routes, fixtures in `src/test/fixtures.ts`.
+
 ## Code layout
 
 - `backend/app/__init__.py` — `create_app(config_name)`; `config.py` (APP_ENV =
@@ -119,6 +150,7 @@ python -m venv .venv && .venv/Scripts/activate      # Windows; source .venv/bin/
 pip install -r requirements-dev.txt
 pytest --cov=app          # tests + coverage (target ≥ 85%); uses nlprs_test, auto-created
 ruff check . && black --check .
+flask --app wsgi db upgrade && flask --app wsgi seed   # schema + first admin/defaults
 flask --app wsgi run --debug
 
 # Frontend (from frontend/)
@@ -145,7 +177,8 @@ docs/SETUP.md. Never hand-edit the lockfiles.
 ## Phases
 
 - [x] **0 Scaffold** — repo layout, compose, app factory + `/api/health`, frontend shell.
-- [ ] **1 Data model, auth, roles, audit**
+- [x] **1 Data model, auth, roles, audit** — all models + migration `0001_initial_schema`,
+  `flask seed`, auth/CSRF/RBAC/audit, admin users API; Login, Profile, Admin Users, 403/404.
 - [ ] **2 Documents and ingestion**
 - [ ] **3 Analysis pipeline**
 - [ ] **4 Evidence, recommendations, decisions, mapping**

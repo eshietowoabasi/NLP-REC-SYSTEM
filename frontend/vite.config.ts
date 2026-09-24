@@ -33,6 +33,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    // Whole-screen tests (render app, type into forms) need headroom on slower machines.
+    testTimeout: 15_000,
     css: false,
   },
 })
