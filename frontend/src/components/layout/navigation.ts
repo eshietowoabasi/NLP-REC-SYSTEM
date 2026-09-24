@@ -35,7 +35,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Workspace',
     items: [
       { label: 'Dashboard', to: '/', icon: LayoutDashboard, available: true },
-      { label: 'Documents', to: '/documents', icon: FileText, available: false },
+      { label: 'Documents', to: '/documents', icon: FileText, available: true },
       { label: 'Analysis Sessions', to: '/sessions', icon: FlaskConical, available: false },
       { label: 'Reports', to: '/reports', icon: FileBarChart, available: false },
     ],
@@ -45,7 +45,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Administration',
     roles: ['admin'],
     items: [
-      { label: 'NUC Core Reference', to: '/admin/nuc-core', icon: BookMarked, available: false },
+      { label: 'NUC Core Reference', to: '/admin/nuc-core', icon: BookMarked, available: true },
       { label: 'Users', to: '/admin/users', icon: Users, available: true },
       { label: 'Settings', to: '/admin/settings', icon: Settings, available: false },
       { label: 'Audit Log', to: '/admin/audit-log', icon: ScrollText, available: false },

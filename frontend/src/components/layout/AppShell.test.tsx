@@ -44,8 +44,8 @@ describe('AppShell', () => {
     signedInAs(plannerUser)
     renderApp('/')
 
-    expect(await screen.findByRole('button', { name: 'Documents' })).toBeDisabled()
-    expect(screen.queryByRole('link', { name: 'Documents' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Analysis Sessions' })).toBeDisabled()
+    expect(screen.queryByRole('link', { name: 'Analysis Sessions' })).not.toBeInTheDocument()
   })
 
   it('logs out from the account menu and returns to the login page', async () => {
