@@ -1,0 +1,99 @@
+# Development stack. Usage: cp .env.example .env && docker compose up --build
+# Open http://localhost:${HTTP_PORT:-8080}. Source folders are bind-mounted for hot reload.
+
+x-backend-env: &backend-env
+  APP_ENV: ${APP_ENV:-development}
+  SECRET_KEY: ${SECRET_KEY}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  REDIS_URL: redis://redis:6379/0
+  STORAGE_DIR: /data/storage
+
+services:
+  postgres:
+    # PostgreSQL 16 with the pgvector extension available for passage embeddings.
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_HOST_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+      args:
+        INSTALL_DEV: "true"
+    command: flask --app wsgi run --debug --host 0.0.0.0 --port 5000
+    environment: *backend-env
+    volumes:
+      - ./backend:/app
+      - storage-data:/data/storage
+    ports:
+      - "${BACKEND_HOST_PORT:-5000}:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./backend
+      args:
+        INSTALL_DEV: "true"
+    command: python -m app.worker
+    environment: *backend-env
+    volumes:
+      - ./backend:/app
+      - storage-data:/data/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:5000
+      VITE_HMR_CLIENT_PORT: ${HTTP_PORT:-8080}
+      VITE_USE_POLLING: "true"
+    volumes:
+      - ./frontend:/app
+      # Keep the container's Linux node_modules separate from the host's.
+      - /app/node_modules
+
+  nginx:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./nginx/dev.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  postgres-data:
+  storage-data:
