@@ -111,11 +111,13 @@ cosmetic.
 ```bash
 # Full stack (Docker): http://localhost:8080
 cp .env.example .env && docker compose up --build
+# Lightweight mode: only Postgres + Redis in Docker, app runs natively
+docker compose -f docker-compose.services.yml up -d --wait
 
 # Backend (from backend/)
 python -m venv .venv && .venv/Scripts/activate      # Windows; source .venv/bin/activate on Linux
 pip install -r requirements-dev.txt
-pytest --cov=app          # tests + coverage (target ≥ 85%)
+pytest --cov=app          # tests + coverage (target ≥ 85%); uses nlprs_test, auto-created
 ruff check . && black --check .
 flask --app wsgi run --debug
 
@@ -128,6 +130,17 @@ npm run build
 ```
 
 Local dev on Windows uses Python 3.13 in `backend/.venv`; the Docker image uses 3.11.
+Docker CLI on this machine: `C:\Users\Owoabasi\AppData\Local\Programs\DockerDesktop\resources\bin`
+(add it to PATH in a shell if `docker` is not found).
+
+**Dependencies are pinned exactly.** Frontend: exact versions in `package.json`, `.npmrc`
+`save-exact=true`, committed `package-lock.json`, install with `npm ci`. Backend: edit
+`requirements.in` / `requirements-dev.in`, then regenerate the pip-tools lockfiles
+(`requirements.txt`, `requirements-dev.txt`) in a python:3.11 container; the command is in
+docs/SETUP.md. Never hand-edit the lockfiles.
+
+**Tests** use a separate `<db>_test` database on the same Postgres, created automatically by
+`tests/conftest.py`, which refuses any database not named `*_test`.
 
 ## Phases
 
