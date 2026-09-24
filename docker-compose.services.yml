@@ -1,0 +1,39 @@
+# Backing services only: PostgreSQL (pgvector) and Redis.
+#
+# Lightweight mode - run Flask, the worker and Vite natively and only these in Docker:
+#   docker compose -f docker-compose.services.yml up -d
+#
+# docker-compose.yml includes this file, so the full stack uses the same definitions and the
+# same data volumes (both files share the project name "nlprs").
+name: nlprs
+
+services:
+  postgres:
+    # PostgreSQL 16 with the pgvector extension available for passage embeddings.
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_HOST_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  postgres-data:

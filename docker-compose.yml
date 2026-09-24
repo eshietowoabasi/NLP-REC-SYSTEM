@@ -1,5 +1,12 @@
-# Development stack. Usage: cp .env.example .env && docker compose up --build
+# Full development stack. Usage: cp .env.example .env && docker compose up --build
 # Open http://localhost:${HTTP_PORT:-8080}. Source folders are bind-mounted for hot reload.
+#
+# Postgres and Redis are defined in docker-compose.services.yml, which can also be run on its
+# own (lightweight mode, see docs/SETUP.md).
+name: nlprs
+
+include:
+  - docker-compose.services.yml
 
 x-backend-env: &backend-env
   APP_ENV: ${APP_ENV:-development}
@@ -10,33 +17,6 @@ x-backend-env: &backend-env
   STORAGE_DIR: /data/storage
 
 services:
-  postgres:
-    # PostgreSQL 16 with the pgvector extension available for passage embeddings.
-    image: pgvector/pgvector:pg16
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    ports:
-      - "${POSTGRES_HOST_PORT:-5432}:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "${REDIS_HOST_PORT:-6379}:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
   backend:
     build:
       context: ./backend
@@ -95,5 +75,4 @@ services:
       - frontend
 
 volumes:
-  postgres-data:
   storage-data:

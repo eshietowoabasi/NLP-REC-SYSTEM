@@ -10,6 +10,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from sqlalchemy.engine import make_url
+
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -54,14 +56,27 @@ class DevelopmentConfig(BaseConfig):
     SECRET_KEY = _env("SECRET_KEY", "dev-insecure-secret-key")
 
 
+def resolve_test_database_url() -> str:
+    """URL of the test database: ``TEST_DATABASE_URL``, else the dev database name + ``_test``.
+
+    The test database lives on the same PostgreSQL server as the development database but is
+    a separate database, so tests never read or modify development data.
+    """
+    explicit = _env("TEST_DATABASE_URL")
+    if explicit:
+        return explicit
+    base = make_url(BaseConfig.SQLALCHEMY_DATABASE_URI or "")
+    return base.set(database=f"{base.database}_test").render_as_string(hide_password=False)
+
+
 class TestingConfig(BaseConfig):
-    """Automated tests: isolated database, no external services required."""
+    """Automated tests: a dedicated ``*_test`` PostgreSQL database and Redis DB 15."""
 
     TESTING = True
     SECRET_KEY = "test-secret-key"
-    SQLALCHEMY_DATABASE_URI = _env("TEST_DATABASE_URL", "sqlite:///:memory:")
-    SQLALCHEMY_ENGINE_OPTIONS: dict = {}
-    REDIS_URL = _env("TEST_REDIS_URL", "redis://localhost:6379/15") or ""
+    SQLALCHEMY_DATABASE_URI = resolve_test_database_url()
+    # Same Redis server as development, but logical database 15.
+    REDIS_URL = _env("TEST_REDIS_URL") or BaseConfig.REDIS_URL.rsplit("/", 1)[0] + "/15"
 
 
 class ProductionConfig(BaseConfig):

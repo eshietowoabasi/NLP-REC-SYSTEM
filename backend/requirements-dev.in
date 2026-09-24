@@ -1,0 +1,8 @@
+# Development and test tools, on top of the runtime dependencies (same pinned versions).
+-c requirements.txt
+-r requirements.in
+pytest==9.1.1
+pytest-cov==7.1.0
+ruff==0.16.8
+black==26.5.1
+pip-tools==7.6.1

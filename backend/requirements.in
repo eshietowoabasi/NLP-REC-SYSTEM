@@ -1,0 +1,12 @@
+# Direct runtime dependencies (exact versions). Each phase adds only what it uses.
+# After editing, regenerate the lockfiles - see "Updating Python dependencies" in docs/SETUP.md.
+Flask==3.1.3
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.1.0
+SQLAlchemy==2.0.54
+alembic==1.20.0
+psycopg[binary]==3.3.6
+redis==8.1.0
+rq==2.12.0
+gunicorn==26.2.0
+python-dotenv==1.2.3
