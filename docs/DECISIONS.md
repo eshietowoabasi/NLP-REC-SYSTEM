@@ -16,11 +16,22 @@ This log records how each one is resolved. **Status** is one of:
 | D5 | Human-readable topic titles | The top 3 non-overlapping c-TF-IDF terms, spelled as they most often appear in the source text (e.g. "CISSP, PyTorch, Cloud"). KeyBERTInspired was dropped because it needs BERTopic to hold its own embedding model, while we pass embeddings in. Planners will be able to rename topics during review (Sprint 5). | Decided |
 | D6 | Dedicated Evidence table | Not in v1. Passages are stored in `nlp_results.topics` and `ner_entities` (JSON with `document_id` and character offsets). This will be revisited if the dashboard needs to query across passages. | Proposed |
 | D7 | File storage | Files are stored on the local filesystem under `UPLOAD_FOLDER` (`data/raw` in development, a Docker volume at `/data/raw` in containers) and named with UUIDs rather than the uploaded filename. | Decided |
-| D8 | Report formats | PDF as the primary format, with DOCX as an optional second format. | Open |
+| D8 | Report formats | **Both PDF (reportlab) and DOCX (python-docx)**, generated from one format-neutral builder so the two always match. The report covers the §16 sections plus pipeline warnings. Reports are generated on request (they take about a second), stored under `REPORT_FOLDER`, and listed on the Reports page. If only one format is wanted, remove it from `RENDERERS`. | Decided (pending confirmation) |
 | D9 | Retention, deletion and backup | Deleting a document removes the file and its session links. Nightly `pg_dump` and a backup of the uploads volume. The retention period is still to be agreed with the department. | Open |
 | D10 | When documents are parsed and where the text is stored | Documents are parsed as soon as they are uploaded, so a broken file is marked `Failed` with a reason straight away instead of failing mid-analysis. The extracted text is stored in `documents.extracted_text`, which list endpoints never load. Preprocessing (spaCy) runs as part of the analysis pipeline and its output is not stored. | Decided |
 
 ## Other decisions made during implementation
+
+### Mapping, reports and frontend (Sprint 5)
+
+- **Only Accepted recommendations** can be mapped (`409 NOT_ACCEPTED`). Once a recommendation is mapped, its decision can't move away from Accepted until the mapping is deleted (`409 MAPPING_EXISTS`), which keeps the course-to-evidence trace intact (§16).
+- **Course codes** must match `AAA 999[A]`, are normalised to upper case with one space, and are unique within a session. Credit units are 1–3, enforced in both the API and the database. Each mapping needs 1–12 learning outcomes and up to 8 prerequisites (course codes, not including the course itself).
+- **Planners can rename recommendations** (D5); the change is audited with the old and new title.
+- **A new `Report` table** records the session, author, format, file path and size. Reports are snapshots: they aren't regenerated when decisions change later.
+- **Admin safety:** an Admin cannot remove their own Admin role or deactivate themselves, so the system can't be left without one. New passwords need at least 8 characters.
+- **`pool_pre_ping`** is enabled on the database engine. The end-to-end suite surfaced errors on the first requests after the database was recreated, and a PostgreSQL restart in production would cause the same.
+- **Frontend:** Vue 3 + Vite + Pinia + Bootstrap 5, with no UI component library. Authentication uses the session cookie on the same origin (D2). A 401 response sends the user to `/login?next=…`. Session pages poll every 2.5 s while a run is processing (D3).
+- **Deployment:** the `frontend` image builds the app and serves it from Nginx, which also proxies `/api` to the backend, handles SPA fallback routing and sets basic security headers. HTTPS termination still needs to be added with the institution's certificate (Sprint 6).
 
 ### Recommendations (Sprint 4)
 

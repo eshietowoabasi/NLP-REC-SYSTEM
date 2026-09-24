@@ -12,6 +12,7 @@ from .enums import (
 )
 from .nlp_result import NLPResult
 from .recommendation import Recommendation
+from .report import Report, ReportFormat
 from .session import PIPELINE_STAGES, AnalysisSession, DocumentSession
 from .user import User
 
@@ -29,6 +30,8 @@ __all__ = [
     "PIPELINE_STAGES",
     "PlannerDecision",
     "Recommendation",
+    "Report",
+    "ReportFormat",
     "Role",
     "SessionStatus",
     "SourceCategory",

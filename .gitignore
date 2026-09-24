@@ -32,3 +32,7 @@ uploads/
 .vscode/
 .idea/
 .DS_Store
+
+# Frontend test output
+frontend/test-results/
+frontend/playwright-report/

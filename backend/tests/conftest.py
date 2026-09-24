@@ -49,6 +49,7 @@ def login(client):
 @pytest.fixture(autouse=True)
 def _upload_folder(app, tmp_path):
     app.config["UPLOAD_FOLDER"] = str(tmp_path / "uploads")
+    app.config["REPORT_FOLDER"] = str(tmp_path / "reports")
 
 
 @pytest.fixture()
@@ -68,3 +69,26 @@ def core_document(db, make_user):
     db.session.add(document)
     db.session.commit()
     return document
+
+
+@pytest.fixture()
+def completed_session(client, make_user, login, core_document):
+    """A planner-owned session that has run the full pipeline (hashing embeddings)."""
+    import io
+
+    from .corpus import theme_text
+
+    make_user("planner", role=Role.PLANNER)
+    login("planner")
+    ids = []
+    for theme in ("cloud", "security", "data"):
+        resp = client.post("/api/documents", data={"file": (io.BytesIO(theme_text(theme, n=50).encode()), f"{theme}.txt"),
+                                                   "source_category": "Job Market Data"}, content_type="multipart/form-data")
+        ids.append(resp.json["document"]["document_id"])
+    session_id = client.post("/api/sessions", json={
+        "session_name": "review", "document_ids": ids,
+        "parameter_config": {"similarity_threshold": 0.8, "max_recommendations": 20},
+    }).json["session"]["session_id"]
+    assert client.post(f"/api/sessions/{session_id}/run").status_code == 202
+    assert client.get(f"/api/sessions/{session_id}").json["session"]["status"] == "Completed"
+    return session_id

@@ -19,14 +19,16 @@ University of Uyo.
 | 2 | Document upload, validation, parsing, preprocessing, session creation | ✅ Done |
 | 3 | TF-IDF, NER, SBERT, BERTopic, background jobs, results APIs | ✅ Done |
 | 4 | Semantic overlap, recommendation engine, planner decisions | ✅ Done |
-| 5 | Curriculum mapping, reports, Vue dashboard | ⏳ Next |
-| 6 | Evaluation, security hardening, deployment | — |
+| 5 | Curriculum mapping, PDF/DOCX reports, admin APIs, Vue frontend, end-to-end tests | ✅ Done |
+| 6 | Evaluation (§17), security hardening, deployment | ⏳ Next |
 
 ## Stack
 
 Python 3.11 · Flask · SQLAlchemy / Alembic · PostgreSQL · Celery + Redis ·
-spaCy · scikit-learn · Sentence-Transformers · BERTopic · Vue.js + Bootstrap 5
-(planned) · Docker Compose · Nginx
+spaCy · scikit-learn · Sentence-Transformers · BERTopic · reportlab ·
+Vue 3 + Vite + Bootstrap 5 + Pinia · Playwright · Docker Compose · Nginx
+
+![Ranked recommendations](docs/screenshots/recommendations.png)
 
 ## Local development
 
@@ -75,10 +77,10 @@ are flagged with a warning.
 ### Docker Compose
 
 ```bash
-docker compose up --build
+docker compose up --build        # postgres, redis, backend, worker, frontend (Nginx)
 docker compose exec backend flask db upgrade
 docker compose exec backend flask create-user
-curl http://localhost:8080/api/health
+open http://localhost:8080       # the app; /api/* is proxied to Flask
 ```
 
 ## API (implemented so far)
@@ -110,6 +112,17 @@ All errors use the same shape:
 | GET | `/api/sessions/{id}/similarity` | any role | Overlap results: threshold, core documents used, and each recommendation's closest core segments |
 | GET | `/api/recommendations/{id}` | any role | One recommendation with its evidence (source topic, passages, documents, skills, core matches) |
 | PATCH | `/api/recommendations/{id}/decision` | session owner or Admin | `{decision: Accepted\|Rejected\|Flagged\|null, notes?}`. Accepting a potential duplicate requires notes. |
+| PATCH | `/api/recommendations/{id}` | session owner or Admin | Rename a recommendation or edit its description |
+| GET/POST | `/api/recommendations/{id}/mapping` | read: any role; create: owner or Admin | Proposed courses for an **Accepted** recommendation: `{course_code, course_title, credit_units: 1-3, prerequisites[], learning_outcomes[]}` |
+| GET/PUT/DELETE | `/api/mappings/{id}` | read: any role; change: owner or Admin | Read, update or delete one mapping. Course codes are normalised (`csc413` becomes `CSC 413`) and must be unique within a session. |
+| GET | `/api/sessions/{id}/mappings` | any role | Every course mapping in a session |
+| POST | `/api/sessions/{id}/reports` | Planner, Admin | `{format: "pdf"\|"docx"}`. Generates and stores a report and returns 201. |
+| GET | `/api/reports`, `/api/reports/{id}` | any role | Report history (`?session_id=` filter) and metadata |
+| GET | `/api/reports/{id}/download` | any role | The report file |
+| GET | `/api/dashboard/summary` | any role | Counts, recent sessions, the current user's pending reviews, and whether a core reference exists |
+| GET/POST | `/api/admin/users` | Admin | List or create users |
+| PATCH | `/api/admin/users/{id}` | Admin | Change role, active status, email or password. Admins cannot demote or deactivate themselves. |
+| GET | `/api/admin/audit` | Admin | Audit log. Filters: `user_id`, `action_type`, `entity_type`, `from`, `to`. |
 
 While a run is in progress, `GET /api/sessions/{id}` returns
 `progress: {stage, step, total_steps}`. The stages are queued → parsing →
@@ -172,6 +185,42 @@ mentioned in those passages.
 
 Scanned (image-only) PDFs are marked `Failed` with a clear reason. OCR is out
 of scope.
+
+## Frontend
+
+Vue 3 single-page app (`frontend/`) with every route in spec §13: login,
+dashboard, document library, sessions, session detail with live progress,
+evidence dashboard (skills, keywords, themes, overlap), recommendation cards
+with accept/reject/flag, recommendation detail, curriculum mapping, reports,
+user management and the audit log. Controls are hidden for roles that can't
+use them, but the API enforces every rule regardless.
+
+```bash
+cd frontend
+npm install
+npm run dev          # http://localhost:5173, proxies /api to Flask on :5000
+npm test             # Vitest unit tests
+npm run build        # production bundle in dist/
+```
+
+### End-to-end tests
+
+`frontend/tests/e2e/workflow.spec.js` drives the whole workflow in Chromium,
+as §22 requires: the admin uploads the core reference; a planner uploads,
+analyses, reviews, maps and downloads a report; a viewer is read-only; the
+admin manages users and reads the audit log. It needs the API, a worker and
+`vite preview` running against a disposable database:
+
+```bash
+export DATABASE_URL=postgresql+psycopg2://…/nlprs_e2e ADMIN_DB_URL=postgresql://…/postgres \
+       E2E_DB_NAME=nlprs_e2e EMBEDDING_BACKEND=hashing FLASK_APP=wsgi.py
+frontend/tests/e2e/reset-db.sh                    # recreates the DB and users
+(cd backend && celery -A celery_worker.celery worker &) ; (cd backend && gunicorn -b 127.0.0.1:5000 wsgi:app &)
+cd frontend && npm run build && (npx vite preview --port 4173 &) && npx playwright test
+```
+
+CI (`.github/workflows/frontend.yml`) runs the unit tests, the build and this
+end-to-end suite on every push.
 
 ## Project layout
 

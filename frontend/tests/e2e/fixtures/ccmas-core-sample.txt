@@ -1,0 +1,19 @@
+CSC 301: Computer and Network Security
+
+The analyst will lead incident response and threat hunting in our security operations centre.
+
+Hands-on penetration testing with Burp Suite, Nmap and Metasploit is essential.
+
+Candidates holding CISSP or CompTIA Security+ certification are preferred.
+
+You will manage firewalls, SIEM alerts and vulnerability assessment across the network.
+
+CSC 405: Introduction to Data Science
+
+The scientist will build machine learning models in Python with scikit-learn and PyTorch.
+
+Strong SQL skills and Power BI dashboards for data analysis are required.
+
+You will design data pipelines with Apache Spark and Airflow for reporting.
+
+Knowledge of statistics, deep learning and natural language processing is an advantage.

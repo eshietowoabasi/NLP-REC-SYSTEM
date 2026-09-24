@@ -24,7 +24,7 @@ RUN python -c "import os; from sentence_transformers import SentenceTransformer;
 
 COPY . .
 
-RUN useradd --create-home appuser && mkdir -p /data/raw && chown -R appuser /app /data /opt/hf-cache
+RUN useradd --create-home appuser && mkdir -p /data/raw /data/reports && chown -R appuser /app /data /opt/hf-cache
 USER appuser
 
 ENV FLASK_APP=wsgi.py \

@@ -1,0 +1,51 @@
+:root {
+  --rs-primary: #1f4e79;
+}
+body {
+  background: #f5f7fa;
+}
+.navbar-brand small {
+  font-weight: 400;
+  opacity: 0.8;
+}
+.bg-rs {
+  background: var(--rs-primary);
+}
+.card {
+  border: 1px solid #e3e8ef;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+.score-bar {
+  height: 6px;
+  background: #e9eef5;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.score-bar > div {
+  height: 100%;
+  background: var(--rs-primary);
+}
+.passage {
+  border-left: 3px solid #c9d6e5;
+  padding-left: 0.75rem;
+  color: #3b4a5a;
+}
+.stat-value {
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+.table-sm td,
+.table-sm th {
+  vertical-align: middle;
+}
+.min-w-0 {
+  min-width: 0;
+}
+/* Tables placed directly in cards: keep text off the card border. */
+.card .table > :not(caption) > * > :first-child {
+  padding-left: 1rem;
+}
+.card .table > :not(caption) > * > :last-child {
+  padding-right: 1rem;
+}

@@ -43,6 +43,7 @@ class AnalysisSession(db.Model):
     recommendations = relationship(
         "Recommendation", back_populates="session", cascade="all, delete-orphan"
     )
+    reports = relationship("Report", back_populates="session", cascade="all, delete-orphan")
 
     def progress(self):
         stage = self.progress_stage

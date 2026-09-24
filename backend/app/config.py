@@ -16,12 +16,19 @@ class Config:
         "DATABASE_URL", "postgresql+psycopg2://nlprs:nlprs@localhost:5432/nlprs"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Check pooled connections before use so a database restart or failover does not
+    # surface as errors on the first requests afterwards.
+    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
 
     # Uploads (spec §7.2)
     UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", str(PROJECT_ROOT / "data" / "raw"))
     MAX_DOCUMENT_BYTES = 25 * 1024 * 1024
     MAX_CONTENT_LENGTH = MAX_DOCUMENT_BYTES + 1024 * 1024  # allow form overhead
     MAX_DOCUMENTS_PER_SESSION = 50
+    REPORT_FOLDER = os.environ.get("REPORT_FOLDER", str(PROJECT_ROOT / "reports"))
+    INSTITUTION_NAME = os.environ.get(
+        "INSTITUTION_NAME", "Department of Computer Science, Faculty of Computing, University of Uyo"
+    )
     ALLOWED_EXTENSIONS = {"pdf", "docx", "txt"}
 
     # Session cookie auth (see docs/DECISIONS.md, D2)

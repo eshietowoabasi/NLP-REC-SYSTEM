@@ -154,26 +154,6 @@ class TestScores:
 
 # --- API --------------------------------------------------------------------
 
-@pytest.fixture()
-def completed_session(client, make_user, login, core_document):
-    import io
-
-    make_user("planner", role=Role.PLANNER)
-    login("planner")
-    ids = []
-    for theme in ("cloud", "security", "data"):
-        resp = client.post("/api/documents", data={"file": (io.BytesIO(theme_text(theme, n=50).encode()), f"{theme}.txt"),
-                                                   "source_category": "Job Market Data"}, content_type="multipart/form-data")
-        ids.append(resp.json["document"]["document_id"])
-    session_id = client.post("/api/sessions", json={
-        "session_name": "review", "document_ids": ids,
-        "parameter_config": {"similarity_threshold": 0.8, "max_recommendations": 20},
-    }).json["session"]["session_id"]
-    assert client.post(f"/api/sessions/{session_id}/run").status_code == 202
-    assert client.get(f"/api/sessions/{session_id}").json["session"]["status"] == "Completed"
-    return session_id
-
-
 def test_recommendations_ranked_with_evidence(client, completed_session, core_document):
     items = client.get(f"/api/sessions/{completed_session}/recommendations").json["items"]
     assert items and [r["rank"] for r in items] == list(range(1, len(items) + 1))
