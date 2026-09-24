@@ -1,0 +1,8 @@
+# Normalise line endings so shell scripts and configs work inside Linux containers
+# even when the repository is checked out on Windows.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.pdf binary
+*.docx binary
