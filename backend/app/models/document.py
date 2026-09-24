@@ -33,6 +33,8 @@ class Document(db.Model):
     stored_filename: Mapped[str] = mapped_column(sa.String(64), unique=True)
     file_type: Mapped[FileType] = mapped_column(enum_type(FileType, "file_type"))
     file_size: Mapped[int] = mapped_column(sa.BigInteger)
+    # SHA-256 of the file content, used to reject duplicate uploads.
+    content_hash: Mapped[str] = mapped_column(sa.String(64), index=True)
     source_category: Mapped[SourceCategory] = mapped_column(
         enum_type(SourceCategory, "source_category")
     )

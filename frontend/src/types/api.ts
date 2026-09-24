@@ -115,6 +115,99 @@ export interface UpdateUserRequest {
   new_password?: string
 }
 
+/* ------------------------------------------------------------- documents */
+
+export type SourceCategory = 'job_market' | 'institutional' | 'policy' | 'academic' | 'nuc_core'
+/** Categories offered when uploading to the library (nuc_core has its own admin screen). */
+export type UploadCategory = Exclude<SourceCategory, 'nuc_core'>
+export type FileType = 'pdf' | 'docx' | 'txt'
+export type DocumentStatus = 'uploaded' | 'parsing' | 'ready' | 'failed' | 'archived'
+export type SessionStatus = 'pending' | 'processing' | 'completed' | 'failed'
+
+export interface UserRef {
+  id: number
+  full_name: string
+}
+
+export interface DocumentSummary {
+  id: number
+  title: string
+  original_filename: string
+  file_type: FileType
+  file_size: number
+  source_category: SourceCategory
+  processing_status: DocumentStatus
+  error_message: string | null
+  page_count: number | null
+  word_count: number | null
+  uploaded_at: string
+  parsed_at: string | null
+  uploaded_by: UserRef
+}
+
+export interface PassageSummary {
+  id: number
+  position: number
+  page_number: number | null
+  text: string
+}
+
+export interface SessionRef {
+  id: number
+  session_name: string
+  status: SessionStatus
+  created_at: string
+}
+
+/** GET /api/documents/{id} */
+export interface DocumentDetail extends DocumentSummary {
+  passage_count: number
+  preview: PassageSummary[]
+  sessions: SessionRef[]
+  is_nuc_core: boolean
+}
+
+/** GET /api/documents */
+export interface DocumentList extends Paginated<DocumentSummary> {
+  category_counts: Record<UploadCategory, number>
+}
+
+export interface DocumentListParams {
+  page?: number
+  per_page?: number
+  category?: SourceCategory
+  status?: DocumentStatus
+  search?: string
+}
+
+export interface RejectedFile {
+  filename: string
+  reason: string
+}
+
+/** POST /api/documents (201). A 422 carries `error.details.rejected: RejectedFile[]`. */
+export interface UploadResult {
+  accepted: DocumentSummary[]
+  rejected: RejectedFile[]
+}
+
+/* -------------------------------------------------------------- NUC core */
+
+export interface NucCoreVersion {
+  id: number
+  version_label: string
+  is_active: boolean
+  created_at: string
+  uploaded_by: UserRef
+  document: DocumentSummary
+}
+
+/** GET /api/nuc-core */
+export interface NucCoreState {
+  active: NucCoreVersion | null
+  latest: NucCoreVersion | null
+}
+
 /** Query parameters of GET /api/admin/users */
 export interface UserListParams {
   page?: number

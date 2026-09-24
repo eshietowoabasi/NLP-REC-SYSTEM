@@ -153,24 +153,31 @@ Every dependency is pinned to an exact version, and the lockfiles are committed.
   committed, and `.npmrc` sets `save-exact=true` so that `npm install <pkg>` adds exact versions.
   Always install with `npm ci`.
 - **Backend:** direct dependencies are listed in `requirements.in` (runtime) and
-  `requirements-dev.in` (tools). The lockfiles `requirements.txt` and `requirements-dev.txt` are
-  generated from them by pip-tools and pin every transitive package. They are compiled for
-  Python 3.11 on Linux, the Docker target.
+  `requirements-dev.in` (tools). The lockfiles `requirements.txt` and `requirements-dev.txt` pin
+  every transitive package. They are generated for the Docker target (Linux, Python 3.11) with
+  PyTorch taken from its CPU-only index, so no CUDA libraries are installed.
 
 ### Updating Python dependencies
 
 1. Edit `requirements.in` or `requirements-dev.in`.
-2. Regenerate both lockfiles inside a Python 3.11 container (run from `backend/`):
+2. Regenerate both lockfiles (from `backend/`, inside the virtualenv; no Docker needed):
 
    ```bash
-   docker run --rm -v "$PWD:/work" -w /work python:3.11-slim sh -c \
-     "pip install -q pip-tools==7.6.1 && \
-      pip-compile -q --strip-extras --no-emit-index-url -o requirements.txt requirements.in && \
-      pip-compile -q --strip-extras --no-emit-index-url -o requirements-dev.txt requirements-dev.in"
+   python scripts/lock.py
    ```
 
+   The script uses uv to resolve for Linux / Python 3.11 whatever machine it runs on.
 3. Reinstall: `pip install -r requirements-dev.txt` (native) or `docker compose build backend worker`.
 
+## NLP models
+
+- **spaCy** `en_core_web_sm` is installed as a normal dependency (from `requirements.txt`).
+- **SBERT** `all-MiniLM-L6-v2` (about 90 MB) is downloaded from Hugging Face the first time a
+  document is processed, then cached (natively in `~/.cache/huggingface`; in Docker on the
+  `nlprs_models-data` volume). The first ingestion job therefore takes longer (around 40 s
+  including model loading); later jobs take about a second per document.
+- The worker keeps both models loaded between jobs. After changing the SBERT model in the
+  settings, restart the worker.
 ## Troubleshooting
 
 - **Top bar shows "API unreachable"**: the backend is not running, or Nginx cannot reach it.
@@ -184,6 +191,15 @@ Every dependency is pinned to an exact version, and the lockfiles are committed.
   or deactivating the account ends all sessions of that user.
 - **Tests stop with "Cannot connect to PostgreSQL"**: start the services with
   `docker compose -f docker-compose.services.yml up -d --wait`.
+- **Model download fails with `CERTIFICATE_VERIFY_FAILED`** (native runs): antivirus software
+  that inspects HTTPS (for example Avast Web Shield) re-signs connections with its own
+  certificate, which Windows trusts but Python does not. Set `USE_SYSTEM_CERTS=true` in `.env`
+  so Python uses the Windows certificate store, then restart Flask and the worker.
+- **"libmagic is not available" warning** (native Windows): harmless. Uploads are still checked
+  by their file signatures; the Docker image includes libmagic for the full check.
+- **Documents stay "Queued"**: the worker is not running or cannot reach Postgres/Redis. Start
+  it (`python -m app.worker`, or `docker compose up -d worker`); queued documents are processed
+  as soon as it starts.
 - **Port already in use**: change `HTTP_PORT`, `BACKEND_HOST_PORT`, `POSTGRES_HOST_PORT` or
   `REDIS_HOST_PORT` in `.env`.
 - **Hot reload misses changes on Windows or macOS**: polling is already enabled in compose

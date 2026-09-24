@@ -1,5 +1,5 @@
 /** Synthetic test data. Not real people or accounts. */
-import type { HealthStatus, Paginated, User } from '@/types/api'
+import type { DocumentDetail, DocumentSummary, HealthStatus, Paginated, User } from '@/types/api'
 
 export function makeUser(overrides: Partial<User> = {}): User {
   return {
@@ -30,6 +30,36 @@ export const viewerUser = makeUser({
   full_name: 'Test Viewer',
   role: 'viewer',
 })
+
+export function makeDocument(overrides: Partial<DocumentSummary> = {}): DocumentSummary {
+  return {
+    id: 10,
+    title: 'Synthetic backend engineer advert',
+    original_filename: 'synthetic-backend-ad.pdf',
+    file_type: 'pdf',
+    file_size: 48_213,
+    source_category: 'job_market',
+    processing_status: 'ready',
+    error_message: null,
+    page_count: 2,
+    word_count: 812,
+    uploaded_at: '2026-09-20T10:00:00Z',
+    parsed_at: '2026-09-20T10:00:05Z',
+    uploaded_by: { id: 2, full_name: 'Test Planner' },
+    ...overrides,
+  }
+}
+
+export function makeDocumentDetail(overrides: Partial<DocumentDetail> = {}): DocumentDetail {
+  return {
+    ...makeDocument(),
+    passage_count: 2,
+    preview: [],
+    sessions: [],
+    is_nuc_core: false,
+    ...overrides,
+  }
+}
 
 export function page<T>(items: T[], overrides: Partial<Paginated<T>['pagination']> = {}) {
   return {

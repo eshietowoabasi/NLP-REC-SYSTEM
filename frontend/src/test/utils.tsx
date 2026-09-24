@@ -18,7 +18,7 @@ export function createTestQueryClient(): QueryClient {
 export function renderWithProviders(ui: ReactElement) {
   const queryClient = createTestQueryClient()
   return {
-    user: userEvent.setup({ delay: null }),
+    user: userEvent.setup({ delay: null, applyAccept: false }),
     queryClient,
     ...render(
       <QueryClientProvider client={queryClient}>
@@ -33,7 +33,7 @@ export function renderApp(path = '/') {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
   const queryClient = createTestQueryClient()
   return {
-    user: userEvent.setup({ delay: null }),
+    user: userEvent.setup({ delay: null, applyAccept: false }),
     router,
     queryClient,
     ...render(

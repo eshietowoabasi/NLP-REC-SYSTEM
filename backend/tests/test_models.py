@@ -36,6 +36,7 @@ def make_document(owner: User, name: str = "doc", **fields) -> Document:
         stored_filename=f"{name}-stored.txt",
         file_type="txt",
         file_size=fields.pop("file_size", 100),
+        content_hash=f"hash-of-{name}",
         source_category=fields.pop("source_category", "job_market"),
         **fields,
     )

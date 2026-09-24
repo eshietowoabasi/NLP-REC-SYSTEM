@@ -37,9 +37,10 @@ def test_health_503_when_redis_unreachable(app: Flask, client: FlaskClient) -> N
 
 
 def test_health_503_when_database_unreachable(client: FlaskClient, monkeypatch) -> None:
-    monkeypatch.setattr(health.db.session, "execute", _raise_operational_error)
-
-    response = client.get("/api/health")
+    # Patch only for this request, so the test database can still be cleaned up afterwards.
+    with monkeypatch.context() as patch:
+        patch.setattr(health.db.session, "execute", _raise_operational_error)
+        response = client.get("/api/health")
 
     assert response.status_code == 503
     assert response.get_json()["error"]["details"]["checks"]["database"] == "unavailable"
