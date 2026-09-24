@@ -158,6 +158,27 @@ export async function apiRequest<T>(
   }
 }
 
+/** POST multipart form data, reporting upload progress as a fraction from 0 to 1. */
+export async function apiUpload<T>(
+  url: string,
+  form: FormData,
+  onProgress?: (fraction: number) => void,
+): Promise<T> {
+  try {
+    const response = await api.post<ApiEnvelope<T>>(url, form, {
+      timeout: 0, // large files on slow connections
+      onUploadProgress: (event) => {
+        if (onProgress && event.total) onProgress(Math.min(event.loaded / event.total, 1))
+      },
+    })
+    const body = response.data
+    if (!body.success) throw new ApiError(body.error, response.status)
+    return body.data
+  } catch (error) {
+    throw toApiError(error)
+  }
+}
+
 export const apiGet = <T>(url: string, params?: object) => apiRequest<T>('GET', url, { params })
 export const apiPost = <T>(url: string, data?: unknown) => apiRequest<T>('POST', url, { data })
 export const apiPatch = <T>(url: string, data?: unknown) => apiRequest<T>('PATCH', url, { data })
