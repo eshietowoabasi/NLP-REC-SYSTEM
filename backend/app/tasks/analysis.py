@@ -26,6 +26,7 @@ from app.models import (
     RecommendationEvidence,
     SessionStatus,
     SkillPattern,
+    StopWord,
 )
 from app.services.analysis import (
     STAGE_PROGRESS,
@@ -83,7 +84,43 @@ def load_parameters(config: dict[str, Any]) -> AnalysisParameters:
         max_recommendations=int(config["max_recommendations"]),
         min_topic_size=int(config["min_topic_size"]),
         evidence_per_recommendation=int(config["evidence_per_recommendation"]),
+        stop_words=frozenset(
+            db.session.scalars(select(StopWord.word).where(StopWord.is_active.is_(True)))
+        ),
     )
+
+
+def check_embedding_models(session: AnalysisSession, core_document_id: int) -> None:
+    """Refuse to compare passages embedded with different SBERT models.
+
+    Embeddings from different models are not comparable even when their dimensions match,
+    which can happen after an administrator changes the ``sbert_model`` setting.
+    """
+    session_documents = select(DocumentSession.document_id).where(
+        DocumentSession.session_id == session.id
+    )
+    rows = db.session.execute(
+        select(Passage.embedding_model, Document.title)
+        .join(Document, Document.id == Passage.document_id)
+        .where(
+            (Passage.document_id.in_(session_documents)) | (Passage.document_id == core_document_id)
+        )
+        .distinct()
+    ).all()
+    by_model: dict[str | None, set[str]] = {}
+    for model, title in rows:
+        by_model.setdefault(model, set()).add(title)
+    if len(by_model) > 1:
+        described = "; ".join(
+            f"{model or 'unknown model'}: {', '.join(sorted(titles)[:3])}"
+            + (f" and {len(titles) - 3} more" if len(titles) > 3 else "")
+            for model, titles in sorted(by_model.items(), key=lambda item: str(item[0]))
+        )
+        raise AnalysisError(
+            "The documents and the NUC core were embedded with different models "
+            f"({described}). Re-upload the documents embedded with the older model so all "
+            "use the current one."
+        )
 
 
 def _vector(value: Any) -> np.ndarray:
@@ -219,6 +256,7 @@ def run_session(session_id: int) -> None:
         config = session.parameter_config
 
         progress.stage("loading")
+        check_embedding_models(session, core_document_id)
         corpus = load_corpus(session)
         core = load_core(core_document_id)
         specs = load_skill_patterns()

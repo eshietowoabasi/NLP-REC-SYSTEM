@@ -9,7 +9,7 @@ from __future__ import annotations
 import io
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.extensions import db
 from app.models import (
@@ -17,9 +17,11 @@ from app.models import (
     AuditLog,
     Document,
     NLPResult,
+    Passage,
     Recommendation,
     RecommendationEvidence,
     Setting,
+    StopWord,
 )
 from app.services import analysis as analysis_service
 from app.services.exceptions import AnalysisError
@@ -289,6 +291,52 @@ def test_unexpected_errors_are_reported_generically(
     assert detail["status"] == "failed"
     assert "failed unexpectedly during the loading stage" in detail["error_message"]
     assert "internal detail" not in detail["error_message"]
+
+
+def test_documents_embedded_with_another_model_are_refused(
+    planner: ApiClient, admin: ApiClient, corpus_ids: list[int]
+) -> None:
+    upload_core(admin)
+    db.session.execute(
+        update(Passage)
+        .where(Passage.document_id == corpus_ids[0])
+        .values(embedding_model="an-older-model")
+    )
+    db.session.commit()
+
+    session_id = create(planner, corpus_ids, run=True).get_json()["data"]["id"]
+
+    detail = planner.get(f"/api/sessions/{session_id}").get_json()["data"]
+    assert detail["status"] == "failed"
+    assert detail["current_stage"] == "loading"
+    assert "embedded with different models" in detail["error_message"]
+    assert "an-older-model: synthetic" in detail["error_message"]
+
+
+def test_active_stop_words_are_passed_to_the_analysis(
+    planner: ApiClient, admin: ApiClient, corpus_ids: list[int], monkeypatch
+) -> None:
+    upload_core(admin)
+    db.session.add_all([StopWord(word="kubernetes"), StopWord(word="retired", is_active=False)])
+    db.session.commit()
+    seen = {}
+
+    def capture(corpus, core, parameters, *args, **kwargs):
+        seen["stop_words"] = parameters.stop_words
+        raise AnalysisError("stopped after capturing the parameters")
+
+    monkeypatch.setattr("app.tasks.analysis.run_analysis", capture)
+    create(planner, corpus_ids, run=True)
+
+    assert "kubernetes" in seen["stop_words"]
+    assert "retired" not in seen["stop_words"]
+
+
+def test_stop_words_are_removed_from_normalised_text() -> None:
+    words = frozenset({"lagos", "role"})
+
+    assert analysis_service.without_stop_words("cloud role lagos devops", words) == "cloud devops"
+    assert analysis_service.without_stop_words("cloud devops", frozenset()) == "cloud devops"
 
 
 def test_retry_runs_a_failed_session_again(
