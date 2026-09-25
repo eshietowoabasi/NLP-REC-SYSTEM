@@ -481,7 +481,143 @@ mappings and reports; documents are kept. **409** while the session is processin
 - **Recommendations** (top `max_recommendations`, ranked by composite score): title, description,
   keywords, top skills, the three normalised scores, composite, `max_similarity`, overlap status,
   closest NUC core passage and up to `evidence_per_recommendation` evidence passages. Served by
-  the recommendation endpoints (Phase 4).
-- **Session-level results** for the Evidence Dashboard (Phase 4): TF-IDF keywords (overall and per
+  the recommendation endpoints below.
+- **Session-level results** for the Evidence Dashboard: TF-IDF keywords (overall and per
   category), skill counts (mentions and document frequency), every discovered theme, and the
   overlap of every theme with the NUC core.
+
+## Session results (Evidence Dashboard)
+
+Access: any. All four return the stored result of a **completed** session:
+**404** if the session is unknown, **409** `RESULTS_NOT_READY` otherwise.
+
+### `GET /api/sessions/{id}/keywords`
+
+```json
+{
+  "overall": [{ "term": "kubernetes", "score": 0.031, "passage_count": 12 }],
+  "by_category": { "job_market": [...], "policy": [...] },
+  "passage_count": 300
+}
+```
+
+`?category=job_market` limits `by_category` to that category (**422** for an unknown one).
+Terms come from the normalised text; `score` is the mean TF-IDF weight across passages.
+
+### `GET /api/sessions/{id}/entities`
+
+`{ "skills": [{ "name", "label", "mentions", "document_frequency", "by_category" }],
+"passages_with_skills", "passage_count", "document_count" }`. `label` is SKILL, TOOL, LANGUAGE
+or CERT; skills are ordered by document frequency, then mentions.
+
+### `GET /api/sessions/{id}/topics`
+
+`{ "topic_count", "outlier_passages", "modelled_passages", "topics": [...] }`. Each topic has
+`topic_id`, `title`, `keywords` (`[{ "term", "weight" }]`), `size`, `document_count`,
+`mean_probability`, `strength_raw`, `strength` (0–1) and `samples`
+(`[{ "passage_id", "document_id", "document_title", "text" }]`). Every theme is listed, not only
+the recommended ones.
+
+### `GET /api/sessions/{id}/similarity`
+
+`{ "threshold", "nuc_core_version": { "id", "version_label" }, "candidates": [...] }`, ranked
+like the recommendations. Each candidate: `topic_id`, `title`, `max_similarity`, `novelty`,
+`overlap_status`, `closest_nuc_passage` (`{ "id", "text", "page_number" }`).
+
+## Recommendations
+
+### Recommendation object
+
+| Field | Notes |
+|-------|-------|
+| `id`, `session_id`, `rank`, `topic_id` | |
+| `auto_title` | Generated title (never changes) |
+| `topic_title`, `topic_description` | Editable by planners |
+| `keywords` | `[{ "term", "weight" }]` (c-TF-IDF) |
+| `skills` | `[{ "name", "label", "mentions", "document_frequency" }]` |
+| `ner_score`, `topic_score`, `novelty_score` | 0–1, normalised across the session's themes |
+| `composite_score` | Weighted sum with the session's weights |
+| `max_similarity`, `overlap_status` | `"Potential Duplicate"` or `"No Significant Overlap"` |
+| `planner_decision` | `accepted`, `rejected`, `flagged` or null |
+| `planner_notes`, `decided_at`, `decided_by` (`{ "id", "full_name" }`) | Null while undecided |
+| `has_mapping` | Whether the recommendation is mapped to a course |
+
+### `GET /api/sessions/{id}/recommendations`
+
+Access: any. Every recommendation of the session in rank order (not paginated: at most
+`max_recommendations`, ≤ 100). Filters: `decision` = `all` (default), `undecided`, `accepted`,
+`rejected`, `flagged`; `hide_duplicates=true`. Response:
+`{ "items": [...], "counts": { "total", "reviewed", "undecided", "accepted", "rejected",
+"flagged", "potential_duplicates" } }`; the counts always cover the whole session. **404** if
+the session is unknown.
+
+### `GET /api/recommendations/{id}`
+
+Access: any. The recommendation object plus:
+
+- `evidence`: `[{ "passage_id", "relevance_score", "text", "page_number", "position",
+  "document": { "id", "title", "source_category" } }]`, most relevant first;
+- `closest_nuc_passage`: `{ "id", "text", "page_number", "document_title", "version_label" }`
+  or null;
+- `session`: `{ "id", "session_name", "weights", "similarity_threshold" }` (for the formula);
+- `mapping`: the course mapping or null.
+
+### `PATCH /api/recommendations/{id}`
+
+Access: admin, planner. `{ "topic_title"?, "topic_description"? }` (at least one; title 1–255,
+description 1–5,000 characters). `auto_title` is kept. Audited as `recommendation.edited`.
+
+### `PATCH /api/recommendations/{id}/decision`
+
+Access: admin, planner. `{ "decision": "accepted" | "rejected" | "flagged" | null, "notes"? }`
+(notes ≤ 2,000 characters). `null` clears the decision. Records who decided and when; audited
+as `recommendation.decided`. **409** when the recommendation is mapped to a course and the new
+decision is not `accepted` (remove the mapping first).
+
+## Curriculum mapping
+
+### Mapping object
+
+`{ "id", "recommendation_id", "course_code", "course_title", "credit_units", "prerequisites",
+"learning_outcomes", "created_by", "created_at", "updated_at" }`.
+
+### `POST /api/recommendations/{id}/mapping`
+
+Access: admin, planner.
+
+```json
+{
+  "course_code": "CSC 419",
+  "course_title": "Cloud Security Engineering",
+  "credit_units": 3,
+  "prerequisites": ["CSC 301"],
+  "learning_outcomes": ["Secure cloud workloads", "Operate Kubernetes clusters"]
+}
+```
+
+- `course_code`: 2–4 letters and 3 digits (optional trailing letter); normalised to upper case
+  with one space (`csc419` → `CSC 419`); unique within the session (**409** with
+  `details.fields.course_code`).
+- `credit_units`: 1, 2 or 3.
+- `prerequisites`: up to 10; `learning_outcomes`: 1–15; blanks dropped, duplicates rejected.
+
+**201** with the mapping; audited as `mapping.created`. **409** if the recommendation is not
+accepted or is already mapped.
+
+### `GET /api/recommendations/{id}/mapping`
+
+Access: any. **404** if the recommendation is not mapped.
+
+### `PUT /api/mappings/{id}` · `DELETE /api/mappings/{id}`
+
+Access: admin, planner. `PUT` takes the same body as `POST` (audited as `mapping.updated`);
+`DELETE` removes the course (audited as `mapping.deleted`) and leaves the recommendation
+accepted.
+
+### `GET /api/sessions/{id}/curriculum`
+
+Access: any. The proposed curriculum of a session:
+`{ "session": { "id", "session_name" }, "courses": [mapping + "recommendation": { "id", "rank",
+"topic_title", "composite_score", "overlap_status" }], "total_units", "credit_unit_allowance",
+"remaining_units" }`. Courses are ordered by code; `credit_unit_allowance` and
+`remaining_units` are null until an admin sets the allowance.
