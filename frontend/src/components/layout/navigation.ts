@@ -36,7 +36,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Dashboard', to: '/', icon: LayoutDashboard, available: true },
       { label: 'Documents', to: '/documents', icon: FileText, available: true },
-      { label: 'Analysis Sessions', to: '/sessions', icon: FlaskConical, available: false },
+      { label: 'Analysis Sessions', to: '/sessions', icon: FlaskConical, available: true },
       { label: 'Reports', to: '/reports', icon: FileBarChart, available: false },
     ],
   },

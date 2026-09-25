@@ -191,6 +191,94 @@ export interface UploadResult {
   rejected: RejectedFile[]
 }
 
+/* -------------------------------------------------------------- sessions */
+
+export type SessionStage =
+  | 'queued'
+  | 'validating'
+  | 'loading'
+  | 'keywords'
+  | 'skills'
+  | 'embeddings'
+  | 'themes'
+  | 'overlap'
+  | 'scoring'
+  | 'completed'
+
+export interface ScoreWeights {
+  ner: number
+  topic: number
+  novelty: number
+}
+
+/** A session's parameter snapshot (defaults + overrides at creation). */
+export interface SessionParameterConfig {
+  weights: ScoreWeights
+  similarity_threshold: number
+  max_recommendations: number
+  min_topic_size: number
+  evidence_per_recommendation: number
+  sbert_model: string
+  spacy_model: string
+}
+
+export interface SessionSummary {
+  id: number
+  session_name: string
+  status: SessionStatus
+  current_stage: SessionStage | null
+  progress_percent: number
+  created_by: UserRef
+  document_count: number
+  recommendation_count: number
+  created_at: string
+  started_at: string | null
+  completed_at: string | null
+}
+
+export interface SessionDocument {
+  id: number
+  title: string
+  source_category: SourceCategory
+  processing_status: DocumentStatus
+}
+
+/** GET /api/sessions/{id} */
+export interface SessionDetail extends SessionSummary {
+  parameter_config: SessionParameterConfig
+  stage_timings: Partial<Record<SessionStage, number>>
+  error_message: string | null
+  nuc_core_version: { id: number; version_label: string } | null
+  documents: SessionDocument[]
+  topic_count: number | null
+}
+
+/** GET /api/sessions/defaults */
+export interface SessionDefaults {
+  parameters: SessionParameterConfig
+  max_documents: number
+  nuc_core_version: { id: number; version_label: string } | null
+}
+
+/** POST /api/sessions */
+export interface CreateSessionRequest {
+  session_name: string
+  document_ids: number[]
+  parameters?: {
+    weights?: ScoreWeights
+    similarity_threshold?: number
+    max_recommendations?: number
+  }
+  run?: boolean
+}
+
+export interface SessionListParams {
+  page?: number
+  per_page?: number
+  status?: SessionStatus
+  search?: string
+}
+
 /* -------------------------------------------------------------- NUC core */
 
 export interface NucCoreVersion {
