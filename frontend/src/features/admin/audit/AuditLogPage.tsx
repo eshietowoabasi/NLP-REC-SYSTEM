@@ -271,7 +271,9 @@ function AuditRow({ entry }: { entry: AuditLogEntry }) {
       <TableCell className="max-w-md text-xs whitespace-normal text-muted-foreground">
         {summary ? (
           <details>
-            <summary className="line-clamp-2 cursor-pointer break-all">{summary}</summary>
+            <summary className="line-clamp-2 cursor-pointer [overflow-wrap:anywhere]">
+              {summary}
+            </summary>
             <pre className="mt-1 overflow-x-auto rounded bg-muted p-2 text-[11px] text-foreground">
               {JSON.stringify(entry.detail, null, 2)}
             </pre>

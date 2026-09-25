@@ -54,6 +54,7 @@ import type { FieldErrorDetails, PatternToken, SkillLabel, SkillPattern } from '
 import { useSaveSkillPattern, useSkillPatterns, useToggleSkillPattern } from './api'
 
 const PER_PAGE = 25
+const SELECTED_TOGGLE = 'px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground'
 const LABELS: readonly SkillLabel[] = ['SKILL', 'TOOL', 'LANGUAGE', 'CERT']
 
 function patternText(pattern: SkillPattern['pattern']) {
@@ -421,10 +422,10 @@ function PatternForm({ pattern, onDone }: { pattern: SkillPattern | null; onDone
                 aria-label="Pattern kind"
                 className="w-fit"
               >
-                <ToggleGroupItem value="phrase" className="px-3">
+                <ToggleGroupItem value="phrase" className={SELECTED_TOGGLE}>
                   Phrase
                 </ToggleGroupItem>
-                <ToggleGroupItem value="tokens" className="px-3">
+                <ToggleGroupItem value="tokens" className={SELECTED_TOGGLE}>
                   Token pattern
                 </ToggleGroupItem>
               </ToggleGroup>

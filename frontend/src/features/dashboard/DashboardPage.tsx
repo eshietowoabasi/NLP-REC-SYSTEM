@@ -27,7 +27,7 @@ import {
 import { useAuth } from '@/features/auth/useAuth'
 import { SessionStatusBadge } from '@/features/sessions/SessionStatusBadge'
 import { SystemStatusCard } from '@/features/system/SystemStatusCard'
-import { formatDateTime } from '@/lib/format'
+import { formatDate } from '@/lib/format'
 import type { DashboardSummary } from '@/types/api'
 
 import { useDashboardSummary } from './api'
@@ -208,7 +208,7 @@ function Overview({ data }: { data: DashboardSummary }) {
                           {session.recommendation_count}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
-                          {formatDateTime(session.created_at)}
+                          {formatDate(session.created_at)}
                         </TableCell>
                       </TableRow>
                     ))}
