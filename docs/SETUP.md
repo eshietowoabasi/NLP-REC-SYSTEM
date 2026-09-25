@@ -178,6 +178,20 @@ Every dependency is pinned to an exact version, and the lockfiles are committed.
   including model loading); later jobs take about a second per document.
 - The worker keeps both models loaded between jobs. After changing the SBERT model in the
   settings, restart the worker.
+## Benchmark
+
+The pipeline benchmark times ingestion and a session analysis on 20 synthetic documents of about
+3,000 words each (target: analysis within 60 s). From `backend/`, in the virtualenv:
+
+```bash
+python -m evaluation.benchmark_pipeline                    # defaults: 20 documents, 3,000 words
+python -m evaluation.benchmark_pipeline --documents 10 --words 2000
+```
+
+Results are printed and saved to `backend/evaluation/results/benchmark_<timestamp>.json`
+(git-ignored). The first analysis in a fresh process includes one-off compilation by UMAP; the
+second run shows the steady-state time of a running worker.
+
 ## Troubleshooting
 
 - **Top bar shows "API unreachable"**: the backend is not running, or Nginx cannot reach it.
@@ -197,6 +211,10 @@ Every dependency is pinned to an exact version, and the lockfiles are committed.
   so Python uses the Windows certificate store, then restart Flask and the worker.
 - **"libmagic is not available" warning** (native Windows): harmless. Uploads are still checked
   by their file signatures; the Docker image includes libmagic for the full check.
+- **A session fails with "Too little text to discover themes"**: theme discovery needs at least
+  10 passages (roughly 3–4 pages of text in total). Add more documents to the session.
+- **The first analysis after starting the worker is slow**: UMAP compiles its code the first
+  time it runs in a process (about 30 s); later sessions are much faster.
 - **Documents stay "Queued"**: the worker is not running or cannot reach Postgres/Redis. Start
   it (`python -m app.worker`, or `docker compose up -d worker`); queued documents are processed
   as soon as it starts.

@@ -22,6 +22,10 @@ known-first-party = ["app"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
+filterwarnings = [
+    # umap-learn's optional ParametricUMAP needs TensorFlow, which this project does not use.
+    "ignore:Tensorflow not installed:ImportWarning",
+]
 markers = [
     "real_models: uses the real SBERT model (downloaded on first use) instead of the test fake",
 ]

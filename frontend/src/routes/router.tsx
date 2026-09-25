@@ -8,6 +8,9 @@ import { ProfilePage } from '@/features/auth/ProfilePage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { DocumentDetailPage } from '@/features/documents/DocumentDetailPage'
 import { DocumentsPage } from '@/features/documents/DocumentsPage'
+import { NewSessionPage } from '@/features/sessions/NewSessionPage'
+import { SessionDetailPage } from '@/features/sessions/SessionDetailPage'
+import { SessionsPage } from '@/features/sessions/SessionsPage'
 
 import { RequireAuth, RequireRole } from './guards'
 import type { RouteHandle } from './handle'
@@ -26,6 +29,17 @@ export const routes: RouteObject[] = [
           { index: true, element: <DashboardPage />, handle: title('Dashboard') },
           { path: 'profile', element: <ProfilePage />, handle: title('Profile') },
           { path: 'documents', element: <DocumentsPage />, handle: title('Documents') },
+          { path: 'sessions', element: <SessionsPage />, handle: title('Analysis Sessions') },
+          {
+            path: 'sessions/new',
+            element: <RequireRole roles={['admin', 'planner']} />,
+            children: [{ index: true, element: <NewSessionPage />, handle: title('New Session') }],
+          },
+          {
+            path: 'sessions/:sessionId',
+            element: <SessionDetailPage />,
+            handle: title('Analysis Session'),
+          },
           {
             path: 'documents/:documentId',
             element: <DocumentDetailPage />,

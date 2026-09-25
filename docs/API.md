@@ -377,3 +377,111 @@ Access: any. Every version, newest first.
 Access: admin. `multipart/form-data` with `file` and `version_label` (1–64 characters). The file
 is validated as for documents. **201** returns the new (not yet active) version; **422** with
 `details.fields.file` or `details.fields.version_label` otherwise.
+
+---
+
+## Analysis sessions
+
+A session analyses a chosen set of ready library documents against the active NUC core and
+produces ranked recommendations. Runs happen in the background: `run` and `retry` return
+**202 Accepted** and the client polls `GET /api/sessions/{id}` (every 2–3 s) while
+`status` is `processing`.
+
+`status`: `pending` (created, not run) → `processing` → `completed` or `failed`.
+`current_stage` while processing: `queued`, `validating`, `loading`, `keywords`, `skills`,
+`embeddings`, `themes`, `overlap`, `scoring`; `completed` when done. After a failure it keeps the
+stage that failed, and `error_message` explains why (for example "Too little text to discover
+themes: 8 passages were found but at least 10 are needed. Add more documents to the session.").
+
+### Session object (list item)
+
+```json
+{
+  "id": 5,
+  "session_name": "2026 review",
+  "status": "processing",
+  "current_stage": "themes",
+  "progress_percent": 55,
+  "created_by": { "id": 2, "full_name": "Ada Lovelace" },
+  "document_count": 20,
+  "recommendation_count": 0,
+  "created_at": "2026-09-25T09:00:00+00:00",
+  "started_at": "2026-09-25T09:00:02+00:00",
+  "completed_at": null
+}
+```
+
+The detail adds:
+
+| Field | Meaning |
+|---|---|
+| `parameter_config` | Snapshot taken at creation: `weights` (`ner`, `topic`, `novelty`), `similarity_threshold`, `max_recommendations`, `min_topic_size`, `evidence_per_recommendation`, `sbert_model`, `spacy_model` |
+| `stage_timings` | Seconds per stage of the last run, e.g. `{"themes": 4.2}` |
+| `error_message` | Why the last run failed (null otherwise) |
+| `nuc_core_version` | `{ "id", "version_label" }` the session was compared against (set when it runs) |
+| `documents` | `[{ "id", "title", "source_category", "processing_status" }]` in processing order |
+| `topic_count` | Number of themes found (null before a successful run) |
+
+### `GET /api/sessions`
+
+Access: any. Paginated, newest first. Filters: `status`, `search` (name).
+
+### `GET /api/sessions/defaults`
+
+Access: any. Values for the New Session form:
+`{ "parameters": {...parameter_config defaults}, "max_documents": 50, "nuc_core_version": {...} | null }`.
+
+### `POST /api/sessions`
+
+Access: admin, planner.
+
+```json
+{
+  "session_name": "2026 review",
+  "document_ids": [12, 15, 18],
+  "parameters": {
+    "weights": { "ner": 0.4, "topic": 0.35, "novelty": 0.25 },
+    "similarity_threshold": 0.8,
+    "max_recommendations": 20
+  },
+  "run": true
+}
+```
+
+`parameters` and each of its fields are optional (defaults are used). The weights must each be
+0–1 and sum to 1.0 ± 0.001. Every document must exist, be `ready`, not be a NUC core document,
+and appear once; at most `max_documents_per_session` (default 50) documents.
+With `"run": true` the session is queued immediately.
+
+**201** returns the session detail. Errors: `422 VALIDATION_ERROR` (problems listed under
+`details.fields.document_ids` or the parameter field), `409 NO_NUC_CORE` when `run` is true and
+there is no active NUC core.
+
+### `GET /api/sessions/{id}`
+
+Access: any. Session detail (see above). **404** if unknown.
+
+### `POST /api/sessions/{id}/run`
+
+Access: admin, planner. Queues a `pending` session. **202** with the session detail.
+**409** `CONFLICT` if the session is not pending, or `NO_NUC_CORE`.
+
+### `POST /api/sessions/{id}/retry`
+
+Access: admin, planner. Clears the results of a `failed` session and queues it again. **202**.
+**409** if the session has not failed, or `NO_NUC_CORE`.
+
+### `DELETE /api/sessions/{id}`
+
+Access: admin, planner. Deletes the session with its results, recommendations, decisions,
+mappings and reports; documents are kept. **409** while the session is processing.
+
+### What a completed run stores
+
+- **Recommendations** (top `max_recommendations`, ranked by composite score): title, description,
+  keywords, top skills, the three normalised scores, composite, `max_similarity`, overlap status,
+  closest NUC core passage and up to `evidence_per_recommendation` evidence passages. Served by
+  the recommendation endpoints (Phase 4).
+- **Session-level results** for the Evidence Dashboard (Phase 4): TF-IDF keywords (overall and per
+  category), skill counts (mentions and document frequency), every discovered theme, and the
+  overlap of every theme with the NUC core.

@@ -118,6 +118,11 @@ cosmetic.
 - NLP models load once per process: `get_nlp(name)` (spaCy) and `get_encoder(name)` (SBERT), both
   cached. The worker is an RQ `SimpleWorker`, so the cache survives between jobs.
 - Settings used by the pipeline come from `get_setting(...)` (passage size, model names, ...).
+- The analysis itself is `app.services.analysis.run_analysis` (DB-free, stage callback); the job
+  `app.tasks.analysis.run_session` loads data, calls it and stores NLPResult/Recommendation rows.
+  Raise `AnalysisError` for failures planners can act on (message is shown to them).
+- Synthetic corpora: `tests/corpus.py` (tests) and `evaluation/synthetic_corpus.py` (benchmark).
+  Session tests upload real documents and run BERTopic, so they take ~1.5 min.
 - Tests: `FakeEncoder` replaces SBERT everywhere (autouse fixture); mark a test
   `@pytest.mark.real_models` (and use the `app` fixture) to use the real model. Synthetic
   document builders live in `tests/documents.py`. Uploaded files go to a per-test tmp storage dir.
@@ -196,7 +201,9 @@ Linux/Python 3.11, CPU-only PyTorch). Never hand-edit the lockfiles. numpy stays
   `flask seed`, auth/CSRF/RBAC/audit, admin users API; Login, Profile, Admin Users, 403/404.
 - [x] **2 Documents and ingestion** — upload validation, storage, ingestion job (parse → clean →
   passages → normalised text → SBERT), documents + NUC core APIs; Library, Upload, Detail, NUC Core.
-- [ ] **3 Analysis pipeline**
+- [x] **3 Analysis pipeline** — sessions API (create/run/retry/delete, defaults), session job with 8 stages +
+  progress, TF-IDF, EntityRuler skills, BERTopic, overlap/novelty, scoring; Sessions list, New
+  Session (3 steps), Session Detail with live stage tracker; benchmark script.
 - [ ] **4 Evidence, recommendations, decisions, mapping**
 - [ ] **5 Reports, dashboard, admin settings**
 - [ ] **6 Evaluation, hardening, deployment, docs**
