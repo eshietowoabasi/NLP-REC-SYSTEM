@@ -40,6 +40,10 @@ class AnalysisSession(db.Model):
     # Set when the session runs: the NUC core baseline it was compared against.
     nuc_core_version_id: Mapped[int | None] = mapped_column(sa.ForeignKey("nuc_core_versions.id"))
     error_message: Mapped[str | None] = mapped_column(sa.Text)
+    # Seconds spent in each pipeline stage of the last run, e.g. {"themes": 4.2}.
+    stage_timings: Mapped[dict[str, float]] = mapped_column(
+        JSONB, default=dict, server_default=sa.text("'{}'::jsonb")
+    )
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True), default=utcnow, server_default=sa.func.now()
     )
