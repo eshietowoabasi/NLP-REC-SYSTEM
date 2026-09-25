@@ -47,6 +47,8 @@ class AuditAction(StrEnum):
     MAPPING_DELETED = "mapping.deleted"
 
     REPORT_GENERATED = "report.generated"
+    REPORT_DELETED = "report.deleted"
+    AUDIT_LOG_EXPORTED = "audit_log.exported"
 
     SETTINGS_UPDATED = "settings.updated"
     SKILL_PATTERN_CREATED = "skill_pattern.created"

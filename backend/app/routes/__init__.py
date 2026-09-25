@@ -7,11 +7,13 @@ from flask import Flask
 from app.routes import (
     admin,
     auth,
+    dashboard,
     documents,
     health,
     mappings,
     nuc_core,
     recommendations,
+    reports,
     results,
     sessions,
 )
@@ -31,5 +33,7 @@ def register_blueprints(app: Flask) -> None:
         results,
         recommendations,
         mappings,
+        reports,
+        dashboard,
     ):
         app.register_blueprint(module.bp, url_prefix=API_PREFIX + (module.bp.url_prefix or ""))

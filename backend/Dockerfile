@@ -9,8 +9,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     HF_HOME=/data/models
 
 # libmagic: content-type detection of uploads (python-magic).
+# Pango + fonts: PDF reports (WeasyPrint renders text through Pango/HarfBuzz).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libmagic1 \
+    && apt-get install -y --no-install-recommends \
+        libmagic1 \
+        libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libharfbuzz-subset0 \
+        fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
