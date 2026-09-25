@@ -1,9 +1,13 @@
 import '@testing-library/jest-dom/vitest'
 
-import { cleanup } from '@testing-library/react'
+import { cleanup, configure } from '@testing-library/react'
 import { afterEach } from 'vitest'
 
 import { api, resetApiState } from '@/lib/api'
+
+// findBy*/waitFor wait up to 3 s (default 1 s): whole-app renders with several queries can
+// take longer than a second when the full suite runs in parallel on a slower machine.
+configure({ asyncUtilTimeout: 3000 })
 
 const realAdapter = api.defaults.adapter
 
