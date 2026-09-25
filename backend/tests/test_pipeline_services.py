@@ -311,6 +311,37 @@ def test_canonical_lookup_covers_lemmas_and_stripped_punctuation() -> None:
     )
 
 
+def test_plus_and_hash_are_not_stripped_from_skill_names() -> None:
+    from app.services.ner.skills import SkillPatternSpec, canonical_lookup
+    from app.services.preprocessing.spacy_model import get_nlp
+
+    specs = [
+        SkillPatternSpec("CERT", "comptia security+", "CompTIA Security+"),
+        SkillPatternSpec("CERT", "security+", "CompTIA Security+"),
+        SkillPatternSpec("LANGUAGE", "c#", "C#"),
+    ]
+
+    lookup = canonical_lookup(specs, get_nlp("en_core_web_sm"))
+
+    # The real corpus titled a theme "Database CompTIA Security+" from "database security".
+    assert pretty_term("security", lookup) == "Security"
+    assert pretty_term("c", lookup) == "C"
+    assert pretty_term("security+", lookup) == "CompTIA Security+"
+
+
+def test_single_words_are_not_matched_to_skills_by_their_stem() -> None:
+    from app.services.ner.skills import SkillPatternSpec, canonical_lookup
+    from app.services.preprocessing.spacy_model import get_nlp
+
+    specs = [SkillPatternSpec("LANGUAGE", "solidity", "Solidity")]
+
+    lookup = canonical_lookup(specs, get_nlp("en_core_web_sm"))
+
+    # The real policy document's "Solid Infrastructure" pillar was titled "Solidity ...".
+    assert pretty_term("solid", lookup) == "Solid"
+    assert pretty_term("solidity", lookup) == "Solidity"
+
+
 def test_separately_ranked_words_of_a_known_skill_are_joined() -> None:
     from app.services.ner.skills import canonical_lookup
     from app.services.preprocessing.spacy_model import get_nlp
