@@ -23,6 +23,9 @@ from corpus_collector.config import (
     DEFAULT_PAGES_PER_FIELD,
     DEFAULT_PER_FAMILY,
     DEFAULT_TARGET,
+    FAMILY_FIELDS,
+    FAMILY_MODE_GOAL,
+    FAMILY_MODE_PAGES,
     MIN_WORDS,
     MYJOBMAG_FIELDS,
     MYJOBMAG_LISTING,
@@ -53,6 +56,8 @@ class Selection:
     skipped: Counter[str] = field(default_factory=Counter)
     # Per-family caps that differ from ``per_family`` (``--cap product_agile=4``).
     caps: dict[str, int] = field(default_factory=dict)
+    # Collect for this family only (``--only-family``); other titles are skipped.
+    only_family: str | None = None
 
     def family_full(self, family: str) -> bool:
         taken = self.existing_per_family[family] + sum(1 for _, f in self.chosen if f == family)
@@ -87,6 +92,9 @@ def screen_title(
     if family is None:
         selection.skipped["not computing" if is_denied(title) else "no role family"] += 1
         return None
+    if selection.only_family and family != selection.only_family:
+        selection.skipped["other family"] += 1
+        return None
     if selection.family_full(family):
         selection.skipped[f"family full ({family})"] += 1
         return None
@@ -95,6 +103,47 @@ def screen_title(
         selection.skipped[reason] += 1
         return None
     return family
+
+
+def _collect_listing(
+    client: PoliteClient, selection: Selection, deduper: Deduper, listing_html: str
+) -> None:
+    """Screen every job on a MyJobMag listing page and fetch the promising ones."""
+    for item in myjobmag.parse_listing(listing_html):
+        if selection.done:
+            return
+        family = screen_title(item.title, item.company, item.slug, selection, deduper)
+        if family is None:
+            continue
+        try:
+            status, job_html = client.get(item.url)
+        except DisallowedUrl:
+            selection.skipped["disallowed by robots.txt"] += 1
+            continue
+        if status != 200:
+            selection.skipped[f"job HTTP {status}"] += 1
+            continue
+        ad = myjobmag.parse_job(job_html, item.url, item.slug)
+        if ad is None:
+            selection.skipped["no job description"] += 1
+            continue
+        ad_family = classify_title(ad.title) or family
+        if selection.only_family and ad_family != selection.only_family:
+            selection.skipped["other family"] += 1
+            continue
+        consider(ad, ad_family, selection, deduper)
+
+
+def _get_listing(client: PoliteClient, selection: Selection, url: str) -> str | None:
+    try:
+        status, body = client.get(url)
+    except DisallowedUrl:
+        selection.skipped["disallowed by robots.txt"] += 1
+        return None
+    if status != 200:
+        selection.skipped[f"listing HTTP {status}"] += 1
+        return None
+    return body
 
 
 def collect_myjobmag(
@@ -108,30 +157,36 @@ def collect_myjobmag(
         for job_field in fields:
             if selection.done:
                 return
-            url = MYJOBMAG_LISTING.format(field=job_field, page=page)
-            status, body = client.get(url)
-            if status != 200:
-                selection.skipped[f"listing HTTP {status}"] += 1
-                continue
-            for item in myjobmag.parse_listing(body):
-                if selection.done:
-                    return
-                family = screen_title(item.title, item.company, item.slug, selection, deduper)
-                if family is None:
-                    continue
-                try:
-                    status, job_html = client.get(item.url)
-                except DisallowedUrl:
-                    selection.skipped["disallowed by robots.txt"] += 1
-                    continue
-                if status != 200:
-                    selection.skipped[f"job HTTP {status}"] += 1
-                    continue
-                ad = myjobmag.parse_job(job_html, item.url, item.slug)
-                if ad is None:
-                    selection.skipped["no job description"] += 1
-                    continue
-                consider(ad, classify_title(ad.title) or family, selection, deduper)
+            body = _get_listing(
+                client, selection, MYJOBMAG_LISTING.format(field=job_field, page=page)
+            )
+            if body is not None:
+                _collect_listing(client, selection, deduper, body)
+
+
+def collect_jobtitle_pages(
+    client: PoliteClient, selection: Selection, deduper: Deduper, max_pages: int
+) -> None:
+    """Visit MyJobMag job-title pages whose title belongs to ``selection.only_family``.
+
+    The sitemap lists every job title the site has used (tens of thousands); only titles that
+    the classifier puts in the requested family are visited, newest first (sitemap order), and
+    at most ``max_pages`` of them: pages of expired titles show unrelated recent jobs, so the
+    rest of the request budget is kept for the field listings.
+    """
+    sitemap = _get_listing(client, selection, myjobmag.JOBTITLE_SITEMAP)
+    if sitemap is None:
+        return
+    visited = 0
+    for url, title in myjobmag.jobtitle_pages(sitemap):
+        if selection.done or visited >= max_pages:
+            return
+        if classify_title(title) != selection.only_family:
+            continue
+        visited += 1
+        body = _get_listing(client, selection, url)
+        if body is not None:
+            _collect_listing(client, selection, deduper, body)
 
 
 def collect_remotive(
@@ -210,10 +265,29 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--pages",
         type=int,
-        default=DEFAULT_PAGES_PER_FIELD,
-        help="listing pages per MyJobMag field",
+        help=f"listing pages per MyJobMag field (default {DEFAULT_PAGES_PER_FIELD}, "
+        f"or {FAMILY_MODE_PAGES} with --only-family)",
     )
-    parser.add_argument("--fields", nargs="+", default=list(MYJOBMAG_FIELDS))
+    parser.add_argument("--fields", nargs="+", help="MyJobMag fields to read")
+    parser.add_argument(
+        "--only-family",
+        choices=sorted(FAMILIES),
+        help="collect for one family only: job-title pages first, then deeper listings; "
+        "ignores --target and stops at --family-goal",
+    )
+    parser.add_argument(
+        "--family-goal",
+        type=int,
+        default=FAMILY_MODE_GOAL,
+        help="with --only-family: total adverts wanted in that family, including those "
+        f"already in the manifest (default {FAMILY_MODE_GOAL})",
+    )
+    parser.add_argument(
+        "--max-title-pages",
+        type=int,
+        default=40,
+        help="with --only-family: job-title pages to visit at most (default 40)",
+    )
     parser.add_argument("--include-remote", action="store_true", help="also use the Remotive API")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args(argv)
@@ -226,14 +300,27 @@ def main(argv: list[str] | None = None) -> int:
     client = PoliteClient(cache_dir, args.max_requests)
     manifest = read_manifest(args.out)
     deduper = Deduper.from_manifest(manifest)
-    selection = Selection(
-        args.target,
-        args.per_family,
-        Counter(row["role_family"] for row in manifest if row.get("role_family")),
-        caps=dict(args.cap),
-    )
+    existing = Counter(row["role_family"] for row in manifest if row.get("role_family"))
+    selection = Selection(args.target, args.per_family, existing, caps=dict(args.cap))
+    if args.only_family:
+        family = args.only_family
+        selection.only_family = family
+        selection.caps[family] = args.family_goal
+        selection.target = max(args.family_goal - existing[family], 0)
+        pages = args.pages or FAMILY_MODE_PAGES
+        fields = tuple(args.fields or FAMILY_FIELDS.get(family, MYJOBMAG_FIELDS))
+        print(
+            f"Collecting {family} only: {existing[family]} in the manifest, goal "
+            f"{args.family_goal}, so up to {selection.target} new adverts."
+        )
+    else:
+        pages = args.pages or DEFAULT_PAGES_PER_FIELD
+        fields = tuple(args.fields or MYJOBMAG_FIELDS)
     try:
-        collect_myjobmag(client, selection, deduper, tuple(args.fields), args.pages)
+        if args.only_family and not selection.done:
+            collect_jobtitle_pages(client, selection, deduper, args.max_title_pages)
+        if not selection.done:
+            collect_myjobmag(client, selection, deduper, fields, pages)
         if args.include_remote and not selection.done:
             collect_remotive(client, selection, deduper, cache_dir)
     except StopCollecting as stop:
@@ -248,4 +335,14 @@ def main(argv: list[str] | None = None) -> int:
         for ad, family in selection.chosen:
             logger.info("would write job_market/%s", advert_filename(ad, family))
     print_summary(selection, client, args.dry_run, args.out)
+    if args.only_family:
+        total = existing[args.only_family] + len(selection.chosen)
+        print(f"\n{args.only_family}: {total} adverts in total after this run.")
+        if total < BACKUP_THRESHOLD:
+            print(
+                f"Fewer than {BACKUP_THRESHOLD}: MyJobMag has run out; a backup source is needed."
+            )
     return 0
+
+
+BACKUP_THRESHOLD = 4

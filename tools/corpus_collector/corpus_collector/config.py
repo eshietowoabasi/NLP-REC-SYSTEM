@@ -31,6 +31,11 @@ MYJOBMAG_FIELDS = (
 MYJOBMAG_LISTING = MYJOBMAG_BASE + "/jobs-by-field/{field}/{page}"
 DEFAULT_PAGES_PER_FIELD = 3
 
+# --only-family mode: read deeper, in the fields where that family's adverts appear.
+FAMILY_MODE_PAGES = 15
+FAMILY_MODE_GOAL = 6
+FAMILY_FIELDS = {"cybersecurity": ("information-technology", "engineering")}
+
 # Remotive public API (optional): at most one call per category per run, 4 runs a day.
 REMOTIVE_API = "https://remotive.com/api/remote-jobs"
 REMOTIVE_CATEGORIES = ("software-dev", "data", "devops", "qa", "design", "product")

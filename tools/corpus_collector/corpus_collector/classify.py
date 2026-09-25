@@ -9,6 +9,7 @@ A title that matches the deny-list is rejected unless it also matches a family p
 
 from __future__ import annotations
 
+import functools
 import re
 
 FAMILIES: dict[str, tuple[str, ...]] = {
@@ -304,8 +305,14 @@ DENY: tuple[str, ...] = (
 _WORD = r"(?<![a-z0-9]){}(?![a-z0-9])"
 
 
+@functools.cache
+def _pattern(phrase: str) -> re.Pattern[str]:
+    """Compiled once per phrase (the sitemap mode classifies tens of thousands of titles)."""
+    return re.compile(_WORD.format(re.escape(phrase.strip())))
+
+
 def _matches(phrase: str, title: str) -> bool:
-    return re.search(_WORD.format(re.escape(phrase.strip())), title) is not None
+    return _pattern(phrase).search(title) is not None
 
 
 IT_WORDS = ("it", "ict", "information technology")
@@ -340,9 +347,26 @@ def is_denied(title: str) -> bool:
     return any(_matches(phrase, text) for phrase in DENY)
 
 
+# Roles that are rejected even when a computing phrase matches: academic posts ("Lecturer II -
+# Cyber Security") and sales roles ("Head of Sales - Cybersecurity Solutions") describe
+# teaching or selling, not the skills demanded of practitioners.
+STRONG_DENY: tuple[str, ...] = (
+    "lecturer",
+    "professor",
+    "professors",
+    "reader",
+    "academic staff",
+    "sales",
+    "account manager",
+    "business development",
+)
+
+
 def classify_title(title: str) -> str | None:
     """The role family of a job title, or None for non-computing roles."""
     text = _normalise(title)
+    if any(_matches(phrase, text) for phrase in STRONG_DENY):
+        return None
     denied = is_denied(title)
     for family, phrases in FAMILIES.items():
         matched = [phrase for phrase in phrases if _matches(phrase, text)]

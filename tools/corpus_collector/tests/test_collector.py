@@ -210,6 +210,44 @@ def test_selection_filters_short_adverts_and_caps_families() -> None:
     assert word_count(long_ad.text) == 160
 
 
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Lecturer II - Cyber Security",
+        "Reader / Associate Professor - Cybersecurity",
+        "Head of Sales - Enterprise Cybersecurity Solutions",
+        "Academic Staff (Cyber Security)",
+    ],
+)
+def test_teaching_and_sales_posts_are_not_practitioner_roles(title: str) -> None:
+    assert classify_title(title) is None
+
+
+def test_jobtitle_sitemap_pages_become_classifiable_titles() -> None:
+    sitemap = (  # SYNTHETIC sitemap excerpt
+        "<urlset><url><loc>https://www.myjobmag.com/jobs-by-title/soc-analyst-ii</loc></url>"
+        "<url><loc>https://www.myjobmag.com/jobs-by-title/kitchen-assistant</loc></url>"
+        "<url><loc>https://www.myjobmag.com/job/not-a-title-page</loc></url></urlset>"
+    )
+
+    pages = myjobmag.jobtitle_pages(sitemap)
+
+    assert pages == [
+        ("https://www.myjobmag.com/jobs-by-title/soc-analyst-ii", "soc analyst ii"),
+        ("https://www.myjobmag.com/jobs-by-title/kitchen-assistant", "kitchen assistant"),
+    ]
+    assert [classify_title(title) for _, title in pages] == ["cybersecurity", None]
+
+
+def test_only_family_mode_skips_other_families() -> None:
+    selection = Selection(target=4, per_family=8, only_family="cybersecurity")
+    deduper = Deduper()
+
+    assert screen_title("SOC Analyst", "A", None, selection, deduper) == "cybersecurity"
+    assert screen_title("Backend Developer", "B", None, selection, deduper) is None
+    assert selection.skipped == Counter({"other family": 1})
+
+
 def test_one_family_can_have_its_own_cap() -> None:
     selection = Selection(target=10, per_family=8, caps=dict([parse_cap("product_agile=1")]))
     deduper = Deduper()

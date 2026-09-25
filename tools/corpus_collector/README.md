@@ -45,7 +45,9 @@ Filters:
 
 - **Role families** (allow-list): `software_dev`, `data_ai`, `cybersecurity`, `cloud_devops`,
   `networking_systems`, `it_support`, `database`, `qa`, `ui_ux`, `product_agile`. A deny-list
-  rejects non-computing roles (drivers, accountants, sales, civil engineers, ...).
+  rejects non-computing roles (drivers, accountants, civil engineers, ...); academic posts
+  (lecturer, professor, reader) and sales roles are rejected even when their title names a
+  computing field ("Lecturer II - Cyber Security"): they do not describe practitioner demand.
 - At least **150 words** after cleaning.
 - At most `--per-family` adverts per family (default 8, counting adverts already in the
   manifest), `--target` in total (default 50).
@@ -70,6 +72,13 @@ pip install -r requirements.txt
 python -m corpus_collector --dry-run          # list what would be collected; saves nothing
 python -m corpus_collector                    # collect and save (reuses the dry run's cache)
 python -m corpus_collector --include-remote --target 60 --per-family 10
+python -m corpus_collector --pages 6 --cap product_agile=4   # a different cap for one family
+
+# Fill one thin family: MyJobMag job-title pages first (from sitemap-jobtitle.xml, titles in
+# that family only, newest first, at most --max-title-pages), then deeper field listings
+# (information-technology and engineering for cybersecurity), until the family has
+# --family-goal adverts in total (default 6). The overall --target is ignored.
+python -m corpus_collector --only-family cybersecurity --pages 15 --dry-run
 python -m corpus_collector --help             # all options (--out, --pages, --fields, ...)
 
 # A manually copied advert (text on the clipboard):

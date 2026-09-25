@@ -22,6 +22,24 @@ SOURCE = "MyJobMag"
 _JOB_PATH = re.compile(r"^/job/([a-z0-9-]+)/?$")
 
 
+JOBTITLE_SITEMAP = MYJOBMAG_BASE + "/sitemap-jobtitle.xml"
+_JOBTITLE_URL = re.compile(r"^https://www\.myjobmag\.com/jobs-by-title/([a-z0-9-]+)$")
+
+
+def jobtitle_pages(sitemap_xml: str) -> list[tuple[str, str]]:
+    """(url, title) of every job-title page in the sitemap, in sitemap order.
+
+    The title is the slug with hyphens as spaces ("soc-analyst-ii" -> "soc analyst ii"),
+    good enough for the role-family classifier.
+    """
+    pages = []
+    for url in re.findall(r"<loc>\s*([^<\s]+)\s*</loc>", sitemap_xml):
+        match = _JOBTITLE_URL.match(url)
+        if match:
+            pages.append((url, match.group(1).replace("-", " ")))
+    return pages
+
+
 def split_title(text: str) -> tuple[str, str]:
     """ "Devops Manager at Aloft LLC" -> ("Devops Manager", "Aloft LLC")."""
     title, sep, company = text.rpartition(" at ")
