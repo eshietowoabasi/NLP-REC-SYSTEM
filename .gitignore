@@ -28,6 +28,11 @@ backend/storage/
 backend/evaluation/results/*
 !backend/evaluation/results/.gitkeep
 
+# Collected corpus (job adverts, policy documents) and the collector's HTTP cache: never commit.
+nlp-rs-data/
+**/.cache/
+tools/corpus_collector/out/
+
 # Editors / OS
 .vscode/*
 !.vscode/extensions.json

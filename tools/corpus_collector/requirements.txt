@@ -1,0 +1,11 @@
+# Job-advert corpus collector (separate from the backend). Python 3.11+.
+#   python -m venv .venv && .venv\Scripts\activate && pip install -r requirements.txt
+requests==2.34.2
+beautifulsoup4==4.15.0
+lxml==6.1.3
+# Verify HTTPS against the Windows certificate store (antivirus that re-signs HTTPS).
+truststore==0.10.4
+# Word counts of PDF documents registered in the manifest (register command).
+pymupdf==1.28.2
+# Tests
+pytest==9.1.1
