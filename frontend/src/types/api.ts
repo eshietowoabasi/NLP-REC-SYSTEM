@@ -279,6 +279,228 @@ export interface SessionListParams {
   search?: string
 }
 
+/* ------------------------------------------------ session results (evidence) */
+
+export interface KeywordScore {
+  term: string
+  score: number
+  passage_count: number
+}
+
+/** GET /api/sessions/{id}/keywords[?category=] */
+export interface KeywordResults {
+  overall: KeywordScore[]
+  by_category: Partial<Record<SourceCategory, KeywordScore[]>>
+  passage_count: number
+}
+
+export type SkillLabel = 'SKILL' | 'TOOL' | 'CERT' | 'LANGUAGE'
+
+export interface SkillStat {
+  name: string
+  label: SkillLabel
+  mentions: number
+  document_frequency: number
+  by_category: Partial<Record<SourceCategory, number>>
+}
+
+/** GET /api/sessions/{id}/entities */
+export interface EntityResults {
+  skills: SkillStat[]
+  passages_with_skills: number
+  passage_count: number
+  document_count: number
+}
+
+export interface WeightedTerm {
+  term: string
+  weight: number
+}
+
+export interface TopicSample {
+  passage_id: number
+  document_id: number
+  document_title: string
+  text: string
+}
+
+export interface TopicResult {
+  topic_id: number
+  title: string
+  keywords: WeightedTerm[]
+  size: number
+  document_count: number
+  mean_probability: number
+  strength_raw: number
+  strength: number
+  samples: TopicSample[]
+}
+
+/** GET /api/sessions/{id}/topics */
+export interface TopicResults {
+  topic_count: number
+  outlier_passages: number
+  modelled_passages: number
+  topics: TopicResult[]
+}
+
+export type OverlapStatus = 'Potential Duplicate' | 'No Significant Overlap'
+
+export interface SimilarityCandidate {
+  topic_id: number
+  title: string
+  max_similarity: number
+  novelty: number
+  overlap_status: OverlapStatus
+  closest_nuc_passage: { id: number; text: string; page_number: number | null }
+}
+
+/** GET /api/sessions/{id}/similarity */
+export interface SimilarityResults {
+  threshold: number
+  candidates: SimilarityCandidate[]
+  nuc_core_version: { id: number; version_label: string } | null
+}
+
+/* ------------------------------------------------------- recommendations */
+
+export type PlannerDecision = 'accepted' | 'rejected' | 'flagged'
+export type DecisionFilter = 'all' | 'undecided' | PlannerDecision
+
+export interface RecommendationSkill {
+  name: string
+  label: SkillLabel
+  mentions: number
+  document_frequency: number
+}
+
+export interface Recommendation {
+  id: number
+  session_id: number
+  rank: number
+  topic_id: number
+  auto_title: string
+  topic_title: string
+  topic_description: string
+  keywords: WeightedTerm[]
+  skills: RecommendationSkill[]
+  ner_score: number
+  topic_score: number
+  novelty_score: number
+  composite_score: number
+  max_similarity: number
+  overlap_status: OverlapStatus
+  planner_decision: PlannerDecision | null
+  planner_notes: string | null
+  decided_at: string | null
+  decided_by: UserRef | null
+  has_mapping: boolean
+}
+
+export interface ReviewCounts {
+  total: number
+  reviewed: number
+  undecided: number
+  accepted: number
+  rejected: number
+  flagged: number
+  potential_duplicates: number
+}
+
+/** GET /api/sessions/{id}/recommendations */
+export interface RecommendationList {
+  items: Recommendation[]
+  counts: ReviewCounts
+}
+
+export interface RecommendationListParams {
+  decision?: DecisionFilter
+  hide_duplicates?: boolean
+}
+
+export interface Evidence {
+  passage_id: number
+  relevance_score: number
+  text: string
+  page_number: number | null
+  position: number
+  document: { id: number; title: string; source_category: SourceCategory }
+}
+
+export interface NucPassage {
+  id: number
+  text: string
+  page_number: number | null
+  document_title: string
+  version_label: string | null
+}
+
+export interface CourseMapping {
+  id: number
+  recommendation_id: number
+  course_code: string
+  course_title: string
+  credit_units: 1 | 2 | 3
+  prerequisites: string[]
+  learning_outcomes: string[]
+  created_by: UserRef
+  created_at: string
+  updated_at: string
+}
+
+/** GET /api/recommendations/{id} */
+export interface RecommendationDetail extends Recommendation {
+  evidence: Evidence[]
+  closest_nuc_passage: NucPassage | null
+  session: {
+    id: number
+    session_name: string
+    weights: ScoreWeights
+    similarity_threshold: number
+  }
+  mapping: CourseMapping | null
+}
+
+/** PATCH /api/recommendations/{id} */
+export interface RecommendationEditRequest {
+  topic_title?: string
+  topic_description?: string
+}
+
+/** PATCH /api/recommendations/{id}/decision — `decision: null` clears it. */
+export interface DecisionRequest {
+  decision: PlannerDecision | null
+  notes?: string | null
+}
+
+/** POST /api/recommendations/{id}/mapping and PUT /api/mappings/{id} */
+export interface MappingRequest {
+  course_code: string
+  course_title: string
+  credit_units: 1 | 2 | 3
+  prerequisites: string[]
+  learning_outcomes: string[]
+}
+
+export interface CurriculumCourse extends CourseMapping {
+  recommendation: {
+    id: number
+    rank: number
+    topic_title: string
+    composite_score: number
+    overlap_status: OverlapStatus
+  }
+}
+
+/** GET /api/sessions/{id}/curriculum */
+export interface ProposedCurriculum {
+  session: { id: number; session_name: string }
+  courses: CurriculumCourse[]
+  total_units: number
+  credit_unit_allowance: number | null
+  remaining_units: number | null
+}
+
 /* -------------------------------------------------------------- NUC core */
 
 export interface NucCoreVersion {

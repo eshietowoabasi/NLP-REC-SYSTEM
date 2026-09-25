@@ -1,7 +1,10 @@
 import {
   AlertCircle,
   ArrowLeft,
+  BarChart3,
+  BookOpen,
   CheckCircle2,
+  ListChecks,
   Loader2,
   Play,
   RotateCcw,
@@ -146,12 +149,31 @@ function SessionView({ session }: { session: SessionDetail }) {
         <Alert>
           <CheckCircle2 aria-hidden="true" className="text-emerald-600" />
           <AlertTitle>Analysis complete</AlertTitle>
-          <AlertDescription>
-            {session.recommendation_count} recommendation
-            {session.recommendation_count === 1 ? '' : 's'} from {session.topic_count ?? 0} theme
-            {session.topic_count === 1 ? '' : 's'} found in {session.document_count} document
-            {session.document_count === 1 ? '' : 's'}. Finished{' '}
-            {formatDateTime(session.completed_at)}.
+          <AlertDescription className="space-y-3">
+            <p>
+              {session.recommendation_count} recommendation
+              {session.recommendation_count === 1 ? '' : 's'} from {session.topic_count ?? 0} theme
+              {session.topic_count === 1 ? '' : 's'} found in {session.document_count} document
+              {session.document_count === 1 ? '' : 's'}. Finished{' '}
+              {formatDateTime(session.completed_at)}.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" asChild>
+                <Link to={`/sessions/${session.id}/recommendations`}>
+                  <ListChecks aria-hidden="true" /> View recommendations
+                </Link>
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <Link to={`/sessions/${session.id}/evidence`}>
+                  <BarChart3 aria-hidden="true" /> View evidence
+                </Link>
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <Link to={`/sessions/${session.id}/curriculum`}>
+                  <BookOpen aria-hidden="true" /> Proposed curriculum
+                </Link>
+              </Button>
+            </div>
           </AlertDescription>
         </Alert>
       )}
