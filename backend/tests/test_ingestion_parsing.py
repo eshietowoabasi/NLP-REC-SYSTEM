@@ -152,6 +152,61 @@ def test_cleaning_rejoins_hyphenation_and_removes_urls_emails_and_bullets() -> N
     assert "•" not in cleaned
 
 
+def test_justified_line_breaks_mid_sentence_are_not_headings() -> None:
+    # SYNTHETIC text laid out like a justified PDF column.
+    raw = (
+        "Regulation is often seen as a negative word that\n"
+        "stifles innovation. The approach of the Federal\n"
+        "Ministry of Communications and Digital\n"
+        "Economy is one that promotes development.\n"
+        "Guidelines for Information and\n"
+        "Communication Technology are listed."
+    )
+
+    (cleaned,) = clean_pages([raw])
+
+    assert "Communications and Digital Economy is one" in cleaned
+    assert "Information and Communication Technology" in cleaned
+    assert "Digital." not in cleaned and "and." not in cleaned
+
+
+def test_headings_at_paragraph_boundaries_still_end_sentences() -> None:
+    (cleaned,) = clean_pages(["Situation Analysis\nRegulation is a key tool."])
+
+    assert cleaned == "Situation Analysis. Regulation is a key tool."
+
+
+def test_list_items_broken_one_word_per_line_are_rejoined() -> None:
+    raw = "1.\t\nGuidelines\nfor\nNigerian\nContent\nDevelopment in ICT\n2.\t\nCybercrime Act 2015"
+
+    (cleaned,) = clean_pages([raw])
+
+    assert cleaned == "Guidelines for Nigerian Content Development in ICT. Cybercrime Act 2015."
+
+
+def test_table_of_contents_leaders_are_removed() -> None:
+    (cleaned,) = clean_pages(["Foreword.............................7\nPreface........11"])
+
+    assert "..." not in cleaned
+    assert "7" not in cleaned and "11" not in cleaned
+    assert "Foreword" in cleaned and "Preface" in cleaned
+
+
+def test_wrapped_bullet_items_stay_whole() -> None:
+    raw = (
+        "Instruments include:\n"
+        "1.\t\n"
+        "Guidelines for the development of\n"
+        "local content\n"
+        "2.\t\n"
+        "Cybercrime Act 2015"
+    )
+
+    (cleaned,) = clean_pages([raw])
+
+    assert "Guidelines for the development of local content. Cybercrime Act 2015." in cleaned
+
+
 def test_cleaning_normalises_unicode_and_whitespace() -> None:
     (cleaned,) = clean_pages(["ﬁnance   and ﬂow"])
 

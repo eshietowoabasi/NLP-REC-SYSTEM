@@ -1,13 +1,17 @@
 """Sentence splitting and grouping of sentences into passages (the unit of analysis).
 
-A passage is 3–5 consecutive sentences (configurable) and, where sentences allow, roughly
-100–200 words. Passages keep the page number of their first sentence. Passages are needed
-because SBERT models truncate long inputs (all-MiniLM-L6-v2 reads at most 256 word pieces).
+A passage is 3–5 consecutive sentences (configurable) and roughly 100–200 words; lists of very
+short sentences may give a passage more than 5 sentences so that it still has enough text.
+Passages keep the page number of their first sentence. Passages are needed because SBERT
+models truncate long inputs (all-MiniLM-L6-v2 reads at most 256 word pieces).
 
 Grouping rules, applied sentence by sentence:
 
 * a passage is closed once it has at least ``min_sentences`` sentences and ``min_words``
-  words, or when it reaches ``max_sentences`` sentences or ``max_words`` words;
+  words, or when it reaches ``max_words`` words;
+* ``max_sentences`` also closes a passage, but only once it has at least half of
+  ``min_words``: lists of short fragments ("Capacitance. Electric dipoles. ...") would
+  otherwise become passages of a dozen words, too little text for a meaningful embedding;
 * a sentence that would push the passage over ``max_words`` starts a new passage;
 * a single sentence longer than ``max_words`` (e.g. a long table row) is cut into chunks;
 * a fragment left at the end (fewer than ``min_sentences`` sentences and under half of
@@ -139,11 +143,10 @@ def group_passages(sentences: list[Sentence], config: PassageConfig) -> list[Pas
         current.append(sentence)
         current_words += sentence.words
         reached_target = len(current) >= config.min_sentences and current_words >= config.min_words
-        if (
-            reached_target
-            or len(current) >= config.max_sentences
-            or current_words >= config.max_words
-        ):
+        enough_sentences = (
+            len(current) >= config.max_sentences and current_words >= config.min_words / 2
+        )
+        if reached_target or enough_sentences or current_words >= config.max_words:
             flush()
     flush()
 

@@ -70,10 +70,26 @@ def test_long_sentences_close_a_passage_at_the_word_target(nlp: Language) -> Non
     assert all(100 <= p.words <= 200 for p in passages)
 
 
-def test_short_sentences_are_capped_at_max_sentences(nlp: Language) -> None:
+def test_max_sentences_applies_once_a_passage_has_half_the_minimum_words(nlp: Language) -> None:
+    # Ten 8-word sentences: 5 sentences are only 40 words, so the passage continues until
+    # it reaches 50 words (7 sentences, 56 words).
     passages = group_passages(sentences_of(nlp, numbered(10, 8)), PassageConfig())
 
+    assert [len(p.sentences) for p in passages] == [7, 3]
+
+
+def test_sentences_of_normal_length_are_capped_at_max_sentences(nlp: Language) -> None:
+    passages = group_passages(sentences_of(nlp, numbered(10, 15)), PassageConfig())
+
     assert [len(p.sentences) for p in passages] == [5, 5]
+
+
+def test_lists_of_fragments_do_not_become_tiny_passages(nlp: Language) -> None:
+    fragments = " ".join(f"Topic number {n} here." for n in range(40))  # 4-word "sentences"
+
+    passages = group_passages(sentences_of(nlp, fragments), PassageConfig())
+
+    assert min(p.words for p in passages) >= 50
 
 
 def test_a_passage_never_exceeds_max_words(nlp: Language) -> None:
