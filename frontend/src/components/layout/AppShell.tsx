@@ -16,7 +16,7 @@ export function AppShell() {
         Skip to main content
       </a>
       <AppSidebar />
-      <SidebarInset>
+      <SidebarInset className="min-w-0">
         <TopBar />
         <main id="main-content" tabIndex={-1} className="flex-1 p-4 focus:outline-none md:p-6">
           <Outlet />

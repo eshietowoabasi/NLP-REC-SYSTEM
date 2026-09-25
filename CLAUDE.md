@@ -157,6 +157,11 @@ cosmetic.
   query client, utils), `types/api.ts`, `test/` (setup + render helpers).
 - Every data screen has loading, empty and error states. Accessible: labelled inputs,
   keyboard navigation, sufficient contrast. Responsive to tablet width.
+- Charts (Recharts): colours from the `--viz-*` tokens in `index.css` (validated palette; one
+  hue for magnitude, amber only for "Potential Duplicate" with icon + label), a table beside
+  every chart, hover tooltips. Chart-heavy routes are lazy-loaded.
+- Edit files with the Edit/Write tools or Python, not PowerShell `Get-Content`/`Set-Content`
+  (they garble UTF-8 and add BOMs).
 
 ## Commands
 
@@ -204,6 +209,8 @@ Linux/Python 3.11, CPU-only PyTorch). Never hand-edit the lockfiles. numpy stays
 - [x] **3 Analysis pipeline** — sessions API (create/run/retry/delete, defaults), session job with 8 stages +
   progress, TF-IDF, EntityRuler skills, BERTopic, overlap/novelty, scoring; Sessions list, New
   Session (3 steps), Session Detail with live stage tracker; benchmark script.
-- [ ] **4 Evidence, recommendations, decisions, mapping**
+- [x] **4 Evidence, recommendations, decisions, mapping** — results, recommendations, decision,
+  mapping and curriculum APIs; Evidence Dashboard (charts + tables), Recommendations review,
+  Recommendation Detail, Curriculum Mapping, Proposed Curriculum.
 - [ ] **5 Reports, dashboard, admin settings**
 - [ ] **6 Evaluation, hardening, deployment, docs**

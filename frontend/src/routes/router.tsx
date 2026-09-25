@@ -8,6 +8,10 @@ import { ProfilePage } from '@/features/auth/ProfilePage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { DocumentDetailPage } from '@/features/documents/DocumentDetailPage'
 import { DocumentsPage } from '@/features/documents/DocumentsPage'
+import { CurriculumPage } from '@/features/review/CurriculumPage'
+import { MappingPage } from '@/features/review/MappingPage'
+import { RecommendationDetailPage } from '@/features/review/RecommendationDetailPage'
+import { RecommendationsPage } from '@/features/review/RecommendationsPage'
 import { NewSessionPage } from '@/features/sessions/NewSessionPage'
 import { SessionDetailPage } from '@/features/sessions/SessionDetailPage'
 import { SessionsPage } from '@/features/sessions/SessionsPage'
@@ -39,6 +43,35 @@ export const routes: RouteObject[] = [
             path: 'sessions/:sessionId',
             element: <SessionDetailPage />,
             handle: title('Analysis Session'),
+          },
+          {
+            path: 'sessions/:sessionId/evidence',
+            // Charts (Recharts) load only when the Evidence Dashboard is opened.
+            lazy: () =>
+              import('@/features/review/EvidencePage').then((m) => ({ Component: m.EvidencePage })),
+            handle: title('Evidence'),
+          },
+          {
+            path: 'sessions/:sessionId/recommendations',
+            element: <RecommendationsPage />,
+            handle: title('Recommendations'),
+          },
+          {
+            path: 'sessions/:sessionId/curriculum',
+            element: <CurriculumPage />,
+            handle: title('Proposed Curriculum'),
+          },
+          {
+            path: 'recommendations/:recommendationId',
+            element: <RecommendationDetailPage />,
+            handle: title('Recommendation'),
+          },
+          {
+            path: 'recommendations/:recommendationId/mapping',
+            element: <RequireRole roles={['admin', 'planner']} />,
+            children: [
+              { index: true, element: <MappingPage />, handle: title('Curriculum Mapping') },
+            ],
           },
           {
             path: 'documents/:documentId',
