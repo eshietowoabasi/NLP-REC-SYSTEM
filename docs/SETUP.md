@@ -178,6 +178,19 @@ Every dependency is pinned to an exact version, and the lockfiles are committed.
   including model loading); later jobs take about a second per document.
 - The worker keeps both models loaded between jobs. After changing the SBERT model in the
   settings, restart the worker.
+
+## Reports and WeasyPrint
+
+DOCX reports work everywhere. PDF reports use WeasyPrint, which needs the Pango text-layout
+libraries. The Docker image installs them, so PDFs work in the Docker stack. Natively on
+Windows they are missing: WeasyPrint prints an import warning, PDF reports fail with "PDF
+generation is not available on this server", and the real-PDF test is skipped. To generate
+PDFs natively on Windows, install MSYS2 and its Pango package
+(`pacman -S mingw-w64-ucrt-x86_64-pango`), then set
+`WEASYPRINT_DLL_DIRECTORIES=C:\msys64\ucrt64\bin` before starting the worker.
+
+Report files are stored in `STORAGE_DIR/reports/` under UUID names.
+
 ## Benchmark
 
 The pipeline benchmark times ingestion and a session analysis on 20 synthetic documents of about

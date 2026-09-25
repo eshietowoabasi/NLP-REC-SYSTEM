@@ -128,8 +128,22 @@ cosmetic.
   document builders live in `tests/documents.py`. Uploaded files go to a per-test tmp storage dir.
 - This laptop: `USE_SYSTEM_CERTS=true` in `.env` (Avast re-signs HTTPS); libmagic is missing
   natively, so validation falls back to signature checks (libmagic tests are skipped locally).
-- Disk space on the dev laptop is tight (~4 GB free): the Docker backend image has NOT been
-  rebuilt with the NLP packages yet; develop in lightweight mode until space allows.
+- Docker image builds on this laptop currently fail (Avast HTTPS scanning breaks pip inside
+  containers); develop in lightweight mode. The backend image has not been rebuilt with the NLP
+  or report packages yet.
+
+## Reports and admin conventions (established in Phase 5)
+
+- Reports: `app/services/reports/content.py` builds a format-neutral `ReportDocument` from a
+  plain `ReportData` (pure; unit-test here); `render.py` turns it into PDF (Jinja2 template
+  `templates/report.html` + WeasyPrint) or DOCX. Add report content to the builders, never to
+  one renderer only. The job `app.tasks.reports.generate_report` loads the data and stores the
+  file with `get_storage().save(..., area="reports")`.
+- WeasyPrint needs Pango: available in Docker, missing natively on Windows (PDF reports then
+  fail with a clear message; the real-PDF test is skipped).
+- Synthetic completed sessions for tests: `tests/review_data.py::build_review_session(owner)`.
+- Admin config (settings, skill patterns, stop words) is never deleted, only changed or
+  deactivated; every change goes through `record_audit`.
 
 ## Frontend conventions (established in Phase 1)
 
@@ -212,5 +226,7 @@ Linux/Python 3.11, CPU-only PyTorch). Never hand-edit the lockfiles. numpy stays
 - [x] **4 Evidence, recommendations, decisions, mapping** — results, recommendations, decision,
   mapping and curriculum APIs; Evidence Dashboard (charts + tables), Recommendations review,
   Recommendation Detail, Curriculum Mapping, Proposed Curriculum.
-- [ ] **5 Reports, dashboard, admin settings**
+- [x] **5 Reports, dashboard, admin settings** — report job (content model → PDF via WeasyPrint /
+  DOCX), reports API, dashboard summary, admin settings/skill patterns/stop words/audit log (+CSV)
+  APIs; Reports, Dashboard, Admin Settings (3 tabs) and Audit Log screens.
 - [ ] **6 Evaluation, hardening, deployment, docs**
