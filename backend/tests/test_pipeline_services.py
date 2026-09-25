@@ -329,6 +329,15 @@ def test_plus_and_hash_are_not_stripped_from_skill_names() -> None:
     assert pretty_term("security+", lookup) == "CompTIA Security+"
 
 
+def test_titles_do_not_repeat_a_skill_or_show_odd_lemmas() -> None:
+    canonical = {"agile": "Agile Methodologies", "methodology": "Agile Methodologies"}
+
+    # Seen on the real corpus: "... and Agile Methodologies Agile Methodologies", "... Datum".
+    assert pretty_term("agile methodology", canonical) == "Agile Methodologies"
+    assert pretty_term("datum", {}) == "Data"
+    assert title_terms(["data", "datum", "power bi"]) == ["data", "power bi"]
+
+
 def test_single_words_are_not_matched_to_skills_by_their_stem() -> None:
     from app.services.ner.skills import SkillPatternSpec, canonical_lookup
     from app.services.preprocessing.spacy_model import get_nlp

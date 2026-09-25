@@ -17,6 +17,7 @@ from app.services.exceptions import AnalysisError
 
 OUTLIER_TOPIC = -1
 TOP_WORDS = 10
+MIN_SAMPLES = 3  # HDBSCAN density parameter (see fit_topics)
 
 
 @dataclass(frozen=True)
@@ -79,6 +80,10 @@ def fit_topics(
         ),
         hdbscan_model=HDBSCAN(
             min_cluster_size=min_topic_size,
+            # HDBSCAN's default (min_samples = min_cluster_size) was unstable on the real
+            # corpus: 2 to 23 themes depending on the seed, often one theme holding 70% of the
+            # passages. With 3 the real corpus gives 26-33 themes on every seed tested.
+            min_samples=min(MIN_SAMPLES, min_topic_size),
             metric="euclidean",
             cluster_selection_method="eom",
             prediction_data=True,

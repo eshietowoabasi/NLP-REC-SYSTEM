@@ -111,14 +111,27 @@ def stem_key(term: str) -> str:
     return " ".join(stem(word) for word in term.split())
 
 
+# spaCy lemmatises some computing words oddly; show the everyday form ("data", not "datum").
+LEMMA_FIXES = {"datum": "data"}
+
+
+def fix_lemmas(term: str) -> str:
+    return " ".join(LEMMA_FIXES.get(word, word) for word in term.split())
+
+
 def pretty_term(term: str, canonical: dict[str, str]) -> str:
     """Display form of a keyword: canonical skill name, acronym, or title case."""
+    term = fix_lemmas(term)
     for key in (term, stem_key(term)):
         if key in canonical:
             return canonical[key]
-    return " ".join(
-        canonical.get(word) or ACRONYMS.get(word) or word.capitalize() for word in term.split()
-    )
+    words: list[str] = []
+    for word in term.split():
+        shown = canonical.get(word) or ACRONYMS.get(word) or word.capitalize()
+        # Two words of one skill ("agile methodology") both map to "Agile Methodologies".
+        if not words or words[-1] != shown:
+            words.append(shown)
+    return " ".join(words)
 
 
 def _is_generic(term: str) -> bool:
@@ -130,7 +143,7 @@ _GENERIC_STEMS = frozenset(stem(word) for word in GENERIC_TERMS)
 
 def title_terms(keywords: list[str], limit: int = MAX_TITLE_TERMS) -> list[str]:
     """Up to ``limit`` distinctive keywords for a title (see the module docstring)."""
-    candidates = [k for k in keywords if k and not _is_generic(k)]
+    candidates = [fix_lemmas(k) for k in keywords if k and not _is_generic(k)]
     phrases = [k for k in candidates if " " in k]
     chosen: list[str] = []
     used_stems: set[str] = set()
