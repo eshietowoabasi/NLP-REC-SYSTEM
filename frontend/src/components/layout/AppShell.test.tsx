@@ -40,12 +40,20 @@ describe('AppShell', () => {
     expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument()
   })
 
-  it('shows screens that are not built yet as disabled, not as links', async () => {
-    signedInAs(plannerUser)
+  it('links every screen, including reports and the admin tools', async () => {
+    signedInAs(adminUser)
     renderApp('/')
 
-    expect(await screen.findByRole('button', { name: 'Reports' })).toBeDisabled()
-    expect(screen.queryByRole('link', { name: 'Reports' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'Reports' })).toHaveAttribute('href', '/reports')
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute(
+      'href',
+      '/admin/settings',
+    )
+    expect(screen.getByRole('link', { name: 'Audit Log' })).toHaveAttribute(
+      'href',
+      '/admin/audit-log',
+    )
+    expect(screen.queryByRole('button', { name: 'Reports' })).not.toBeInTheDocument()
   })
 
   it('logs out from the account menu and returns to the login page', async () => {

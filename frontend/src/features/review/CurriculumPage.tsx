@@ -1,7 +1,8 @@
-import { AlertTriangle, BookOpen, CheckCircle2 } from 'lucide-react'
+import { AlertTriangle, BookOpen, CheckCircle2, FileBarChart, FilePlus } from 'lucide-react'
 import { Link, useParams } from 'react-router'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import {
@@ -13,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useAuth } from '@/features/auth/useAuth'
 import type { ProposedCurriculum } from '@/types/api'
 
 import { useCurriculum } from './api'
@@ -46,6 +48,7 @@ export function CurriculumPage() {
 
 function CurriculumView({ sessionId }: { sessionId: number }) {
   const curriculum = useCurriculum(sessionId)
+  const { canEdit } = useAuth()
   if (curriculum.isPending) return <LoadingBlock label="Loading the proposed curriculum" />
   if (curriculum.isError) {
     return (
@@ -69,6 +72,25 @@ function CurriculumView({ sessionId }: { sessionId: number }) {
   }
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          Courses mapped from accepted recommendations of this session.
+        </p>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link to={`/reports?session=${sessionId}`}>
+              <FileBarChart aria-hidden="true" /> Reports
+            </Link>
+          </Button>
+          {canEdit && (
+            <Button size="sm" asChild>
+              <Link to={`/reports?session=${sessionId}&generate=1`}>
+                <FilePlus aria-hidden="true" /> Generate report
+              </Link>
+            </Button>
+          )}
+        </div>
+      </div>
       <AllowanceCard curriculum={data} />
       <div className="overflow-x-auto rounded-lg border">
         <Table aria-label="Proposed courses">
