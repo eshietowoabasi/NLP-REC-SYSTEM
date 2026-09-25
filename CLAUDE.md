@@ -128,9 +128,11 @@ cosmetic.
   document builders live in `tests/documents.py`. Uploaded files go to a per-test tmp storage dir.
 - This laptop: `USE_SYSTEM_CERTS=true` in `.env` (Avast re-signs HTTPS); libmagic is missing
   natively, so validation falls back to signature checks (libmagic tests are skipped locally).
-- Docker image builds on this laptop currently fail (Avast HTTPS scanning breaks pip inside
-  containers); develop in lightweight mode. The backend image has not been rebuilt with the NLP
-  or report packages yet.
+- Disk: the C: drive has about 48 GB free (September 2026).
+- Avast HTTPS scanning (Web Shield) breaks downloads inside containers (pip, npm, Hugging Face)
+  because containers do not trust Avast's certificate. Docker builds that need the network, and
+  a container's first SBERT download, need Web Shield off; cached layers and the `models-data`
+  volume work with it on. Native runs are fine with it on (`USE_SYSTEM_CERTS=true`).
 
 ## Reports and admin conventions (established in Phase 5)
 

@@ -222,6 +222,15 @@ second run shows the steady-state time of a running worker.
   that inspects HTTPS (for example Avast Web Shield) re-signs connections with its own
   certificate, which Windows trusts but Python does not. Set `USE_SYSTEM_CERTS=true` in `.env`
   so Python uses the Windows certificate store, then restart Flask and the worker.
+- **Docker: uploads hang or fail while the worker loads the model** (antivirus HTTPS scanning,
+  or no internet): even with the model cached, sentence-transformers checks Hugging Face
+  online and retries for minutes when that fails. Once the model is in the `models-data`
+  volume (after the first upload with a working connection), set `HF_HUB_OFFLINE=1` in `.env`
+  and recreate the containers (`docker compose up -d backend worker`). With `HF_HUB_OFFLINE=1`
+  a newly chosen SBERT model cannot be downloaded; set it back to 0 for that first download.
+- **Docker builds fail with `CERTIFICATE_VERIFY_FAILED`**: containers do not trust
+  antivirus certificates. Turn off HTTPS scanning (e.g. Avast Web Shield, "until restart")
+  while building; cached layers rebuild without the network.
 - **"libmagic is not available" warning** (native Windows): harmless. Uploads are still checked
   by their file signatures; the Docker image includes libmagic for the full check.
 - **A session fails with "Too little text to discover themes"**: theme discovery needs at least
