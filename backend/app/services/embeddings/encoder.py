@@ -45,7 +45,7 @@ class SentenceTransformerEncoder:
 
     @property
     def dimension(self) -> int:
-        return int(self._model.get_sentence_embedding_dimension() or 0)
+        return int(self._model.get_embedding_dimension() or 0)
 
 
 @lru_cache(maxsize=2)
