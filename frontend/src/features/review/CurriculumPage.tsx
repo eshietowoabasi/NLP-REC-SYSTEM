@@ -1,4 +1,4 @@
-﻿import { AlertTriangle, BookOpen, CheckCircle2 } from 'lucide-react'
+import { AlertTriangle, BookOpen, CheckCircle2 } from 'lucide-react'
 import { Link, useParams } from 'react-router'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -91,7 +91,7 @@ function CurriculumView({ sessionId }: { sessionId: number }) {
                 <TableCell className="whitespace-normal">{course.course_title}</TableCell>
                 <TableCell className="text-right tabular-nums">{course.credit_units}</TableCell>
                 <TableCell className="whitespace-normal">
-                  {course.prerequisites.length ? course.prerequisites.join(', ') : 'â€”'}
+                  {course.prerequisites.length ? course.prerequisites.join(', ') : '—'}
                 </TableCell>
                 <TableCell className="whitespace-normal">
                   <ul className="list-disc space-y-0.5 pl-4">

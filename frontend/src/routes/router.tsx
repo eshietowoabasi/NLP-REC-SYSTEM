@@ -1,4 +1,4 @@
-﻿import { createBrowserRouter, type RouteObject } from 'react-router'
+import { createBrowserRouter, type RouteObject } from 'react-router'
 
 import { AppShell } from '@/components/layout/AppShell'
 import { NucCorePage } from '@/features/admin/nuc-core/NucCorePage'

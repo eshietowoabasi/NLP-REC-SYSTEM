@@ -1,4 +1,4 @@
-﻿import { Outlet } from 'react-router'
+import { Outlet } from 'react-router'
 
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 

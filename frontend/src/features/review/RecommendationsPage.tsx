@@ -1,4 +1,4 @@
-﻿import { BookOpenCheck, Inbox, Loader2 } from 'lucide-react'
+import { BookOpenCheck, Inbox, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { toast } from 'sonner'

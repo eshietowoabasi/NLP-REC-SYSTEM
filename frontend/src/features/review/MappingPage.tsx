@@ -1,4 +1,4 @@
-﻿import { zodResolver } from '@hookform/resolvers/zod'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, Loader2, Plus, Trash2, X } from 'lucide-react'
 import { useState, type KeyboardEvent } from 'react'
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
@@ -48,7 +48,7 @@ const mappingSchema = z.object({
   course_code: z
     .string()
     .trim()
-    .regex(COURSE_CODE, 'Use a course code like â€œCSC 419â€ (2â€“4 letters, then 3 digits).'),
+    .regex(COURSE_CODE, 'Use a course code like “CSC 419” (2–4 letters, then 3 digits).'),
   course_title: z.string().trim().min(1, 'Enter the course title.').max(255),
   credit_units: z.union([z.literal(1), z.literal(2), z.literal(3)], {
     error: 'Choose 1, 2 or 3 credit units.',
@@ -67,7 +67,7 @@ const mappingSchema = z.object({
 })
 type MappingValues = z.infer<typeof mappingSchema>
 
-/** "csc419" â†’ "CSC 419", mirroring the server's normalisation. */
+/** "csc419" → "CSC 419", mirroring the server's normalisation. */
 function normaliseCode(value: string) {
   const match = COURSE_CODE.exec(value.trim().replace(/\s+/g, ' '))
   return match ? `${match[1].toUpperCase()} ${match[2].toUpperCase()}` : value.trim()
@@ -269,7 +269,7 @@ function MappingForm({ recommendation }: { recommendation: RecommendationDetail 
             <FieldSet data-invalid={!!errors.learning_outcomes}>
               <FieldLegend variant="label">Learning outcomes</FieldLegend>
               <FieldDescription>
-                What students will be able to do after the course (1â€“{MAX_OUTCOMES}).
+                What students will be able to do after the course (1–{MAX_OUTCOMES}).
               </FieldDescription>
               <ol className="space-y-2">
                 {outcomes.fields.map((item, index) => (
@@ -356,7 +356,7 @@ function MappingForm({ recommendation }: { recommendation: RecommendationDetail 
   )
 }
 
-/** Free-text chips: Enter or comma adds, the Ã— button or Backspace on empty removes. */
+/** Free-text chips: Enter or comma adds, the × button or Backspace on empty removes. */
 function TagInput({
   id,
   label,
@@ -445,7 +445,7 @@ function EvidencePanel({ recommendation }: { recommendation: RecommendationDetai
         <CardTitle className="text-base">{recommendation.topic_title}</CardTitle>
         <CardDescription className="flex flex-wrap items-center gap-2">
           <span className="tabular-nums">
-            Rank {recommendation.rank} Â· score {formatScore(recommendation.composite_score)}
+            Rank {recommendation.rank} · score {formatScore(recommendation.composite_score)}
           </span>
           <OverlapBadge status={recommendation.overlap_status} />
         </CardDescription>
@@ -470,7 +470,7 @@ function EvidencePanel({ recommendation }: { recommendation: RecommendationDetai
               <li key={item.passage_id} className="rounded-md bg-muted/50 p-2">
                 <p className="text-xs text-muted-foreground">
                   {item.document.title}
-                  {item.page_number != null && ` Â· p. ${item.page_number}`}
+                  {item.page_number != null && ` · p. ${item.page_number}`}
                 </p>
                 <p>{item.text}</p>
               </li>
