@@ -10,7 +10,7 @@ reject or flag each recommendation, map accepted topics to proposed courses, and
 > B.Sc. Computer Science final-year project, Department of Computer Science,
 > Faculty of Computing, University of Uyo.
 
-**Status:** Phase 2 (documents and ingestion) complete. See `CLAUDE.md` for the phase plan.
+**Status:** Phase 3 (analysis pipeline) complete. See `CLAUDE.md` for the phase plan.
 
 ## Quick start
 
