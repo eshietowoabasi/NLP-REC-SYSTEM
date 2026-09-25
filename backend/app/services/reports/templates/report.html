@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>{{ doc.title }} — {{ doc.subtitle }}</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 22mm 18mm 20mm 18mm;
+        @top-left {
+          content: "NLP-RS · {{ doc.subtitle | replace('"', "'") }}";
+          font-size: 8pt;
+          color: #6b6b6b;
+        }
+        @bottom-right {
+          content: "Page " counter(page) " of " counter(pages);
+          font-size: 8pt;
+          color: #6b6b6b;
+        }
+      }
+      @page :first {
+        @top-left { content: none; }
+      }
+      html {
+        font-family: "DejaVu Sans", "Segoe UI", Arial, sans-serif;
+        font-size: 9.5pt;
+        line-height: 1.45;
+        color: #1a1a1a;
+      }
+      h1 { font-size: 20pt; margin: 0 0 2mm; }
+      .subtitle { font-size: 13pt; color: #3d3d3d; margin: 0 0 8mm; }
+      h2 {
+        font-size: 13pt;
+        margin: 9mm 0 3mm;
+        padding-bottom: 1.5mm;
+        border-bottom: 0.6pt solid #c9c9c9;
+        break-after: avoid;
+      }
+      h3 { font-size: 10.5pt; margin: 5mm 0 1.5mm; break-after: avoid; }
+      p { margin: 0 0 2.5mm; }
+      .muted { color: #5c5c5c; }
+      table { width: 100%; border-collapse: collapse; margin: 1mm 0 4mm; font-size: 8.5pt; }
+      th, td { text-align: left; vertical-align: top; padding: 1.4mm 1.8mm; }
+      th { border-bottom: 0.8pt solid #1a1a1a; font-weight: bold; }
+      td { border-bottom: 0.4pt solid #dcdcdc; }
+      tr { break-inside: avoid; }
+      .num { text-align: right; font-variant-numeric: tabular-nums; }
+      dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 1mm 6mm; margin: 0 0 4mm; }
+      dl.kv dt { color: #5c5c5c; }
+      dl.kv dd { margin: 0; }
+      ul { margin: 0 0 3mm; padding-left: 6mm; }
+      .meta { margin-bottom: 6mm; }
+      .disclaimer {
+        margin-top: 10mm;
+        padding: 3mm 4mm;
+        border-left: 1.5pt solid #9a9a9a;
+        background: #f4f4f2;
+        font-size: 8.5pt;
+        color: #3d3d3d;
+      }
+      .cover-note { color: #5c5c5c; font-size: 8.5pt; }
+    </style>
+  </head>
+  <body>
+    <h1>{{ doc.title }}</h1>
+    <p class="subtitle">{{ doc.subtitle }}</p>
+    <dl class="kv meta">
+      {% for label, value in doc.meta %}
+      <dt>{{ label }}</dt>
+      <dd>{{ value }}</dd>
+      {% endfor %}
+    </dl>
+    <p class="cover-note">
+      Sections: {% for section in doc.sections %}{{ section.title }}{% if not loop.last %} · {% endif %}{% endfor %}
+    </p>
+
+    {% for section in doc.sections %}
+    <section id="{{ section.key }}">
+      <h2>{{ loop.index }}. {{ section.title }}</h2>
+      {% for block in section.blocks %}
+      {% set kind = block | kind %}
+      {% if kind == "Paragraph" %}
+      <p{% if block.muted %} class="muted"{% endif %}>{{ block.text }}</p>
+      {% elif kind == "Subheading" %}
+      <h3>{{ block.text }}</h3>
+      {% elif kind == "KeyValues" %}
+      <dl class="kv">
+        {% for label, value in block["items"] %}
+        <dt>{{ label }}</dt>
+        <dd>{{ value }}</dd>
+        {% endfor %}
+      </dl>
+      {% elif kind == "BulletList" %}
+      <ul>
+        {% for item in block["items"] %}<li>{{ item }}</li>{% endfor %}
+      </ul>
+      {% elif kind == "Table" %}
+      <table>
+        {% if block.widths %}
+        <colgroup>
+          {% for width in block.widths %}<col style="width: {{ width }}%" />{% endfor %}
+        </colgroup>
+        {% endif %}
+        <thead>
+          <tr>
+            {% for column in block.columns %}
+            <th{% if loop.index0 in block.numeric %} class="num"{% endif %}>{{ column }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in block.rows %}
+          <tr>
+            {% for cell in row %}
+            <td{% if loop.index0 in block.numeric %} class="num"{% endif %}>{{ cell }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+      {% endfor %}
+    </section>
+    {% endfor %}
+
+    <p class="disclaimer">{{ doc.disclaimer }}</p>
+  </body>
+</html>

@@ -1,13 +1,16 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
 
 import { AppShell } from '@/components/layout/AppShell'
+import { AuditLogPage } from '@/features/admin/audit/AuditLogPage'
 import { NucCorePage } from '@/features/admin/nuc-core/NucCorePage'
+import { SettingsPage } from '@/features/admin/settings/SettingsPage'
 import { UsersPage } from '@/features/admin/users/UsersPage'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { ProfilePage } from '@/features/auth/ProfilePage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { DocumentDetailPage } from '@/features/documents/DocumentDetailPage'
 import { DocumentsPage } from '@/features/documents/DocumentsPage'
+import { ReportsPage } from '@/features/reports/ReportsPage'
 import { CurriculumPage } from '@/features/review/CurriculumPage'
 import { MappingPage } from '@/features/review/MappingPage'
 import { RecommendationDetailPage } from '@/features/review/RecommendationDetailPage'
@@ -88,8 +91,11 @@ export const routes: RouteObject[] = [
                 element: <NucCorePage />,
                 handle: title('NUC Core Reference'),
               },
+              { path: 'settings', element: <SettingsPage />, handle: title('Settings') },
+              { path: 'audit-log', element: <AuditLogPage />, handle: title('Audit Log') },
             ],
           },
+          { path: 'reports', element: <ReportsPage />, handle: title('Reports') },
           { path: '*', element: <NotFoundPage />, handle: title('Not found') },
         ],
       },

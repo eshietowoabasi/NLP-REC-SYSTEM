@@ -37,7 +37,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Dashboard', to: '/', icon: LayoutDashboard, available: true },
       { label: 'Documents', to: '/documents', icon: FileText, available: true },
       { label: 'Analysis Sessions', to: '/sessions', icon: FlaskConical, available: true },
-      { label: 'Reports', to: '/reports', icon: FileBarChart, available: false },
+      { label: 'Reports', to: '/reports', icon: FileBarChart, available: true },
     ],
   },
   {
@@ -47,8 +47,8 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'NUC Core Reference', to: '/admin/nuc-core', icon: BookMarked, available: true },
       { label: 'Users', to: '/admin/users', icon: Users, available: true },
-      { label: 'Settings', to: '/admin/settings', icon: Settings, available: false },
-      { label: 'Audit Log', to: '/admin/audit-log', icon: ScrollText, available: false },
+      { label: 'Settings', to: '/admin/settings', icon: Settings, available: true },
+      { label: 'Audit Log', to: '/admin/audit-log', icon: ScrollText, available: true },
     ],
   },
 ]

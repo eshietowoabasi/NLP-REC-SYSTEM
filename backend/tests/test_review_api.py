@@ -3,208 +3,25 @@
 from __future__ import annotations
 
 import io
-from dataclasses import dataclass
 
 import pytest
 from sqlalchemy import select
 
 from app.extensions import db
 from app.models import (
-    AnalysisSession,
     AuditLog,
     CurriculumMap,
-    Document,
-    NLPResult,
-    NucCoreVersion,
-    OverlapStatus,
-    Passage,
-    Recommendation,
-    RecommendationEvidence,
     Setting,
 )
 from tests.conftest import ApiClient
 from tests.corpus import NUC_CORE_TEXT, corpus
-
-
-@dataclass
-class ReviewSession:
-    session: AnalysisSession
-    recommendations: list[Recommendation]
-    nuc_passage: Passage
-    documents: list[Document]
-
-
-def _document(owner_id: int, title: str, category: str = "job_market") -> Document:
-    document = Document(
-        uploaded_by_id=owner_id,
-        title=title,
-        original_filename=f"{title}.txt",
-        stored_filename=f"{abs(hash(title)) % 10**32:032d}.txt",
-        file_type="txt",
-        file_size=100,
-        content_hash=f"hash-{title}",
-        source_category=category,
-        processing_status="ready",
-    )
-    db.session.add(document)
-    db.session.flush()
-    return document
+from tests.review_data import ReviewSession, build_review_session
 
 
 @pytest.fixture
 def review(make_user) -> ReviewSession:
     """A completed session with three recommendations, built directly in the database."""
-    owner = make_user("planner", username="owner")
-    documents = [
-        _document(owner.id, "Synthetic cloud advert"),
-        _document(owner.id, "Synthetic policy", "policy"),
-    ]
-    passages = []
-    for position, (document, page) in enumerate(
-        [(documents[0], 1), (documents[0], 2), (documents[1], None)]
-    ):
-        passage = Passage(
-            document_id=document.id,
-            position=position,
-            page_number=page,
-            text=f"Synthetic evidence passage {position} about Kubernetes and cloud security.",
-            normalised_text="synthetic evidence kubernetes cloud security",
-        )
-        db.session.add(passage)
-        passages.append(passage)
-    core_document = _document(owner.id, "Synthetic NUC core", "nuc_core")
-    nuc_passage = Passage(
-        document_id=core_document.id,
-        position=0,
-        page_number=4,
-        text="Synthetic core passage on operating systems.",
-        normalised_text="synthetic core operating system",
-    )
-    db.session.add(nuc_passage)
-    db.session.flush()
-    version = NucCoreVersion(
-        document_id=core_document.id,
-        version_label="Synthetic core",
-        is_active=True,
-        uploaded_by_id=owner.id,
-    )
-    db.session.add(version)
-    db.session.flush()
-
-    session = AnalysisSession(
-        created_by_id=owner.id,
-        session_name="Synthetic review",
-        status="completed",
-        current_stage="completed",
-        progress_percent=100,
-        nuc_core_version_id=version.id,
-        parameter_config={
-            "weights": {"ner": 0.4, "topic": 0.35, "novelty": 0.25},
-            "similarity_threshold": 0.8,
-            "max_recommendations": 20,
-        },
-    )
-    db.session.add(session)
-    db.session.flush()
-
-    specs = [
-        ("Cloud Security and Kubernetes", OverlapStatus.NO_SIGNIFICANT_OVERLAP, 0.9),
-        ("Operating Systems", OverlapStatus.POTENTIAL_DUPLICATE, 0.6),
-        ("Payment Integration", OverlapStatus.NO_SIGNIFICANT_OVERLAP, 0.4),
-    ]
-    recommendations = []
-    for rank, (title, status, composite) in enumerate(specs, start=1):
-        rec = Recommendation(
-            session_id=session.id,
-            rank=rank,
-            topic_id=rank - 1,
-            auto_title=title,
-            topic_title=title,
-            topic_description=f"Synthetic description of {title}.",
-            keywords=[{"term": "cloud", "weight": 0.2}],
-            skills=[
-                {"name": "Kubernetes", "label": "TOOL", "mentions": 3, "document_frequency": 2}
-            ],
-            ner_score=1.0,
-            topic_score=0.5,
-            novelty_score=0.3,
-            composite_score=composite,
-            max_similarity=0.85 if status == OverlapStatus.POTENTIAL_DUPLICATE else 0.4,
-            closest_nuc_passage_id=nuc_passage.id,
-            overlap_status=status,
-        )
-        rec.evidence = [
-            RecommendationEvidence(passage_id=p.id, relevance_score=0.9 - 0.1 * i)
-            for i, p in enumerate(passages)
-        ]
-        db.session.add(rec)
-        recommendations.append(rec)
-    db.session.add_all(
-        [
-            NLPResult(
-                session_id=session.id,
-                result_type="tfidf",
-                payload={
-                    "overall": [{"term": "cloud", "score": 0.3, "passage_count": 2}],
-                    "by_category": {
-                        "job_market": [{"term": "cloud", "score": 0.3, "passage_count": 2}],
-                        "policy": [{"term": "policy", "score": 0.2, "passage_count": 1}],
-                    },
-                    "passage_count": 3,
-                },
-            ),
-            NLPResult(
-                session_id=session.id,
-                result_type="entities",
-                payload={
-                    "skills": [
-                        {
-                            "name": "Kubernetes",
-                            "label": "TOOL",
-                            "mentions": 3,
-                            "document_frequency": 2,
-                        }
-                    ]
-                },
-            ),
-            NLPResult(
-                session_id=session.id,
-                result_type="topics",
-                payload={
-                    "topic_count": 1,
-                    "topics": [
-                        {
-                            "topic_id": 0,
-                            "title": "Cloud",
-                            "samples": [
-                                {
-                                    "passage_id": passages[0].id,
-                                    "document_id": documents[0].id,
-                                    "text": "x",
-                                }
-                            ],
-                        }
-                    ],
-                },
-            ),
-            NLPResult(
-                session_id=session.id,
-                result_type="similarity",
-                payload={
-                    "threshold": 0.8,
-                    "candidates": [
-                        {
-                            "topic_id": 0,
-                            "max_similarity": 0.4,
-                            "closest_nuc_passage": {"id": nuc_passage.id, "text": "x"},
-                        }
-                    ],
-                },
-            ),
-        ]
-    )
-    db.session.commit()
-    return ReviewSession(session, recommendations, nuc_passage, documents)
+    return build_review_session(make_user("planner", username="owner"))
 
 
 @pytest.fixture

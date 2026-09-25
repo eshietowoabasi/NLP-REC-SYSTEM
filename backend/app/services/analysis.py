@@ -86,6 +86,16 @@ class AnalysisParameters:
     min_topic_size: int = 5
     evidence_per_recommendation: int = 8
     random_state: int = 42
+    # Active domain stop words, removed from the stored normalised text before TF-IDF and
+    # topic words, so stop words added after a document was parsed still apply.
+    stop_words: frozenset[str] = frozenset()
+
+
+def without_stop_words(text: str, stop_words: frozenset[str]) -> str:
+    """Drop stop words from space-separated normalised text."""
+    if not stop_words:
+        return text
+    return " ".join(token for token in text.split() if token not in stop_words)
 
 
 @dataclass
@@ -160,7 +170,7 @@ def run_analysis(
             on_stage(name)
 
     texts = [p.text for p in corpus]
-    normalised = [p.normalised_text for p in corpus]
+    normalised = [without_stop_words(p.normalised_text, parameters.stop_words) for p in corpus]
     categories = [p.category for p in corpus]
     document_ids = [p.document_id for p in corpus]
 

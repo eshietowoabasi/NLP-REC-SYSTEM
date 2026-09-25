@@ -17,6 +17,7 @@ from app.models import (
     NLPResult,
     NLPResultType,
     Recommendation,
+    Report,
     SessionStatus,
 )
 from app.schemas.documents import UserRef
@@ -28,6 +29,7 @@ from app.schemas.sessions import (
     SessionListQuery,
     SessionSummaryOut,
 )
+from app.services.storage import get_storage
 from app.sessions import (
     active_nuc_core,
     build_parameters,
@@ -47,7 +49,7 @@ bp = Blueprint("sessions", __name__, url_prefix="/sessions")
 ANALYSIS_JOB = "app.tasks.analysis.run_session"
 
 
-def _counts(session_ids: list[int]) -> tuple[dict[int, int], dict[int, int]]:
+def session_counts(session_ids: list[int]) -> tuple[dict[int, int], dict[int, int]]:
     """Document and recommendation counts per session, in two queries."""
     if not session_ids:
         return {}, {}
@@ -85,7 +87,7 @@ def summary_json(session: AnalysisSession, documents: int, recommendations: int)
 
 
 def detail_json(session: AnalysisSession) -> dict[str, Any]:
-    documents, recommendations = _counts([session.id])
+    documents, recommendations = session_counts([session.id])
     topics = db.session.scalar(
         select(NLPResult.payload).where(
             NLPResult.session_id == session.id, NLPResult.result_type == NLPResultType.TOPICS
@@ -149,7 +151,7 @@ def list_sessions() -> tuple[Response, int]:
     if params.search:
         query = query.where(AnalysisSession.session_name.ilike(f"%{params.search}%"))
     sessions, meta = paginate(query, params.page, params.per_page)
-    documents, recommendations = _counts([s.id for s in sessions])
+    documents, recommendations = session_counts([s.id for s in sessions])
     return success(
         {
             "items": [
@@ -253,10 +255,17 @@ def retry_session(session_id: int) -> tuple[Response, int]:
 @bp.delete("/<int:session_id>")
 @role_required(*EDITOR_ROLES)
 def delete_session(session_id: int) -> tuple[Response, int]:
-    """Delete a session and its results (documents are kept)."""
+    """Delete a session, its results and its report files (documents are kept)."""
     session = get_session_or_404(session_id)
     if session.status == SessionStatus.PROCESSING:
         raise ApiError("CONFLICT", "The session is running; wait until it finishes.", 409)
+    report_files = list(
+        db.session.scalars(
+            select(Report.file_path).where(
+                Report.session_id == session.id, Report.file_path.is_not(None)
+            )
+        )
+    )
     record_audit(
         AuditAction.SESSION_DELETED,
         "analysis_session",
@@ -265,4 +274,7 @@ def delete_session(session_id: int) -> tuple[Response, int]:
     )
     db.session.delete(session)
     db.session.commit()
+    storage = get_storage()
+    for file_path in report_files:
+        storage.delete(file_path, area="reports")
     return success({"deleted": True})

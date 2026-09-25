@@ -501,6 +501,196 @@ export interface ProposedCurriculum {
   remaining_units: number | null
 }
 
+/* ---------------------------------------------------------------- reports */
+
+export type ReportFormat = 'pdf' | 'docx'
+export type ReportStatus = 'queued' | 'processing' | 'completed' | 'failed'
+export type ReportSection =
+  | 'corpus_summary'
+  | 'nlp_findings'
+  | 'overlap'
+  | 'recommendations'
+  | 'decisions'
+  | 'proposed_courses'
+
+export interface Report {
+  id: number
+  session: { id: number; session_name: string }
+  format: ReportFormat
+  sections: ReportSection[]
+  status: ReportStatus
+  error_message: string | null
+  /** Bytes; null until the file exists. */
+  file_size: number | null
+  created_by: UserRef
+  created_at: string
+  completed_at: string | null
+}
+
+/** POST /api/sessions/{id}/reports */
+export interface CreateReportRequest {
+  format: ReportFormat
+  sections: ReportSection[]
+}
+
+export interface ReportListParams {
+  page?: number
+  per_page?: number
+  session_id?: number
+  status?: ReportStatus
+  format?: ReportFormat
+}
+
+/* -------------------------------------------------------------- dashboard */
+
+/** GET /api/dashboard/summary */
+export interface DashboardSummary {
+  documents: {
+    total: number
+    ready: number
+    processing: number
+    failed: number
+    by_category: Partial<Record<UploadCategory, number>>
+  }
+  sessions: { total: number; by_status: Record<SessionStatus, number> }
+  recommendations: {
+    total: number
+    pending_review: number
+    accepted: number
+    rejected: number
+    flagged: number
+  }
+  courses_mapped: number
+  reports: number
+  nuc_core_version: { id: number; version_label: string } | null
+  recent_sessions: SessionSummary[]
+}
+
+/* ---------------------------------------------------------- admin settings */
+
+export type SettingKey =
+  | 'score_weights'
+  | 'similarity_threshold'
+  | 'max_recommendations'
+  | 'passage_sentences'
+  | 'passage_words'
+  | 'sbert_model'
+  | 'spacy_model'
+  | 'min_topic_size'
+  | 'evidence_per_recommendation'
+  | 'max_documents_per_session'
+  | 'credit_unit_allowance'
+
+export interface NumberRange {
+  min: number
+  max: number
+}
+
+/** Value types of each setting. */
+export interface SettingValues {
+  score_weights: ScoreWeights
+  similarity_threshold: number
+  max_recommendations: number
+  passage_sentences: NumberRange
+  passage_words: NumberRange
+  sbert_model: string
+  spacy_model: string
+  min_topic_size: number
+  evidence_per_recommendation: number
+  max_documents_per_session: number
+  credit_unit_allowance: number | null
+}
+
+export interface SettingItem<K extends SettingKey = SettingKey> {
+  key: K
+  value: SettingValues[K]
+  default: SettingValues[K]
+  description: string
+  updated_at: string | null
+  updated_by: UserRef | null
+}
+
+/** GET /api/admin/settings */
+export interface SettingsResponse {
+  settings: SettingItem[]
+  /** Present after PUT: the keys whose value changed. */
+  changed?: SettingKey[]
+}
+
+/** PUT /api/admin/settings: any subset. */
+export type SettingsUpdate = Partial<SettingValues>
+
+export type PatternToken = Record<string, unknown>
+
+export interface SkillPattern {
+  id: number
+  label: SkillLabel
+  /** A phrase, or a spaCy token pattern. */
+  pattern: string | PatternToken[]
+  canonical_name: string
+  is_active: boolean
+  created_at: string
+}
+
+export interface SkillPatternRequest {
+  label: SkillLabel
+  pattern: string | PatternToken[]
+  canonical_name: string
+}
+
+export interface SkillPatternListParams {
+  page?: number
+  per_page?: number
+  label?: SkillLabel
+  is_active?: boolean
+  search?: string
+}
+
+export interface StopWord {
+  id: number
+  word: string
+  is_active: boolean
+  created_at: string
+}
+
+export interface StopWordListParams {
+  page?: number
+  per_page?: number
+  is_active?: boolean
+  search?: string
+}
+
+/* -------------------------------------------------------------- audit log */
+
+export interface AuditLogEntry {
+  id: number
+  created_at: string
+  user: UserRef | null
+  action_type: string
+  entity_type: string | null
+  entity_id: string | null
+  detail: Record<string, unknown>
+  ip_address: string | null
+}
+
+/** GET /api/admin/audit-logs */
+export interface AuditLogList extends Paginated<AuditLogEntry> {
+  /** Every action type the system records. */
+  actions: string[]
+}
+
+export interface AuditLogParams {
+  page?: number
+  per_page?: number
+  user_id?: number
+  /** An action (``auth.login``) or an area (``auth``). */
+  action?: string
+  entity_type?: string
+  /** YYYY-MM-DD (UTC). */
+  date_from?: string
+  date_to?: string
+}
+
 /* -------------------------------------------------------------- NUC core */
 
 export interface NucCoreVersion {

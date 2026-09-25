@@ -88,6 +88,40 @@ def _build(model_name: str, key: str) -> Language:
     return nlp
 
 
+_PATTERN_ERROR = re.compile(r"^- \[pattern -> (\d+)(?: -> (.*?))?\] (.*)$")
+
+
+@lru_cache(maxsize=1)
+def _validation_ruler() -> Any:
+    """A blank English pipeline whose EntityRuler validates patterns (no model needed)."""
+    nlp = spacy.blank("en")
+    return nlp.add_pipe("entity_ruler", config={"phrase_matcher_attr": "LOWER", "validate": True})
+
+
+def validate_pattern(label: str, pattern: str | list[dict[str, Any]]) -> str | None:
+    """Return a problem description if spaCy would reject the pattern, else None."""
+    if isinstance(pattern, str):
+        return None if pattern.strip() else "The phrase cannot be empty."
+    ruler = _validation_ruler()
+    try:
+        ruler.add_patterns([{"label": label, "pattern": pattern}])
+    except Exception as exc:  # spaCy raises MatchPatternError/ValueError with details
+        # Detail lines look like "- [pattern -> 0 -> LOWERX] Extra inputs are not permitted".
+        details = []
+        for line in str(exc).splitlines():
+            match = _PATTERN_ERROR.match(line.strip())
+            if match:
+                index, path, message = match.groups()
+                where = f"token {int(index) + 1}" + (
+                    f" {path.replace(' -> ', '.')}" if path else ""
+                )
+                details.append(f"{where}: {message}")
+        return "Invalid token pattern" + (": " + "; ".join(details[:3]) if details else ".")
+    finally:
+        ruler.clear()
+    return None
+
+
 def build_skill_pipeline(model_name: str, specs: list[SkillPatternSpec]) -> Language:
     """A spaCy pipeline with an EntityRuler for ``specs`` (cached per model and pattern set)."""
     return _build(model_name, _key(tuple(specs)))
