@@ -15,7 +15,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from corpus_collector.classify import classify_title, is_denied
+from corpus_collector.classify import FAMILIES, classify_title, is_denied
 from corpus_collector.clean import text_sha256, word_count
 from corpus_collector.config import (
     DEFAULT_MAX_REQUESTS,
@@ -51,10 +51,12 @@ class Selection:
     existing_per_family: Counter[str] = field(default_factory=Counter)
     chosen: list[tuple[JobAd, str]] = field(default_factory=list)
     skipped: Counter[str] = field(default_factory=Counter)
+    # Per-family caps that differ from ``per_family`` (``--cap product_agile=4``).
+    caps: dict[str, int] = field(default_factory=dict)
 
     def family_full(self, family: str) -> bool:
         taken = self.existing_per_family[family] + sum(1 for _, f in self.chosen if f == family)
-        return taken >= self.per_family
+        return taken >= self.caps.get(family, self.per_family)
 
     @property
     def done(self) -> bool:
@@ -176,6 +178,16 @@ def print_summary(selection: Selection, client: PoliteClient, dry_run: bool, out
     )
 
 
+def parse_cap(value: str) -> tuple[str, int]:
+    """``product_agile=4`` -> ("product_agile", 4)."""
+    family, sep, number = value.partition("=")
+    if not sep or family not in FAMILIES or not number.isdigit():
+        raise argparse.ArgumentTypeError(
+            f"use FAMILY=N with a family from: {', '.join(sorted(FAMILIES))}"
+        )
+    return family, int(number)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m corpus_collector",
@@ -186,6 +198,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true", help="list, do not save adverts")
     parser.add_argument("--target", type=int, default=DEFAULT_TARGET)
     parser.add_argument("--per-family", type=int, default=DEFAULT_PER_FAMILY)
+    parser.add_argument(
+        "--cap",
+        action="append",
+        default=[],
+        type=parse_cap,
+        metavar="FAMILY=N",
+        help="a different cap for one family, e.g. --cap product_agile=4 (repeatable)",
+    )
     parser.add_argument("--max-requests", type=int, default=DEFAULT_MAX_REQUESTS)
     parser.add_argument(
         "--pages",
@@ -210,6 +230,7 @@ def main(argv: list[str] | None = None) -> int:
         args.target,
         args.per_family,
         Counter(row["role_family"] for row in manifest if row.get("role_family")),
+        caps=dict(args.cap),
     )
     try:
         collect_myjobmag(client, selection, deduper, tuple(args.fields), args.pages)

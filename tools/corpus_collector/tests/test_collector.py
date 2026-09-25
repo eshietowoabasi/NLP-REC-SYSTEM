@@ -5,6 +5,7 @@ All fixtures are SYNTHETIC (invented adverts with the structure of the real page
 
 from __future__ import annotations
 
+import argparse
 import json
 from collections import Counter
 from pathlib import Path
@@ -13,7 +14,7 @@ import pytest
 
 from corpus_collector.classify import classify_title
 from corpus_collector.clean import clean_job_text, remove_personal_data, text_sha256, word_count
-from corpus_collector.collect import Selection, consider, screen_title
+from corpus_collector.collect import Selection, consider, parse_cap, screen_title
 from corpus_collector.dedupe import Deduper, slug_base
 from corpus_collector.http import DisallowedUrl, PoliteClient, StopCollecting
 from corpus_collector.manifest import read_manifest, save_advert
@@ -207,6 +208,18 @@ def test_selection_filters_short_adverts_and_caps_families() -> None:
     assert screen_title("QA Tester", "C", None, selection, deduper) is None
     assert selection.skipped == Counter({"under 150 words": 1, "family full (qa)": 1})
     assert word_count(long_ad.text) == 160
+
+
+def test_one_family_can_have_its_own_cap() -> None:
+    selection = Selection(target=10, per_family=8, caps=dict([parse_cap("product_agile=1")]))
+    deduper = Deduper()
+    ad = JobAd("MyJobMag", "u", "pm", "Product Manager", "A", "", "", "Own the roadmap. " * 60)
+
+    assert consider(ad, "product_agile", selection, deduper)
+    assert selection.family_full("product_agile")
+    assert not selection.family_full("qa")
+    with pytest.raises(argparse.ArgumentTypeError):
+        parse_cap("marketing=3")
 
 
 # ----------------------------------------------------------------- robots and HTTP
