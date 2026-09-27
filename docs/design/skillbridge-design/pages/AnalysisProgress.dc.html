@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Analysis in progress</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#FBF6EF;color:#231A14}
+a{color:#A8431E}a:hover{color:#7E2F12}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; background: #FBF6EF;">
+  <div style="width: 256px; flex-shrink: 0; background: #FFFFFF; border-right: 1px solid #EADFD3;"><dc-import name="Sidebar" active="analyses" admin="{{no}}" hint-size="256px,900px"></dc-import></div>
+  <div style="flex-grow: 1; display: flex; flex-direction: column; min-width: 0;">
+    <dc-import name="TopBar" title="Real corpus (final)" crumb="Analyses" person="Mr John Okon" role="Curriculum Planner" initials="JO" hint-size="1184px,72px"></dc-import>
+    <main style="padding: 28px 40px; display: flex; gap: 18px; align-items: flex-start;">
+      <section style="flex-grow: 1; background: #FFFFFF; border: 1px solid #EADFD3; border-radius: 24px; padding: 28px 32px; display: flex; flex-direction: column; gap: 22px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 12px; font-weight: 800; letter-spacing: 0.1em; color: #A8431E;">WORKING ON IT</span><h1 style="margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.03em;">Reading your 55 documents</h1><span style="font-size: 14px; color: #5E5249;">About 1 minute left. You can leave this page; we'll let you know when it's ready.</span></div>
+          <span style="font-size: 36px; font-weight: 800; color: #A8431E;">62%</span>
+        </div>
+        <div style="height: 10px; border-radius: 5px; background: #F1E8DE;"><div style="width: 62%; height: 10px; border-radius: 5px; background: #A8431E;"></div></div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <sc-for list="{{steps}}" as="s" hint-placeholder-count="6">
+            <div style="display: flex; align-items: center; gap: 14px; padding: 12px 4px; border-bottom: 1px solid #F1E8DE;">
+              <span style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; {{s.dot}}">{{s.mark}}</span>
+              <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 15px; font-weight: 700; {{s.textStyle}}">{{s.name}}</span><span style="font-size: 13px; color: #6F625A;">{{s.desc}}</span></span>
+              <span style="font-size: 13px; font-weight: 700; {{s.textStyle}}">{{s.state}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+      <aside style="width: 340px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px;">
+        <section style="background: #231A14; color: #FFFFFF; border-radius: 20px; padding: 22px 24px; display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 16px; font-weight: 800;">What's happening?</h2>
+          <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #D9CCC2;">The system reads every advert and policy paper, spots the skills employers mention, groups similar needs into topics, then checks each topic against the NUC core so you only see what's new.</p>
+        </section>
+        <section style="background: #FFFFFF; border: 1px solid #EADFD3; border-radius: 20px; padding: 20px 22px; display: flex; flex-direction: column; gap: 10px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 800;">When it's done</h2>
+          <span style="font-size: 14px; line-height: 1.5; color: #4A3F37;">You'll get about 20 suggested topics to review, ranked by how useful they look.</span>
+          <a href="Recommendations.dc.html" style="font-size: 13px; font-weight: 700; text-decoration: none;">Preview: see finished results →</a>
+        </section>
+      </aside>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const done = { dot: 'background: #E3F1E4; color: #2F6B3A;', mark: '✓', textStyle: 'color: #231A14;', state: 'Done' };
+    const now = { dot: 'background: #A8431E; color: #FFFFFF;', mark: '…', textStyle: 'color: #A8431E;', state: 'In progress' };
+    const next = { dot: 'background: #F1E8DE; color: #8A7C72;', mark: '', textStyle: 'color: #8A7C72;', state: 'Waiting' };
+    return {
+      no: false,
+      steps: [
+        { ...done, name: 'Reading the documents', desc: 'Pulling out the text from adverts and policy papers' },
+        { ...done, name: 'Finding important words', desc: 'Spotting words that stand out in each document' },
+        { ...done, name: 'Finding skills', desc: 'Recognising tools, skills and certifications' },
+        { ...now, name: 'Grouping into topics', desc: 'Putting similar needs together' },
+        { ...next, mark: '5', name: 'Checking against the NUC core', desc: 'Is this already taught? How new is it?' },
+        { ...next, mark: '6', name: 'Ranking the topics', desc: 'Scoring each topic out of 100' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

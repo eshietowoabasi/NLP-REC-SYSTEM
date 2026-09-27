@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New analysis</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#FBF6EF;color:#231A14}
+a{color:#A8431E}a:hover{color:#7E2F12}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; background: #FBF6EF;">
+  <div style="width: 256px; flex-shrink: 0; background: #FFFFFF; border-right: 1px solid #EADFD3;"><dc-import name="Sidebar" active="analyses" admin="{{no}}" hint-size="256px,900px"></dc-import></div>
+  <div style="flex-grow: 1; display: flex; flex-direction: column; min-width: 0;">
+    <dc-import name="TopBar" title="New analysis" crumb="Analyses" person="Mr John Okon" role="Curriculum Planner" initials="JO" hint-size="1184px,72px"></dc-import>
+    <main style="padding: 28px 40px; display: flex; flex-direction: column; gap: 20px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; color: #2F6B3A;"><span style="width: 30px; height: 30px; border-radius: 50%; background: #E3F1E4; display: flex; align-items: center; justify-content: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2F6B3A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg></span>Name it</span>
+        <span style="width: 60px; height: 2px; background: #E3D6C8;"></span>
+        <span style="display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 800; color: #A8431E;"><span style="width: 30px; height: 30px; border-radius: 50%; background: #A8431E; color: #FFFFFF; display: flex; align-items: center; justify-content: center;">2</span>Choose documents</span>
+        <span style="width: 60px; height: 2px; background: #E3D6C8;"></span>
+        <span style="display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: #8A7C72;"><span style="width: 30px; height: 30px; border-radius: 50%; background: #F1E8DE; color: #6F625A; display: flex; align-items: center; justify-content: center;">3</span>Check and start</span>
+      </div>
+      <div style="display: flex; gap: 18px; align-items: flex-start;">
+        <section style="flex-grow: 1; background: #FFFFFF; border: 1px solid #EADFD3; border-radius: 20px; padding: 22px 24px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;"><div style="display: flex; flex-direction: column; gap: 2px;"><h1 style="margin: 0; font-size: 20px; font-weight: 800;">Which documents should we read?</h1><span style="font-size: 13px; color: #5E5249;">Tip: include as many job adverts as you can. More evidence gives better suggestions.</span></div><button type="button" style="height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid #E3D6C8; background: #FFFFFF; font: inherit; font-size: 13px; font-weight: 700; color: #231A14;">Select all</button></div>
+          <sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+            <label style="display: flex; align-items: center; gap: 16px; padding: 16px 18px; border-radius: 16px; border: 1px solid #EADFD3; cursor: pointer;">
+              <input type="checkbox" checked="{{g.on}}" style="width: 20px; height: 20px; accent-color: #A8431E;">
+              <span style="width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; {{g.tint}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6"></path></svg></span>
+              <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 15px; font-weight: 700;">{{g.name}}</span><span style="font-size: 13px; color: #6F625A;">{{g.desc}}</span></span>
+              <span style="font-size: 14px; font-weight: 700;">{{g.count}}</span>
+            </label>
+          </sc-for>
+          <a href="#choose" style="font-size: 13px; font-weight: 700; text-decoration: none;">Choose individual documents instead</a>
+        </section>
+        <aside style="width: 340px; flex-shrink: 0; background: #FFFFFF; border: 1px solid #EADFD3; border-radius: 20px; padding: 22px 24px; display: flex; flex-direction: column; gap: 14px;">
+          <h2 style="margin: 0; font-size: 16px; font-weight: 800;">Your analysis</h2>
+          <div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: #5E5249;">Name</span><strong>Real corpus (final)</strong></div>
+          <div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: #5E5249;">Documents selected</span><strong>55</strong></div>
+          <div style="display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 12px; background: #DCEFE8; color: #16503F;"><span style="font-size: 13px; font-weight: 800;">Compared against</span><span style="font-size: 13px;">NUC CCMAS Computing 2023 (86 of 118 courses)</span></div>
+          <div style="display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 12px; background: #FBF6EF;"><span style="font-size: 13px; font-weight: 700;">Takes about 1–2 minutes</span><span style="font-size: 12px; color: #6F625A;">You can leave this page; we'll keep working.</span></div>
+          <div style="display: flex; gap: 10px; margin-top: 6px;">
+            <a href="Analyses.dc.html" style="flex-grow: 1; height: 48px; border-radius: 12px; border: 1px solid #E3D6C8; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; text-decoration: none; color: #231A14;">Back</a>
+            <a href="AnalysisProgress.dc.html" style="flex-grow: 2; height: 48px; border-radius: 12px; background: #A8431E; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; text-decoration: none;">Next: check and start</a>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      no: false,
+      groups: [
+        { name: 'Job adverts', desc: 'What employers in Nigeria are asking for', count: '54', on: true, tint: 'background: #F8E6DC; color: #A8431E;' },
+        { name: 'Policy papers', desc: 'Government plans such as the Digital Economy Policy', count: '1', on: true, tint: 'background: #FDF1D8; color: #8A5A00;' },
+        { name: 'Research and university documents', desc: 'Academic papers or departmental plans', count: '0', on: false, tint: 'background: #EDE3F2; color: #5B2A6E;' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

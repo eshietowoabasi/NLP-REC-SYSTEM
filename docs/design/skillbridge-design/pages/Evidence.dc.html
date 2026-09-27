@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Evidence</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#FBF6EF;color:#231A14}
+a{color:#A8431E}a:hover{color:#7E2F12}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; background: #FBF6EF;">
+  <div style="width: 256px; flex-shrink: 0; background: #FFFFFF; border-right: 1px solid #EADFD3;"><dc-import name="Sidebar" active="analyses" admin="{{no}}" hint-size="256px,900px"></dc-import></div>
+  <div style="flex-grow: 1; display: flex; flex-direction: column; min-width: 0;">
+    <dc-import name="TopBar" title="Real corpus (final)" crumb="Analyses" person="Mr John Okon" role="Curriculum Planner" initials="JO" hint-size="1184px,72px"></dc-import>
+    <main style="padding: 24px 40px; display: flex; flex-direction: column; gap: 18px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; gap: 6px; padding: 4px; border-radius: 14px; background: #F4ECE3;">
+          <a href="Recommendations.dc.html" style="height: 40px; padding: 0 18px; border-radius: 10px; display: flex; align-items: center; font-size: 14px; font-weight: 600; color: #5E5249; text-decoration: none;">Suggested topics</a>
+          <span style="height: 40px; padding: 0 18px; border-radius: 10px; background: #FFFFFF; display: flex; align-items: center; font-size: 14px; font-weight: 800;">Evidence</span>
+          <a href="ProposedCourses.dc.html" style="height: 40px; padding: 0 18px; border-radius: 10px; display: flex; align-items: center; font-size: 14px; font-weight: 600; color: #5E5249; text-decoration: none;">Proposed courses</a>
+        </div>
+        <span style="font-size: 12px; color: #8A7C72;">Figures below are sample data for the mockup</span>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button type="button" style="height: 38px; padding: 0 16px; border-radius: 999px; border: 1px solid #E3D6C8; background: #FFFFFF; font: inherit; font-size: 13px; font-weight: 700; color: #231A14;">Important words</button>
+        <button type="button" style="height: 38px; padding: 0 16px; border-radius: 999px; border: 0; background: #231A14; color: #FFFFFF; font: inherit; font-size: 13px; font-weight: 700;">Skills employers ask for</button>
+        <button type="button" style="height: 38px; padding: 0 16px; border-radius: 999px; border: 1px solid #E3D6C8; background: #FFFFFF; font: inherit; font-size: 13px; font-weight: 700; color: #231A14;">Topics found</button>
+        <button type="button" style="height: 38px; padding: 0 16px; border-radius: 999px; border: 1px solid #E3D6C8; background: #FFFFFF; font: inherit; font-size: 13px; font-weight: 700; color: #231A14;">Compared with NUC core</button>
+      </div>
+      <div style="display: flex; gap: 18px; align-items: flex-start;">
+        <section style="flex-grow: 1; background: #FFFFFF; border: 1px solid #EADFD3; border-radius: 20px; padding: 22px 26px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px;"><h1 style="margin: 0; font-size: 18px; font-weight: 800;">Top skills employers ask for</h1><span style="font-size: 13px; color: #6F625A;">Number of documents that mention each skill</span></div>
+          <sc-for list="{{skills}}" as="s" hint-placeholder-count="10">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <span style="width: 170px; flex-shrink: 0; font-size: 14px; font-weight: 600; text-align: right;">{{s.name}}</span>
+              <div style="flex-grow: 1; height: 16px; border-radius: 4px; background: #FBF6EF;"><div style="height: 16px; border-radius: 4px; background: #A8431E; width: {{s.pct}};"></div></div>
+              <span style="width: 70px; flex-shrink: 0; font-size: 13px; font-weight: 700;">{{s.n}} docs</span>
+            </div>
+          </sc-for>
+        </section>
+        <aside style="width: 320px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px;">
+          <section style="background: #FFFFFF; border: 1px solid #EADFD3; border-radius: 20px; padding: 20px 22px; display: flex; flex-direction: column; gap: 12px;">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 800;">This analysis read</h2>
+            <div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: #5E5249;">Job adverts</span><strong>54</strong></div>
+            <div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: #5E5249;">Policy papers</span><strong>1</strong></div>
+            <div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: #5E5249;">Topics found</span><strong>31</strong></div>
+            <div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: #5E5249;">NUC courses compared</span><strong>86 of 118</strong></div>
+          </section>
+          <section style="background: #FDF1D8; border-radius: 20px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 14px; font-weight: 800; color: #6B4A00;">How to read this</span>
+            <span style="font-size: 13px; line-height: 1.5; color: #6B4A00;">Longer bars mean more employers asked for that skill. Open a suggested topic to see the exact adverts behind it.</span>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const rows = [['SQL', 24], ['Linux', 21], ['Agile', 19], ['Python', 18], ['Cloud computing', 16], ['Git', 14], ['Networking', 13], ['Docker', 11], ['Power BI', 9], ['Information security', 8]];
+    return {
+      no: false,
+      skills: rows.map(([name, n]) => ({ name, n: String(n), pct: Math.round((n / 24) * 100) + '%' }))
+    };
+  }
+}
+</script>
+</body>
+</html>

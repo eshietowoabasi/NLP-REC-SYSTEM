@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NUC core curriculum</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#FBF6EF;color:#231A14}
+a{color:#A8431E}a:hover{color:#7E2F12}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; background: #FBF6EF;">
+  <div style="width: 256px; flex-shrink: 0; background: #FFFFFF; border-right: 1px solid #EADFD3;"><dc-import name="Sidebar" active="nuc" admin="{{yes}}" hint-size="256px,900px"></dc-import></div>
+  <div style="flex-grow: 1; display: flex; flex-direction: column; min-width: 0;">
+    <dc-import name="TopBar" title="NUC core curriculum" crumb="Administration" person="Owoabasi Eshiet" role="Administrator" initials="OE" hint-size="1184px,72px"></dc-import>
+    <main style="padding: 26px 40px; display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+        <div style="display: flex; flex-direction: column; gap: 4px;"><h1 style="margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.03em;">NUC core curriculum</h1><p style="margin: 0; font-size: 14px; color: #5E5249;">The 70% every university must teach. Suggested topics are checked against these courses.</p></div>
+        <button type="button" style="height: 46px; padding: 0 18px; border-radius: 12px; border: 1px solid #E3D6C8; background: #FFFFFF; font: inherit; font-size: 14px; font-weight: 700; color: #231A14;">Upload a newer version</button>
+      </div>
+      <section style="background: #FFFFFF; border: 1px solid #EADFD3; border-radius: 20px; padding: 20px 24px; display: flex; align-items: center; gap: 20px;">
+        <span style="width: 52px; height: 52px; border-radius: 14px; background: #DCEFE8; display: flex; align-items: center; justify-content: center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F6F5C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5"></path></svg></span>
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 17px; font-weight: 800;">NUC CCMAS Computing 2023</span><span style="font-size: 13px; color: #6F625A;">In use since 24 Sept 2026 · 228 pages</span></div>
+        <div style="display: flex; gap: 28px;"><div style="display: flex; flex-direction: column;"><span style="font-size: 22px; font-weight: 800;">118</span><span style="font-size: 12px; color: #6F625A;">courses</span></div><div style="display: flex; flex-direction: column;"><span style="font-size: 22px; font-weight: 800; color: #1F6F5C;">86</span><span style="font-size: 12px; color: #6F625A;">compared</span></div><div style="display: flex; flex-direction: column;"><span style="font-size: 22px; font-weight: 800; color: #8A7C72;">32</span><span style="font-size: 12px; color: #6F625A;">left out</span></div></div>
+      </section>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; gap: 8px;"><button type="button" style="height: 36px; padding: 0 14px; border-radius: 999px; border: 0; background: #231A14; color: #FFFFFF; font: inherit; font-size: 13px; font-weight: 700;">All · 118</button><button type="button" style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #E3D6C8; background: #FFFFFF; font: inherit; font-size: 13px; font-weight: 700; color: #231A14;">Compared · 86</button><button type="button" style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #E3D6C8; background: #FFFFFF; font: inherit; font-size: 13px; font-weight: 700; color: #231A14;">Left out · 32</button></div>
+        <a href="Settings.dc.html" style="font-size: 13px; font-weight: 700; text-decoration: none;">Change which courses are left out →</a>
+      </div>
+      <section style="background: #FFFFFF; border: 1px solid #EADFD3; border-radius: 20px; overflow: hidden;">
+        <sc-for list="{{courses}}" as="c" hint-placeholder-count="7">
+          <div style="display: flex; align-items: center; gap: 18px; padding: 13px 24px; border-bottom: 1px solid #F1E8DE;">
+            <span style="width: 80px; font-size: 14px; font-weight: 800;">{{c.code}}</span>
+            <span style="flex-grow: 1; font-size: 14px; font-weight: 600;">{{c.title}}</span>
+            <span style="padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; {{c.chip}}">{{c.status}}</span>
+          </div>
+        </sc-for>
+      </section>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const inc = 'background: #DCEFE8; color: #16503F;';
+    const exc = 'background: #F1E8DE; color: #6F625A;';
+    return {
+      yes: true,
+      courses: [
+        { code: 'CYB 303', title: 'Cybersecurity Risks Analysis', status: 'Compared', chip: inc },
+        { code: 'CYB 404', title: 'Cloud Computing Security', status: 'Compared', chip: inc },
+        { code: 'DTS 302', title: 'Big Data Computing', status: 'Compared', chip: inc },
+        { code: 'IFT 410', title: 'System Integration and Architecture', status: 'Compared', chip: inc },
+        { code: 'SEN 306', title: 'Software Construction', status: 'Compared', chip: inc },
+        { code: 'SEN 299', title: 'SIWES I', status: 'Left out · work experience', chip: exc },
+        { code: 'GST 111', title: '[General studies course]', status: 'Left out · general studies', chip: exc }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
