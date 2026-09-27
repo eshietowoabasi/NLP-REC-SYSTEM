@@ -154,7 +154,7 @@ function SessionView({ session }: { session: SessionDetail }) {
           <AlertDescription className="space-y-3">
             <p>
               {session.recommendation_count} recommendation
-              {session.recommendation_count === 1 ? '' : 's'} from {session.topic_count ?? 0} theme
+              {session.recommendation_count === 1 ? '' : 's'} from {session.topic_count ?? 0} topic
               {session.topic_count === 1 ? '' : 's'} found in {session.document_count} document
               {session.document_count === 1 ? '' : 's'}. Finished{' '}
               {formatDateTime(session.completed_at)}.
@@ -206,8 +206,8 @@ function SessionView({ session }: { session: SessionDetail }) {
             <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
               <dt className="text-muted-foreground">Weights</dt>
               <dd className="font-medium tabular-nums">
-                skill demand {formatWeight(session.parameter_config.weights.ner)} · theme strength{' '}
-                {formatWeight(session.parameter_config.weights.topic)} · novelty{' '}
+                employer demand {formatWeight(session.parameter_config.weights.ner)} · how often it
+                comes up {formatWeight(session.parameter_config.weights.topic)} · how new it is{' '}
                 {formatWeight(session.parameter_config.weights.novelty)}
               </dd>
               <dt className="text-muted-foreground">Duplicate threshold</dt>
@@ -220,7 +220,7 @@ function SessionView({ session }: { session: SessionDetail }) {
               <dd className="font-medium">
                 {session.nuc_core_version?.version_label ?? 'Chosen when the session runs'}
               </dd>
-              <dt className="text-muted-foreground">Models</dt>
+              <dt className="text-muted-foreground">Language models</dt>
               <dd className="font-medium break-all">
                 {session.parameter_config.sbert_model} · {session.parameter_config.spacy_model}
               </dd>

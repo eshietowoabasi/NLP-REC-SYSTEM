@@ -4,23 +4,23 @@ import type { ReportFormat, ReportSection, ReportStatus } from '@/types/api'
 export const REPORT_SECTIONS: { id: ReportSection; label: string; hint: string }[] = [
   {
     id: 'corpus_summary',
-    label: 'Corpus summary',
-    hint: 'Documents analysed, by category, with page, word and passage counts',
+    label: 'Documents analysed',
+    hint: 'Every document with its type, source, pages, words and extracts',
   },
   {
     id: 'nlp_findings',
-    label: 'NLP findings',
-    hint: 'Top TF-IDF terms, skills in demand and the themes discovered',
+    label: 'What the documents talk about',
+    hint: 'Words that stand out, skills employers ask for, and the topics found',
   },
   {
     id: 'overlap',
-    label: 'Overlap results',
-    hint: 'Similarity of each theme to the NUC core, with potential duplicates',
+    label: 'Comparison with the NUC core',
+    hint: 'How similar each topic is to the NUC core, and which may already be in it',
   },
   {
     id: 'recommendations',
-    label: 'Recommendations',
-    hint: 'Ranked topics with the score formula and descriptions',
+    label: 'Recommended topics',
+    hint: 'Topics in order, with their scores and why they are recommended',
   },
   {
     id: 'decisions',

@@ -151,8 +151,8 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
       <div>
         <h2 className="text-xl font-semibold">New analysis session</h2>
         <p className="text-sm text-muted-foreground">
-          Choose documents to analyse. The pipeline discovers themes in them and ranks candidate
-          course topics against the NUC core.
+          Choose the documents to analyse. The system finds the topics they talk about, compares
+          them with the NUC core and ranks them as possible new courses.
         </p>
       </div>
 
@@ -233,8 +233,8 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
             <CardHeader>
               <CardTitle>Scoring settings</CardTitle>
               <CardDescription>
-                Pre-filled with the defaults. composite = w₁ × skill demand + w₂ × theme strength +
-                w₃ × novelty.
+                Pre-filled with the usual values. The score adds up employer demand, how often the
+                topic comes up and how new it is, weighted as below.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -253,8 +253,8 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
                     {...register('similarity_threshold', { valueAsNumber: true })}
                   />
                   <FieldDescription>
-                    A theme more similar than this to any NUC core course is marked as a Potential
-                    Duplicate.
+                    A topic more similar than this to a NUC core course is marked “May already be in
+                    NUC core”.
                   </FieldDescription>
                   <FieldError errors={[errors.similarity_threshold]} />
                 </Field>
@@ -347,9 +347,19 @@ function WeightsFields({
   const sum = (weights.ner || 0) + (weights.topic || 0) + (weights.novelty || 0)
   const valid = Math.abs(sum - 1) <= WEIGHT_TOLERANCE
   const items = [
-    { key: 'ner', name: 'weights.ner', label: 'Skill demand (NER)', error: errors.weights?.ner },
-    { key: 'topic', name: 'weights.topic', label: 'Theme strength', error: errors.weights?.topic },
-    { key: 'novelty', name: 'weights.novelty', label: 'Novelty', error: errors.weights?.novelty },
+    { key: 'ner', name: 'weights.ner', label: 'Employer demand', error: errors.weights?.ner },
+    {
+      key: 'topic',
+      name: 'weights.topic',
+      label: 'How often it comes up',
+      error: errors.weights?.topic,
+    },
+    {
+      key: 'novelty',
+      name: 'weights.novelty',
+      label: 'How new it is',
+      error: errors.weights?.novelty,
+    },
   ] as const
 
   return (

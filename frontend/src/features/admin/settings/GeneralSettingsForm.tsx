@@ -61,6 +61,12 @@ const schema = z.object({
     .refine((v) => splitList(v, /[,\s]+/).every((p) => /^[A-Za-z]{2,4}$/.test(p)), {
       message: 'Course-code prefixes are 2 to 4 letters, separated by commas.',
     }),
+  topic_names: z
+    .string()
+    .refine((v) => splitList(v, /\n/).every((n) => n.length >= 2 && n.length <= 120), {
+      message: 'Each name needs 2 to 120 characters (one per line).',
+    })
+    .refine((v) => splitList(v, /\n/).length <= 400, { message: 'At most 400 names.' }),
   excluded_keywords: z
     .string()
     .refine((v) => splitList(v, /\n/).every((k) => k.length >= 2 && k.length <= 80), {
@@ -92,6 +98,7 @@ function toForm(settings: ByKey): FormValues {
     max_documents_per_session: value('max_documents_per_session'),
     excluded_prefixes: value('nuc_course_exclusions').code_prefixes.join(', '),
     excluded_keywords: value('nuc_course_exclusions').title_keywords.join('\n'),
+    topic_names: value('topic_name_catalogue').join('\n'),
     credit_unit_allowance:
       value('credit_unit_allowance') === null ? '' : String(value('credit_unit_allowance')),
     passage_sentences: { ...value('passage_sentences') },
@@ -102,9 +109,10 @@ function toForm(settings: ByKey): FormValues {
 }
 
 function fromForm(values: FormValues): SettingValues {
-  const { excluded_prefixes, excluded_keywords, ...rest } = values
+  const { excluded_prefixes, excluded_keywords, topic_names, ...rest } = values
   return {
     ...rest,
+    topic_name_catalogue: splitList(topic_names, /\n/),
     nuc_course_exclusions: {
       code_prefixes: splitList(excluded_prefixes, /[,\s]+/).map((p) => p.toUpperCase()),
       title_keywords: splitList(excluded_keywords, /\n/),
@@ -133,6 +141,7 @@ const FIELDS = [
   'credit_unit_allowance',
   'excluded_prefixes',
   'excluded_keywords',
+  'topic_names',
   'passage_sentences',
   'passage_words',
   'sbert_model',
@@ -216,9 +225,9 @@ export function GeneralSettingsForm({ settings }: { settings: SettingItem[] }) {
               <div className="grid gap-4 sm:grid-cols-3">
                 {(
                   [
-                    ['ner', 'Skill demand (NER)'],
-                    ['topic', 'Theme strength'],
-                    ['novelty', 'Novelty'],
+                    ['ner', 'Employer demand'],
+                    ['topic', 'How often it comes up'],
+                    ['novelty', 'How new it is (vs NUC core)'],
                   ] as const
                 ).map(([key, label]) => (
                   <Field key={key} data-invalid={!!errors.score_weights?.[key]}>
@@ -259,7 +268,7 @@ export function GeneralSettingsForm({ settings }: { settings: SettingItem[] }) {
                 />
                 {hint(
                   'similarity_threshold',
-                  'A theme more similar than this to the NUC core is marked a potential duplicate. Default 0.80 (80% similar).',
+                  'A topic more similar than this to a NUC core course is marked “May already be in NUC core”. Default 0.80 (80% similar).',
                 )}
                 <FieldError errors={[errors.similarity_threshold]} />
               </Field>
@@ -286,18 +295,18 @@ export function GeneralSettingsForm({ settings }: { settings: SettingItem[] }) {
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field data-invalid={!!errors.min_topic_size}>
-              <FieldLabel htmlFor="min_topic_size">Minimum theme size</FieldLabel>
+              <FieldLabel htmlFor="min_topic_size">Smallest topic</FieldLabel>
               <Input
                 id="min_topic_size"
                 aria-invalid={!!errors.min_topic_size}
                 {...number('min_topic_size')}
               />
-              {hint('min_topic_size', 'Passages needed to form a theme (BERTopic). Default 5.')}
+              {hint('min_topic_size', 'How many extracts it takes to form a topic. Default 5.')}
               <FieldError errors={[errors.min_topic_size]} />
             </Field>
             <Field data-invalid={!!errors.evidence_per_recommendation}>
               <FieldLabel htmlFor="evidence_per_recommendation">
-                Evidence passages per recommendation
+                Example extracts per recommendation
               </FieldLabel>
               <Input
                 id="evidence_per_recommendation"
@@ -340,10 +349,37 @@ export function GeneralSettingsForm({ settings }: { settings: SettingItem[] }) {
 
       <Card>
         <CardHeader>
+          <CardTitle>Course-style topic names</CardTitle>
+          <CardDescription>
+            Each topic is given the name from this list that is closest in meaning, if one is close
+            enough; otherwise it keeps a name made from its keywords. One name per line. Applies to
+            sessions run after saving.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Field data-invalid={!!errors.topic_names}>
+            <FieldLabel htmlFor="topic_names">Topic names</FieldLabel>
+            <Textarea
+              id="topic_names"
+              rows={10}
+              aria-invalid={!!errors.topic_names}
+              {...register('topic_names')}
+            />
+            {hint(
+              'topic_name_catalogue',
+              'Standard computing course and topic names (ACM/IEEE CS2023 areas and common NUC course titles).',
+            )}
+            <FieldError errors={[errors.topic_names]} />
+          </Field>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>NUC courses excluded from the overlap comparison</CardTitle>
           <CardDescription>
             General studies, SIWES, project and seminar courses describe work experience or
-            communication rather than subject content, so they are not compared with themes. Applies
+            communication rather than subject content, so they are not compared with topics. Applies
             to sessions run after saving; the NUC Core page lists what is excluded.
           </CardDescription>
         </CardHeader>
@@ -391,8 +427,8 @@ export function GeneralSettingsForm({ settings }: { settings: SettingItem[] }) {
             <div className="grid gap-4 sm:grid-cols-2">
               {(
                 [
-                  ['passage_sentences', 'Sentences per passage', 'Default 3 to 5.'],
-                  ['passage_words', 'Words per passage', 'Default 100 to 200.'],
+                  ['passage_sentences', 'Sentences per extract', 'Default 3 to 5.'],
+                  ['passage_words', 'Words per extract', 'Default 100 to 200.'],
                 ] as const
               ).map(([key, label, text]) => (
                 <fieldset key={key} className="space-y-2">
@@ -421,32 +457,38 @@ export function GeneralSettingsForm({ settings }: { settings: SettingItem[] }) {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field data-invalid={!!errors.sbert_model}>
-                <FieldLabel htmlFor="sbert_model">Embedding model (SBERT)</FieldLabel>
+                <FieldLabel htmlFor="sbert_model">Meaning model (advanced)</FieldLabel>
                 <Input
                   id="sbert_model"
                   autoComplete="off"
                   aria-invalid={!!errors.sbert_model}
                   {...register('sbert_model')}
                 />
-                {hint('sbert_model', 'sentence-transformers model name. Default all-MiniLM-L6-v2.')}
+                {hint(
+                  'sbert_model',
+                  'Compares texts by meaning. Change it only with technical help. Default all-MiniLM-L6-v2.',
+                )}
                 <FieldError errors={[errors.sbert_model]} />
               </Field>
               <Field data-invalid={!!errors.spacy_model}>
-                <FieldLabel htmlFor="spacy_model">spaCy pipeline</FieldLabel>
+                <FieldLabel htmlFor="spacy_model">Language model (advanced)</FieldLabel>
                 <Input
                   id="spacy_model"
                   autoComplete="off"
                   aria-invalid={!!errors.spacy_model}
                   {...register('spacy_model')}
                 />
-                {hint('spacy_model', 'Must be installed on the server. Default en_core_web_sm.')}
+                {hint(
+                  'spacy_model',
+                  'Reads sentences and words. It must be installed on the server. Default en_core_web_sm.',
+                )}
                 <FieldError errors={[errors.spacy_model]} />
               </Field>
             </div>
             {sbertModel.trim() !== byKey.sbert_model.value && (
               <Alert>
                 <AlertTriangle aria-hidden="true" className="text-amber-600" />
-                <AlertTitle>Changing the embedding model</AlertTitle>
+                <AlertTitle>Changing the meaning model</AlertTitle>
                 <AlertDescription>
                   Documents embedded with different models cannot be analysed together. After
                   saving, re-upload the existing documents and the NUC core so that they all use the

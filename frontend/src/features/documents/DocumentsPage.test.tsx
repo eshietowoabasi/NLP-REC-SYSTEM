@@ -54,7 +54,7 @@ describe('DocumentsPage', () => {
       'aria-pressed',
       'true',
     )
-    expect(screen.getByRole('button', { name: /^Job market\s*2$/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Job adverts\s*2$/ })).toBeInTheDocument()
   })
 
   it('filters by category', async () => {
@@ -62,7 +62,7 @@ describe('DocumentsPage', () => {
     const { user } = renderApp('/documents')
     await screen.findByText('Fintech advert')
 
-    await user.click(screen.getByRole('button', { name: /^Policy\s*1$/ }))
+    await user.click(screen.getByRole('button', { name: /^Policy documents\s*1$/ }))
 
     await waitFor(() => expect(screen.queryByText('Fintech advert')).not.toBeInTheDocument())
     expect(screen.getByText('Scanned policy')).toBeInTheDocument()

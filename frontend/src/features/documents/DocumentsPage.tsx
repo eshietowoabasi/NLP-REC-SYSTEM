@@ -40,7 +40,7 @@ import type { DocumentStatus, DocumentSummary, UploadCategory } from '@/types/ap
 import { documentFileUrl, useDocuments } from './api'
 import { DocumentActionDialogs, type DocumentAction } from './DocumentActionDialogs'
 import { DocumentStatusBadge } from './DocumentStatusBadge'
-import { CATEGORY_LABELS, STATUS_LABELS, UPLOAD_CATEGORIES } from './labels'
+import { CATEGORY_LABELS, monthYear, STATUS_LABELS, UPLOAD_CATEGORIES } from './labels'
 import { UploadDialog } from './UploadDialog'
 
 const PER_PAGE = 20
@@ -296,7 +296,8 @@ function DocumentRow({
           {document.title}
         </Link>
         <span className="block truncate text-xs text-muted-foreground">
-          {document.original_filename}
+          {[document.source, monthYear(document.published_on)].filter(Boolean).join(' · ') ||
+            document.original_filename}
         </span>
       </TableCell>
       <TableCell>{CATEGORY_LABELS[document.source_category]}</TableCell>

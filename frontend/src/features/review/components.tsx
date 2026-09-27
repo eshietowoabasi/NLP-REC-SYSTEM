@@ -23,6 +23,7 @@ import type {
   Recommendation,
   ScoreWeights,
   SessionDetail,
+  WeightedTerm,
 } from '@/types/api'
 
 import { SessionProgress } from './SessionProgress'
@@ -38,22 +39,39 @@ import {
   toPoints,
 } from './labels'
 
-/** Green "New" or amber "Potential Duplicate": always icon + words, never colour alone. */
+/** "Keywords: problem solving, Selenium, test cases" (as written in the documents). */
+export function KeywordsLine({
+  keywords,
+  limit = 8,
+}: {
+  keywords: WeightedTerm[]
+  limit?: number
+}) {
+  if (keywords.length === 0) return null
+  const shown = keywords.slice(0, limit).map((k) => k.label ?? k.term)
+  return (
+    <p className="text-xs text-muted-foreground">
+      <span className="font-medium text-foreground">Keywords:</span> {shown.join(', ')}
+    </p>
+  )
+}
+
+/** "Not in NUC core" or amber "May already be in NUC core": icon + words, never colour alone. */
 export function OverlapBadge({ status }: { status: OverlapStatus }) {
   return status === 'Potential Duplicate' ? (
     <Badge
       variant="outline"
       className="border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
     >
-      <AlertTriangle aria-hidden="true" /> Potential Duplicate
+      <AlertTriangle aria-hidden="true" /> May already be in NUC core
     </Badge>
   ) : (
     <Badge
       variant="outline"
       className="border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-      title="No significant overlap with the NUC core"
+      title="Not similar to any NUC core course"
     >
-      <Sparkles aria-hidden="true" /> New
+      <Sparkles aria-hidden="true" /> Not in NUC core
     </Badge>
   )
 }

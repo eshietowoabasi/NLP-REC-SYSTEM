@@ -82,7 +82,7 @@ export function StopWordsPanel() {
     <div className="space-y-4">
       <p className="max-w-3xl text-sm text-muted-foreground">
         Domain words such as &ldquo;applicant&rdquo; or &ldquo;Lagos&rdquo; that say nothing about
-        course content. Active stop words are left out of keywords and theme words in sessions run
+        course content. Active stop words are left out of keywords and topic words in sessions run
         afterwards.
       </p>
 

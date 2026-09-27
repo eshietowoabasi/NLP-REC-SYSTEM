@@ -97,7 +97,7 @@ export function SkillPatternsPanel() {
   return (
     <div className="space-y-4">
       <p className="max-w-3xl text-sm text-muted-foreground">
-        Patterns of the spaCy EntityRuler that recognise skills, tools, languages and
+        Words and phrases the system recognises as skills, tools, programming languages and
         certifications. Phrases match case-insensitively; token patterns allow rules such as
         &ldquo;Go&rdquo; only when followed by &ldquo;developer&rdquo;. Changes apply to sessions
         run afterwards.
@@ -459,7 +459,7 @@ function PatternForm({ pattern, onDone }: { pattern: SkillPattern | null; onDone
                 {...register('tokens')}
               />
               <FieldDescription>
-                A spaCy token pattern as JSON: a list of 1 to 10 token objects.
+                Advanced: a token pattern written as JSON (a list of 1 to 10 token objects).
               </FieldDescription>
               <FieldError errors={[errors.tokens]} />
             </Field>

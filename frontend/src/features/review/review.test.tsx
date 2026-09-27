@@ -196,7 +196,7 @@ describe('RecommendationsPage', () => {
     expect(
       within(items[0]).getByRole('link', { name: 'Cloud Security and Kubernetes' }),
     ).toHaveAttribute('href', '/recommendations/31')
-    expect(within(items[0]).getByText('New')).toBeInTheDocument()
+    expect(within(items[0]).getByText('Not in NUC core')).toBeInTheDocument()
     // Decided: a clear status, no decision buttons, and the next step for accepted topics.
     expect(within(items[0]).getByText('Accepted')).toBeInTheDocument()
     expect(within(items[0]).queryByRole('button', { name: 'Accept' })).not.toBeInTheDocument()
@@ -206,7 +206,7 @@ describe('RecommendationsPage', () => {
     )
     expect(within(items[2]).getByText('Discuss later')).toBeInTheDocument()
     // Undecided: Accept / Reject / Discuss later.
-    expect(within(items[1]).getByText('Potential Duplicate')).toBeInTheDocument()
+    expect(within(items[1]).getByText('May already be in NUC core')).toBeInTheDocument()
     const buttons = within(items[1])
       .getAllByRole('button')
       .map((b) => b.textContent)
@@ -216,17 +216,17 @@ describe('RecommendationsPage', () => {
     expect(
       within(items[0]).getByRole('figure', {
         name:
-          'Score 60/100. Skill demand 90 (High, counts for 40%) adds 36 points; ' +
-          'Theme strength 50 (Medium, counts for 35%) adds 17 points; ' +
-          'Novelty 30 (Low, counts for 25%) adds 7 points.',
+          'Score 60/100. Employer demand 90 (High, counts for 40%) adds 36 points; ' +
+          'How often it comes up 50 (Medium, counts for 35%) adds 17 points; ' +
+          'How new it is 30 (Low, counts for 25%) adds 7 points.',
       }),
     ).toBeInTheDocument()
     expect(within(items[0]).getByText('High')).toBeInTheDocument()
-    expect(screen.getByText(/ranked by a score out of 100: skill demand/)).toHaveTextContent(
-      'skill demand counts for 40%, theme strength counts for 35% and novelty counts for 25%',
+    expect(screen.getByText(/Each has a score out of 100: employer demand/)).toHaveTextContent(
+      'employer demand counts for 40%, how often it comes up counts for 35% and how new it is counts for 25%',
     )
     expect(screen.getByText('2 of 3')).toBeInTheDocument()
-    expect(screen.getByText(/1 potential duplicate of NUC core content/)).toBeInTheDocument()
+    expect(screen.getByText(/1 topic may already be in the NUC core/)).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: /Accepted/ })).toHaveTextContent(
       'Accepted1 · 0 with courses',
     )
@@ -308,7 +308,7 @@ describe('RecommendationsPage', () => {
         decision: 'undecided',
       }),
     )
-    await user.click(screen.getByLabelText('Hide potential duplicates'))
+    await user.click(screen.getByLabelText('Hide topics that may already be in the NUC core'))
     await waitFor(() =>
       expect(server.calls('GET', '/sessions/5/recommendations').at(-1)?.params).toEqual({
         decision: 'undecided',
@@ -440,8 +440,8 @@ describe('RecommendationDetailPage', () => {
     expect(await screen.findByText(/points/, { selector: 'p strong' })).toHaveTextContent(
       '60 points',
     )
-    expect(screen.getByText(/\(skill demand\)/).closest('p')).toHaveTextContent(
-      '36 (skill demand) + 17 (theme strength) + 7 (novelty) = 60 points out of 100',
+    expect(screen.getByText(/\(employer demand\)/).closest('p')).toHaveTextContent(
+      '36 (employer demand) + 17 (how often it comes up) + 7 (how new it is) = 60 points out of 100',
     )
     expect(screen.queryByLabelText('Composite score formula')).not.toBeInTheDocument()
 
@@ -457,14 +457,60 @@ describe('RecommendationDetailPage', () => {
     expect(screen.getByText('Synthetic core passage on computer networks.')).toBeInTheDocument()
     expect(screen.getByText('Synthetic core v1 · p. 14')).toBeInTheDocument()
     expect(
-      screen.getByText(/70% similar to the closest NUC core passage; above 80%/),
+      screen.getByText(/70% similar to the closest NUC core extract; above 80%/),
     ).toBeInTheDocument()
 
     const advert = screen.getByRole('region', { name: 'Synthetic cloud advert' })
     expect(within(advert).getAllByRole('listitem')).toHaveLength(2)
     expect(within(advert).getByText(/Page 2 · 80% relevant/)).toBeInTheDocument()
     const policy = screen.getByRole('region', { name: 'Synthetic ICT policy' })
-    expect(within(policy).getByText(/Passage 5 · 88% relevant/)).toBeInTheDocument()
+    expect(within(policy).getByText(/Extract 5 · 88% relevant/)).toBeInTheDocument()
+  })
+
+  it('shows the keywords as written and an example with its readable source', async () => {
+    reviewApi(plannerUser, {
+      'GET /recommendations/:id': ok(
+        detail({
+          keywords: [
+            { term: 'problem solve', label: 'problem solving', weight: 0.3 },
+            { term: 'kubernetes', label: 'Kubernetes', weight: 0.2 },
+          ],
+          evidence: [
+            {
+              passage_id: 101,
+              relevance_score: 0.93,
+              text: 'Synthetic advert passage about Kubernetes clusters.',
+              page_number: 1,
+              position: 0,
+              document: {
+                id: 11,
+                title: 'Synthetic DevOps Engineer – Acme',
+                source_category: 'job_market',
+                source: 'MyJobMag',
+                published_on: '2026-09-18',
+                label: 'Synthetic DevOps Engineer – Acme, job advert (MyJobMag, Sep 2026)',
+              },
+            },
+          ],
+        }),
+      ),
+    })
+    renderApp('/recommendations/31')
+
+    expect(await screen.findByText('Keywords:')).toBeInTheDocument()
+    expect(screen.getByText('Keywords:').closest('p')).toHaveTextContent(
+      'Keywords: problem solving, Kubernetes',
+    )
+    const example = screen.getByText(/Example from a job advert/).closest('figure')!
+    expect(example).toHaveTextContent(
+      'Example from a job advert (Synthetic DevOps Engineer – Acme, MyJobMag, Sep 2026):',
+    )
+    expect(example).toHaveTextContent('“Synthetic advert passage about Kubernetes clusters.”')
+    expect(
+      screen.getByRole('region', {
+        name: 'Synthetic DevOps Engineer – Acme, job advert (MyJobMag, Sep 2026)',
+      }),
+    ).toBeInTheDocument()
   })
 
   it('names the closest NUC course when themes were compared with courses', async () => {
@@ -488,7 +534,9 @@ describe('RecommendationDetailPage', () => {
     expect(similar.closest('p')).toHaveTextContent(
       '63% similar to the closest NUC course: SEN 304 – Software Testing & Quality Assurance · 2 units · p. 219',
     )
-    expect(screen.getByText(/Compared with every NUC core course/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/We compared this topic with every NUC core course/),
+    ).toBeInTheDocument()
   })
 
   it('edits the title and keeps the generated one for reference', async () => {
@@ -784,18 +832,16 @@ describe('EvidencePage', () => {
     expect(within(keywordTable).getByText('kubernetes')).toBeInTheDocument()
     expect(within(keywordTable).getByText('0.310')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('tab', { name: 'NUC overlap' }))
+    await user.click(screen.getByRole('tab', { name: 'NUC core' }))
     const overlap = await screen.findByRole('table', { name: 'Overlap with the NUC core' })
     const duplicateRow = within(overlap).getByText('Operating Systems').closest('tr')!
-    expect(within(duplicateRow).getByText('Potential Duplicate')).toBeInTheDocument()
+    expect(within(duplicateRow).getByText('May already be in NUC core')).toBeInTheDocument()
     expect(within(duplicateRow).getByText('CSC 301')).toBeInTheDocument()
     expect(within(duplicateRow).getByText(/Operating Systems I$/)).toBeInTheDocument()
     expect(duplicateRow.className).toContain('bg-amber')
     expect(within(overlap).getByText('Cloud Security').closest('tr')!.className).not.toContain(
       'bg-amber',
     )
-    expect(
-      screen.getByText(/potential duplicate of existing core content \(1 of 2\)/),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/may duplicate existing core content \(1 of 2\)/)).toBeInTheDocument()
   })
 })

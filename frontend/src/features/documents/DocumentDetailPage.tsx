@@ -1,5 +1,14 @@
-import { AlertCircle, Archive, ArrowLeft, Download, Loader2, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import {
+  AlertCircle,
+  Archive,
+  ArrowLeft,
+  Download,
+  ExternalLink,
+  Loader2,
+  Pencil,
+  Trash2,
+} from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
 import { PaginationControls } from '@/components/shared/PaginationControls'
@@ -17,6 +26,7 @@ import type { DocumentDetail } from '@/types/api'
 import { documentFileUrl, useDocument, usePassages } from './api'
 import { DocumentActionDialogs, type DocumentAction } from './DocumentActionDialogs'
 import { DocumentStatusBadge } from './DocumentStatusBadge'
+import { EditDocumentDialog } from './EditDocumentDialog'
 import { CATEGORY_LABELS } from './labels'
 
 export function DocumentDetailPage() {
@@ -59,17 +69,37 @@ function DocumentDetailView({ document }: { document: DocumentDetail }) {
   const { canEdit, isAdmin } = useAuth()
   const navigate = useNavigate()
   const [action, setAction] = useState<DocumentAction | null>(null)
+  const [editing, setEditing] = useState(false)
   const status = document.processing_status
   const processing = status === 'uploaded' || status === 'parsing'
   const backTo = document.is_nuc_core && isAdmin ? '/admin/nuc-core' : '/documents'
 
-  const metadata: [string, string][] = [
+  const metadata: [string, ReactNode][] = [
+    ['Source', document.source ?? 'Not given'],
+    [
+      'Original',
+      document.source_url ? (
+        <a
+          href={document.source_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
+        >
+          {document.source_url}
+          <ExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
+          <span className="sr-only">(opens in a new tab)</span>
+        </a>
+      ) : (
+        'Not given'
+      ),
+    ],
+    ['Published', formatDate(document.published_on, 'Not given')],
     ['File', document.original_filename],
     ['Type', document.file_type.toUpperCase()],
     ['Size', formatBytes(document.file_size)],
     ['Pages', document.page_count === null ? 'Not paginated' : String(document.page_count)],
     ['Words', formatNumber(document.word_count)],
-    ['Passages', String(document.passage_count)],
+    ['Extracts', String(document.passage_count)],
     ['Uploaded', `${formatDateTime(document.uploaded_at)} by ${document.uploaded_by.full_name}`],
     ['Processed', formatDateTime(document.parsed_at, 'Not yet')],
   ]
@@ -97,6 +127,11 @@ function DocumentDetailView({ document }: { document: DocumentDetail }) {
               <Download aria-hidden="true" /> Download
             </a>
           </Button>
+          {canEdit && (
+            <Button variant="outline" onClick={() => setEditing(true)}>
+              <Pencil aria-hidden="true" /> Edit details
+            </Button>
+          )}
           {canEdit && !document.is_nuc_core && (
             <>
               {status !== 'archived' && (
@@ -155,6 +190,7 @@ function DocumentDetailView({ document }: { document: DocumentDetail }) {
 
       {!document.is_nuc_core && <SessionsCard document={document} />}
 
+      <EditDocumentDialog document={document} open={editing} onOpenChange={setEditing} />
       <DocumentActionDialogs
         action={action}
         onClose={() => setAction(null)}
@@ -173,13 +209,13 @@ function PassagesCard({ documentId, total }: { documentId: number; total: number
       <CardHeader>
         <CardTitle>Extracted text</CardTitle>
         <CardDescription>
-          The document split into {total} passage{total === 1 ? '' : 's'} of a few sentences each,
+          The document split into {total} extract{total === 1 ? '' : 's'} of a few sentences each,
           as used for analysis and shown as evidence.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         {total === 0 ? (
-          <p className="text-sm text-muted-foreground">No passages were extracted.</p>
+          <p className="text-sm text-muted-foreground">No text could be read from this document.</p>
         ) : passages.isError ? (
           <p className="text-sm text-destructive">{passages.error.message}</p>
         ) : passages.isPending ? (
@@ -190,7 +226,7 @@ function PassagesCard({ documentId, total }: { documentId: number; total: number
               {passages.data.items.map((passage) => (
                 <li key={passage.id} className="rounded-md border p-3">
                   <div className="mb-1 flex gap-2 text-xs text-muted-foreground">
-                    <span>Passage {passage.position + 1}</span>
+                    <span>Extract {passage.position + 1}</span>
                     {passage.page_number !== null && <span>· Page {passage.page_number}</span>}
                   </div>
                   <p className="text-sm leading-relaxed">{passage.text}</p>
@@ -201,7 +237,7 @@ function PassagesCard({ documentId, total }: { documentId: number; total: number
               <PaginationControls
                 pagination={passages.data.pagination}
                 onPageChange={setPage}
-                itemLabel="passages"
+                itemLabel="extracts"
               />
             )}
           </>

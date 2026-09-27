@@ -38,9 +38,9 @@ export function NucCorePage() {
       <div>
         <h2 className="text-xl font-semibold">NUC core reference</h2>
         <p className="max-w-prose text-sm text-muted-foreground">
-          The nationally fixed 70% of the CCMAS Computer Science curriculum. Every candidate topic
-          is compared against the active version to flag potential duplicates and measure novelty.
-          Exactly one version is active; a new upload becomes active once it has been processed.
+          The part of the curriculum fixed by the NUC (CCMAS, 70%). Every suggested topic is
+          compared with it, to spot topics that may already be in the NUC core. Only one version is
+          used at a time; a new upload takes over once it has been read.
         </p>
       </div>
       <CurrentVersion />
@@ -144,8 +144,8 @@ function CoursesCard() {
         <CardTitle>Courses</CardTitle>
         <CardDescription>
           {items.length === 0
-            ? 'No course headers (e.g. “SEN 304: Software Testing (2 Units)”) were recognised, so themes are compared with individual passages of the NUC core.'
-            : `${items.length} courses found. Themes are compared with ${items.length - excluded} of them; ${excluded} are excluded from comparison${rules.length ? ` (${rules.join(', ')})` : ''}. Administrators can change the exclusions in Settings.`}
+            ? 'No course headers (e.g. “SEN 304: Software Testing (2 Units)”) were found, so topics are compared with short extracts of the NUC core instead.'
+            : `${items.length} courses found. Topics are compared with ${items.length - excluded} of them; ${excluded} are excluded from comparison${rules.length ? ` (${rules.join(', ')})` : ''}. An administrator can change this list in Settings.`}
         </CardDescription>
       </CardHeader>
       {items.length > 0 && (

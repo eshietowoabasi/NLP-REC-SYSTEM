@@ -138,11 +138,26 @@ export interface DocumentSummary {
   source_category: SourceCategory
   processing_status: DocumentStatus
   error_message: string | null
+  /** Where the document comes from, e.g. "MyJobMag". */
+  source: string | null
+  source_url: string | null
+  /** ISO date the document (e.g. a job advert) was published. */
+  published_on: string | null
+  /** Readable reference: "Senior QA Engineer – Hydrogen, job advert (MyJobMag, Sep 2026)". */
+  label: string
   page_count: number | null
   word_count: number | null
   uploaded_at: string
   parsed_at: string | null
   uploaded_by: UserRef
+}
+
+/** PATCH /api/documents/{id}: any subset. */
+export interface DocumentEditRequest {
+  title?: string
+  source?: string | null
+  source_url?: string | null
+  published_on?: string | null
 }
 
 export interface PassageSummary {
@@ -314,6 +329,8 @@ export interface EntityResults {
 
 export interface WeightedTerm {
   term: string
+  /** The keyword as written in the documents ("problem solving"); older sessions lack it. */
+  label?: string
   weight: number
 }
 
@@ -321,12 +338,17 @@ export interface TopicSample {
   passage_id: number
   document_id: number
   document_title: string
+  /** Readable reference (title, type, source, date); older API responses may lack it. */
+  document_label?: string
   text: string
 }
 
 export interface TopicResult {
   topic_id: number
+  /** Course-style name, or the keyword title when no name was close enough. */
   title: string
+  keyword_title?: string
+  name_similarity?: number | null
   keywords: WeightedTerm[]
   size: number
   document_count: number
@@ -463,7 +485,16 @@ export interface Evidence {
   text: string
   page_number: number | null
   position: number
-  document: { id: number; title: string; source_category: SourceCategory }
+  document: {
+    id: number
+    title: string
+    source_category: SourceCategory
+    source?: string | null
+    source_url?: string | null
+    published_on?: string | null
+    /** "Senior QA Engineer – Hydrogen, job advert (MyJobMag, Sep 2026)". */
+    label?: string
+  }
 }
 
 export interface NucPassage {
@@ -624,6 +655,7 @@ export type SettingKey =
   | 'evidence_per_recommendation'
   | 'max_documents_per_session'
   | 'nuc_course_exclusions'
+  | 'topic_name_catalogue'
   | 'credit_unit_allowance'
 
 export interface NumberRange {
@@ -650,6 +682,7 @@ export interface SettingValues {
   evidence_per_recommendation: number
   max_documents_per_session: number
   nuc_course_exclusions: CourseExclusions
+  topic_name_catalogue: string[]
   credit_unit_allowance: number | null
 }
 

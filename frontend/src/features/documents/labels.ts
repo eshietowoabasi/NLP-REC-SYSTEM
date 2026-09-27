@@ -1,11 +1,34 @@
 import type { DocumentStatus, SourceCategory, UploadCategory } from '@/types/api'
 
 export const CATEGORY_LABELS: Record<SourceCategory, string> = {
-  job_market: 'Job market',
-  institutional: 'Institutional',
-  policy: 'Policy',
-  academic: 'Academic',
+  job_market: 'Job adverts',
+  institutional: 'University documents',
+  policy: 'Policy documents',
+  academic: 'Academic papers',
   nuc_core: 'NUC core',
+}
+
+/** What one document of each category is called in a sentence ("a job advert"). */
+export const DOCUMENT_TYPE: Record<SourceCategory, string> = {
+  job_market: 'job advert',
+  institutional: 'university document',
+  policy: 'policy document',
+  academic: 'academic paper',
+  nuc_core: 'NUC core curriculum',
+}
+
+// en-US gives "Sep 2026" (en-GB writes "Sept"), matching the labels the API builds.
+const monthYearFormat = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' })
+
+/** "2026-09-18" → "Sep 2026". */
+export function monthYear(iso: string | null | undefined): string | null {
+  return iso ? monthYearFormat.format(new Date(`${iso}T00:00:00`)) : null
+}
+
+/** Shorten long text at a word boundary, with an ellipsis. */
+export function shorten(text: string, length: number): string {
+  const flat = text.split(/\s+/).join(' ').trim()
+  return flat.length <= length ? flat : `${flat.slice(0, length).replace(/\s+\S*$/, '')}…`
 }
 
 export const UPLOAD_CATEGORIES: readonly UploadCategory[] = [

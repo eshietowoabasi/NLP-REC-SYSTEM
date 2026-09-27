@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { healthyStatus, makeDocumentDetail, page, plannerUser } from '@/test/fixtures'
@@ -6,7 +6,10 @@ import { fail, mockApi, ok } from '@/test/server'
 import { renderApp } from '@/test/utils'
 import type { DocumentDetail } from '@/types/api'
 
-function detailApi(detail: DocumentDetail | ReturnType<typeof fail>) {
+function detailApi(
+  detail: DocumentDetail | ReturnType<typeof fail>,
+  extra: Parameters<typeof mockApi>[0] = {},
+) {
   return mockApi({
     'GET /auth/me': ok(plannerUser),
     'GET /health': ok(healthyStatus),
@@ -17,6 +20,7 @@ function detailApi(detail: DocumentDetail | ReturnType<typeof fail>) {
         { id: 102, position: 1, page_number: 2, text: 'Synthetic passage about cloud security.' },
       ]),
     ),
+    ...extra,
   })
 }
 
@@ -47,6 +51,48 @@ describe('DocumentDetailPage', () => {
       'href',
       '/api/documents/10/file',
     )
+  })
+
+  it('shows where the document comes from, with a link to the original', async () => {
+    detailApi(makeDocumentDetail())
+    renderApp('/documents/10')
+
+    expect(await screen.findByText('MyJobMag')).toBeInTheDocument()
+    const original = screen.getByRole('link', { name: /www\.example\.com\/job\/1/ })
+    expect(original).toHaveAttribute('href', 'https://www.example.com/job/1')
+    expect(original).toHaveAttribute('target', '_blank')
+    expect(screen.getByText('Extracts')).toBeInTheDocument()
+  })
+
+  it('edits the details used wherever the document is quoted', async () => {
+    const server = detailApi(makeDocumentDetail(), {
+      'PATCH /documents/:id': (request) =>
+        ok({ ...makeDocumentDetail(), ...(request.body as object) }),
+    })
+    const { user } = renderApp('/documents/10')
+
+    await user.click(await screen.findByRole('button', { name: /Edit details/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit document details' })
+    const title = within(dialog).getByLabelText('Title')
+    await user.clear(title)
+    await user.type(title, 'Senior Backend Engineer – Synthetic Bank')
+    await user.clear(within(dialog).getByLabelText('Link to the original'))
+    await user.type(within(dialog).getByLabelText('Link to the original'), 'ftp://x')
+    await user.click(within(dialog).getByRole('button', { name: 'Save details' }))
+    expect(
+      await within(dialog).findByText('Enter a web address starting with http:// or https://.'),
+    ).toBeInTheDocument()
+
+    await user.clear(within(dialog).getByLabelText('Link to the original'))
+    await user.click(within(dialog).getByRole('button', { name: 'Save details' }))
+
+    await waitFor(() => expect(server.calls('PATCH', '/documents/10')).toHaveLength(1))
+    expect(server.calls('PATCH', '/documents/10')[0].body).toEqual({
+      title: 'Senior Backend Engineer – Synthetic Bank',
+      source: 'MyJobMag',
+      source_url: null,
+      published_on: '2026-09-18',
+    })
   })
 
   it('shows the failure reason', async () => {

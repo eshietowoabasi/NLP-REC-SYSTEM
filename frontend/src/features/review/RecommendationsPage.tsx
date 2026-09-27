@@ -15,6 +15,7 @@ import {
   CompletedSessionGate,
   EmptyPanel,
   ErrorPanel,
+  KeywordsLine,
   LoadingBlock,
   OverlapBadge,
   ScoreContribution,
@@ -90,8 +91,7 @@ function RecommendationReview({
   if (counts.total === 0) {
     return (
       <EmptyPanel icon={Inbox} title="No recommendations">
-        The analysis completed but found no themes to recommend. Try a session with more documents
-        or a smaller minimum theme size.
+        The analysis finished but found no topics to recommend. Try again with more documents.
       </EmptyPanel>
     )
   }
@@ -100,11 +100,11 @@ function RecommendationReview({
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="max-w-prose text-sm text-muted-foreground">
-          Candidate course topics ranked by a score out of 100: skill demand{' '}
-          <span className="text-foreground">{formatWeight(weights.ner)}</span>, theme strength{' '}
-          <span className="text-foreground">{formatWeight(weights.topic)}</span> and novelty{' '}
-          <span className="text-foreground">{formatWeight(weights.novelty)}</span>. Open a topic to
-          see its evidence and decide.
+          Suggested topics, best first. Each has a score out of 100: employer demand{' '}
+          <span className="text-foreground">{formatWeight(weights.ner)}</span>, how often it comes
+          up <span className="text-foreground">{formatWeight(weights.topic)}</span> and how new it
+          is <span className="text-foreground">{formatWeight(weights.novelty)}</span>. Open a topic
+          to see its evidence and decide.
         </p>
         <Button variant="outline" size="sm" asChild>
           <a href={`/api/sessions/${sessionId}/recommendations/export`} download>
@@ -121,8 +121,8 @@ function RecommendationReview({
             reviewed
           </p>
           <p className="text-muted-foreground">
-            {counts.potential_duplicates} potential duplicate
-            {counts.potential_duplicates === 1 ? '' : 's'} of NUC core content
+            {counts.potential_duplicates} {counts.potential_duplicates === 1 ? 'topic' : 'topics'}{' '}
+            may already be in the NUC core
           </p>
         </div>
         <Progress value={reviewedPercent} aria-label="Review progress" />
@@ -154,13 +154,13 @@ function RecommendationReview({
             checked={hideDuplicates}
             onCheckedChange={(checked) => setHideDuplicates(checked === true)}
           />
-          <Label htmlFor="hide-duplicates">Hide potential duplicates</Label>
+          <Label htmlFor="hide-duplicates">Hide topics that may already be in the NUC core</Label>
         </div>
       </div>
 
       {items.length === 0 ? (
         <EmptyPanel icon={Inbox} title="Nothing matches these filters">
-          Choose another decision filter or show potential duplicates.
+          Choose another filter, or show the topics that may already be in the NUC core.
         </EmptyPanel>
       ) : (
         <ol className="space-y-4" aria-label="Ranked recommendations">
@@ -204,6 +204,7 @@ function RecommendationCard({
               </div>
             </div>
           </div>
+          <KeywordsLine keywords={recommendation.keywords} limit={6} />
           <p className="line-clamp-2 text-sm text-muted-foreground">
             {recommendation.topic_description}
           </p>

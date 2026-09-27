@@ -55,7 +55,7 @@ describe('NucCorePage', () => {
 
     const table = await screen.findByRole('table', { name: 'NUC core courses' })
     expect(
-      screen.getByText(/3 courses found. Themes are compared with 1 of them; 2 are excluded/),
+      screen.getByText(/3 courses found. Topics are compared with 1 of them; 2 are excluded/),
     ).toHaveTextContent('(GST courses, “SIWES”)')
     expect(within(table).getAllByText('Excluded from comparison')).toHaveLength(2)
     expect(within(table).getByText('CSC 301').closest('tr')).toHaveTextContent('Compared')
@@ -76,7 +76,7 @@ describe('NucCorePage', () => {
     renderApp('/admin/nuc-core')
 
     expect(
-      await screen.findByText(/themes are compared with individual passages of the NUC core/),
+      await screen.findByText(/topics are compared with short extracts of the NUC core instead/),
     ).toBeInTheDocument()
   })
 

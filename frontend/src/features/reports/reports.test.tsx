@@ -123,8 +123,10 @@ describe('ReportsPage', () => {
       'on',
     )
     await user.click(within(dialog).getByRole('radio', { name: 'PDF' }))
-    await user.click(within(dialog).getByRole('checkbox', { name: 'NLP findings' }))
-    await user.click(within(dialog).getByRole('checkbox', { name: 'Overlap results' }))
+    await user.click(
+      within(dialog).getByRole('checkbox', { name: 'What the documents talk about' }),
+    )
+    await user.click(within(dialog).getByRole('checkbox', { name: 'Comparison with the NUC core' }))
     await user.click(within(dialog).getByRole('button', { name: 'Download report' }))
 
     await waitFor(() => expect(server.calls('POST', '/sessions/5/reports')).toHaveLength(1))
@@ -143,10 +145,10 @@ describe('ReportsPage', () => {
 
     const dialog = await screen.findByRole('dialog')
     for (const name of [
-      'Corpus summary',
-      'NLP findings',
-      'Overlap results',
-      'Recommendations',
+      'Documents analysed',
+      'What the documents talk about',
+      'Comparison with the NUC core',
+      'Recommended topics',
       'Decisions',
       'Proposed courses',
     ]) {

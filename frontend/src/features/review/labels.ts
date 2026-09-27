@@ -32,9 +32,14 @@ export const SKILL_LABELS: Record<SkillLabel, string> = {
 
 /** The three sub-scores in the order of the composite formula. */
 export const SCORE_PARTS = [
-  { key: 'ner', field: 'ner_score', label: 'Skill demand' },
-  { key: 'topic', field: 'topic_score', label: 'Theme strength' },
-  { key: 'novelty', field: 'novelty_score', label: 'Novelty' },
+  { key: 'ner', field: 'ner_score', label: 'Employer demand', technical: 'skill demand' },
+  {
+    key: 'topic',
+    field: 'topic_score',
+    label: 'How often it comes up',
+    technical: 'theme strength',
+  },
+  { key: 'novelty', field: 'novelty_score', label: 'How new it is', technical: 'novelty' },
 ] as const
 
 /*

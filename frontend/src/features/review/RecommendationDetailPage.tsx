@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/features/auth/useAuth'
-import { CATEGORY_LABELS } from '@/features/documents/labels'
+import { DOCUMENT_TYPE, monthYear, shorten } from '@/features/documents/labels'
 import { ApiError } from '@/lib/api'
 import { formatDateTime } from '@/lib/format'
 import { applyServerErrors } from '@/lib/forms'
@@ -27,6 +27,7 @@ import { useDecide, useEditRecommendation, useRecommendation } from './api'
 import {
   DecisionBadge,
   ErrorPanel,
+  KeywordsLine,
   LoadingBlock,
   OverlapBadge,
   ScoreContribution,
@@ -114,9 +115,7 @@ function TitleSection({ recommendation }: { recommendation: RecommendationDetail
         <>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 space-y-2">
-              <p className="text-sm text-muted-foreground">
-                Rank {recommendation.rank} · theme {recommendation.topic_id}
-              </p>
+              <p className="text-sm text-muted-foreground">Recommendation #{recommendation.rank}</p>
               <h2 className="text-2xl font-semibold tracking-tight break-words">
                 {recommendation.topic_title}
               </h2>
@@ -132,11 +131,13 @@ function TitleSection({ recommendation }: { recommendation: RecommendationDetail
               </Button>
             )}
           </div>
+          <KeywordsLine keywords={recommendation.keywords} />
           <div className="flex flex-wrap gap-1.5">
             <OverlapBadge status={recommendation.overlap_status} />
             <DecisionBadge decision={recommendation.planner_decision} />
           </div>
           <p className="max-w-3xl text-sm leading-relaxed">{recommendation.topic_description}</p>
+          <ExampleQuote evidence={recommendation.evidence[0]} />
         </>
       )}
     </div>
@@ -225,6 +226,23 @@ function EditForm({
   )
 }
 
+/** "Example from a job advert (Title, MyJobMag, Sep 2026): “…”". */
+function ExampleQuote({ evidence }: { evidence: Evidence | undefined }) {
+  if (!evidence) return null
+  const { document } = evidence
+  const kind = DOCUMENT_TYPE[document.source_category] ?? 'document'
+  const details = [document.source, monthYear(document.published_on)].filter(Boolean).join(', ')
+  return (
+    <figure className="max-w-3xl space-y-1 rounded-md border-l-4 border-muted-foreground/30 bg-muted/40 px-4 py-3">
+      <figcaption className="text-xs text-muted-foreground">
+        Example from {/^[aeiou]/i.test(kind) ? 'an' : 'a'} {kind} ({document.title}
+        {details && `, ${details}`}):
+      </figcaption>
+      <blockquote className="text-sm italic">“{shorten(evidence.text, 400)}”</blockquote>
+    </figure>
+  )
+}
+
 /* -------------------------------------------------------------------- scores */
 
 function ScoreCard({ recommendation }: { recommendation: RecommendationDetail }) {
@@ -245,7 +263,7 @@ function ScoreCard({ recommendation }: { recommendation: RecommendationDetail })
         <CardTitle>Why it ranks #{recommendation.rank}</CardTitle>
         <CardDescription>
           The score out of 100 adds up three scores, each out of 100 compared with this
-          session&apos;s other themes and weighted by how much it counts.
+          session&apos;s other topics and weighted by how much it counts.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -282,7 +300,7 @@ function ScoreCard({ recommendation }: { recommendation: RecommendationDetail })
                   <span key={term.key}>
                     {index > 0 && ' + '}
                     {formatDecimal(term.weight)} × {formatDecimal(term.value)}
-                    <span className="text-muted-foreground"> ({term.label.toLowerCase()})</span>
+                    <span className="text-muted-foreground"> ({term.technical})</span>
                   </span>
                 ))}{' '}
                 = <strong>{formatDecimal(recommendation.composite_score)}</strong>
@@ -297,24 +315,25 @@ function ScoreCard({ recommendation }: { recommendation: RecommendationDetail })
         </div>
         <dl className="grid gap-3 border-t pt-4 text-xs text-muted-foreground sm:grid-cols-3">
           <div>
-            <dt className="font-medium text-foreground">Skill demand</dt>
+            <dt className="font-medium text-foreground">Employer demand</dt>
             <dd>
-              How many documents ask for the skills that characterise this theme (skills common to
-              every theme count less).
+              How many documents ask for the skills that belong to this topic. Skills that every
+              topic mentions count less.
             </dd>
           </div>
           <div>
-            <dt className="font-medium text-foreground">Theme strength</dt>
+            <dt className="font-medium text-foreground">How often it comes up</dt>
             <dd>
-              How much of the corpus the theme covers (each document counts equally) × how
-              confidently its passages belong to it.
+              How much of the material is about this topic (each document counts the same), and how
+              clearly its extracts belong to it.
             </dd>
           </div>
           <div>
-            <dt className="font-medium text-foreground">Novelty</dt>
+            <dt className="font-medium text-foreground">How new it is</dt>
             <dd>
-              100 − the % similarity to the closest NUC core{' '}
-              {recommendation.closest_nuc_course ? 'course' : 'passage'}.
+              How different it is from the closest NUC core{' '}
+              {recommendation.closest_nuc_course ? 'course' : 'extract'}. High means the NUC core
+              does not teach it yet.
             </dd>
           </div>
           <p className="sm:col-span-3">High = 70 or more, Medium = 40–69, Low = below 40.</p>
@@ -333,8 +352,8 @@ function OverlapCard({ recommendation }: { recommendation: RecommendationDetail 
   const top = recommendation.evidence[0]
   const duplicate = recommendation.overlap_status === 'Potential Duplicate'
   const verdict = duplicate
-    ? 'this theme may repeat content already in the NUC core.'
-    : 'no significant overlap with the NUC core.'
+    ? 'this topic may already be taught in the NUC core.'
+    : 'the NUC core does not seem to cover it.'
   return (
     <Card>
       <CardHeader>
@@ -342,13 +361,15 @@ function OverlapCard({ recommendation }: { recommendation: RecommendationDetail 
         <CardDescription>
           {course ? (
             <>
-              Compared with every NUC core course. A theme more than {formatPercent(threshold)}{' '}
-              similar to a course is a potential duplicate: {verdict}
+              We compared this topic with every NUC core course. A topic more than{' '}
+              {formatPercent(threshold)} similar to a course may already be in the NUC core. Here,{' '}
+              {verdict}
             </>
           ) : (
             <>
               {formatPercent(recommendation.max_similarity)} similar to the closest NUC core
-              passage; above {formatPercent(threshold)} a theme is a potential duplicate: {verdict}
+              extract; above {formatPercent(threshold)} a topic may already be in the NUC core.
+              Here, {verdict}
             </>
           )}
         </CardDescription>
@@ -382,12 +403,12 @@ function OverlapCard({ recommendation }: { recommendation: RecommendationDetail 
         )}
         <section aria-labelledby="overlap-theme" className="space-y-1.5 rounded-md border p-3">
           <h3 id="overlap-theme" className="text-sm font-semibold">
-            Most representative passage
+            Typical extract from this topic
           </h3>
           {top ? (
             <>
               <p className="text-xs text-muted-foreground">
-                {top.document.title}
+                {top.document.label ?? top.document.title}
                 {top.page_number != null && ` · p. ${top.page_number}`}
               </p>
               <p className="text-sm">{top.text}</p>
@@ -405,7 +426,7 @@ function OverlapCard({ recommendation }: { recommendation: RecommendationDetail 
           }
         >
           <h3 id="overlap-nuc" className="text-sm font-semibold">
-            Closest NUC core passage
+            Closest extract in the NUC core
           </h3>
           {nuc ? (
             <>
@@ -417,7 +438,7 @@ function OverlapCard({ recommendation }: { recommendation: RecommendationDetail 
             </>
           ) : (
             <p className="text-sm text-muted-foreground">
-              The NUC core passage is no longer available.
+              This NUC core extract is no longer available.
             </p>
           )}
         </section>
@@ -445,7 +466,7 @@ function EvidenceCard({ evidence }: { evidence: Evidence[] }) {
       <CardHeader>
         <CardTitle>Evidence</CardTitle>
         <CardDescription>
-          The {evidence.length} passages closest to the centre of this theme, grouped by document.
+          The {evidence.length} extracts that best represent this topic, grouped by document.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -453,15 +474,18 @@ function EvidenceCard({ evidence }: { evidence: Evidence[] }) {
           <p className="text-sm text-muted-foreground">No evidence passages stored.</p>
         )}
         {groups.map(({ document, passages }) => (
-          <section key={document.id} aria-label={document.title} className="space-y-2">
+          <section
+            key={document.id}
+            aria-label={document.label ?? document.title}
+            className="space-y-2"
+          >
             <div className="flex flex-wrap items-center gap-2">
               <Link
                 to={`/documents/${document.id}`}
                 className="text-sm font-semibold hover:underline"
               >
-                {document.title}
+                {document.label ?? document.title}
               </Link>
-              <Badge variant="secondary">{CATEGORY_LABELS[document.source_category]}</Badge>
             </div>
             <ul className="space-y-2">
               {passages.map((passage) => (
@@ -469,7 +493,7 @@ function EvidenceCard({ evidence }: { evidence: Evidence[] }) {
                   <p className="mb-1 text-xs text-muted-foreground tabular-nums">
                     {passage.page_number != null
                       ? `Page ${passage.page_number}`
-                      : `Passage ${passage.position + 1}`}{' '}
+                      : `Extract ${passage.position + 1}`}{' '}
                     · {formatPercent(passage.relevance_score)} relevant
                   </p>
                   <p className="text-sm">{passage.text}</p>
@@ -497,7 +521,9 @@ function TermsCard({ recommendation }: { recommendation: RecommendationDetail })
             Skills
           </h3>
           {recommendation.skills.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No recognised skills in this theme.</p>
+            <p className="text-sm text-muted-foreground">
+              No known skills were found in this topic.
+            </p>
           ) : (
             <ul className="divide-y text-sm">
               {recommendation.skills.map((skill) => (

@@ -32,6 +32,7 @@ const settings: SettingItem[] = [
   item('evidence_per_recommendation', 8),
   item('max_documents_per_session', 50),
   item('nuc_course_exclusions', { code_prefixes: ['GST'], title_keywords: ['SIWES', 'Seminar'] }),
+  item('topic_name_catalogue', ['Software Testing and Quality Assurance', 'Cloud Computing']),
   item('credit_unit_allowance', null),
 ]
 
@@ -117,6 +118,27 @@ describe('Settings: general', () => {
     })
   })
 
+  it('edits the course-style topic names, one per line', async () => {
+    const server = settingsApi({
+      'PUT /admin/settings': ok({ settings, changed: ['topic_name_catalogue'] }),
+    })
+    const { user } = renderApp('/admin/settings')
+
+    const names = await screen.findByLabelText('Topic names')
+    expect(names).toHaveValue('Software Testing and Quality Assurance\nCloud Computing')
+    await user.type(names, '\n  Data Mining  \n')
+    await user.click(screen.getByRole('button', { name: 'Save settings' }))
+
+    await waitFor(() => expect(server.calls('PUT', '/admin/settings')).toHaveLength(1))
+    expect(server.calls('PUT', '/admin/settings')[0].body).toEqual({
+      topic_name_catalogue: [
+        'Software Testing and Quality Assurance',
+        'Cloud Computing',
+        'Data Mining',
+      ],
+    })
+  })
+
   it('rejects malformed course-code prefixes', async () => {
     const server = settingsApi()
     const { user } = renderApp('/admin/settings')
@@ -134,11 +156,11 @@ describe('Settings: general', () => {
     const server = settingsApi()
     const { user } = renderApp('/admin/settings')
 
-    const ner = await screen.findByLabelText('Skill demand (NER)')
+    const ner = await screen.findByLabelText('Employer demand')
     await user.clear(ner)
     await user.type(ner, '0.6')
     expect(screen.getByText(/Total: 120% — the weights must add up to 100%/)).toBeInTheDocument()
-    const words = screen.getByLabelText('Words per passage: minimum')
+    const words = screen.getByLabelText('Words per extract: minimum')
     await user.clear(words)
     await user.type(words, '300')
     await user.click(screen.getByRole('button', { name: 'Save settings' }))
@@ -152,12 +174,12 @@ describe('Settings: general', () => {
     settingsApi()
     const { user } = renderApp('/admin/settings')
 
-    const model = await screen.findByLabelText('Embedding model (SBERT)')
-    expect(screen.queryByText('Changing the embedding model')).not.toBeInTheDocument()
+    const model = await screen.findByLabelText('Meaning model (advanced)')
+    expect(screen.queryByText('Changing the meaning model')).not.toBeInTheDocument()
     await user.clear(model)
     await user.type(model, 'all-mpnet-base-v2')
 
-    expect(screen.getByText('Changing the embedding model')).toBeInTheDocument()
+    expect(screen.getByText('Changing the meaning model')).toBeInTheDocument()
   })
 
   it('shows server validation errors on the field', async () => {
@@ -168,7 +190,7 @@ describe('Settings: general', () => {
     })
     const { user } = renderApp('/admin/settings')
 
-    const spacy = await screen.findByLabelText('spaCy pipeline')
+    const spacy = await screen.findByLabelText('Language model (advanced)')
     await user.clear(spacy)
     await user.type(spacy, 'xx_sm')
     await user.click(screen.getByRole('button', { name: 'Save settings' }))

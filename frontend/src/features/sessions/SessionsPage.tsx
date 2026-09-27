@@ -131,7 +131,7 @@ export function SessionsPage() {
           <FlaskConical className="size-10 text-muted-foreground" aria-hidden="true" />
           <h3 className="text-lg font-semibold">No analysis sessions yet</h3>
           <p className="max-w-md text-sm text-muted-foreground">
-            A session selects documents from the library, discovers themes in them and ranks
+            A session takes documents from the library, finds the topics they talk about and ranks
             candidate course topics against the NUC core.
           </p>
           {canEdit && (

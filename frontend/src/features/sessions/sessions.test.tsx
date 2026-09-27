@@ -96,7 +96,7 @@ describe('SessionsPage', () => {
     )
     const row = screen.getByRole('link', { name: 'Synthetic 2026 review' }).closest('tr')!
     expect(within(row).getByText('Completed')).toBeInTheDocument()
-    expect(screen.getByText('· Themes')).toBeInTheDocument()
+    expect(screen.getByText('· Topics')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Delete Running one' })).toBeDisabled()
     expect(screen.getByRole('link', { name: /New session/ })).toBeInTheDocument()
   })
@@ -140,7 +140,7 @@ describe('NewSessionPage', () => {
     const { user } = renderApp('/sessions/new')
     await toStep3(user)
 
-    const ner = screen.getByLabelText('Skill demand (NER)')
+    const ner = screen.getByLabelText('Employer demand')
     expect(ner).toHaveValue(0.4)
     expect(screen.getByText(/Total: 100% ✓/)).toBeInTheDocument()
     await user.clear(ner)
@@ -209,7 +209,7 @@ describe('SessionDetailPage', () => {
 
     const stages = await screen.findByRole('list', { name: 'Analysis stages' })
     expect(within(stages).getByText('Keywords').parentElement).toHaveTextContent('done')
-    expect(within(stages).getByText('Themes').closest('li')).toHaveAttribute('aria-current', 'step')
+    expect(within(stages).getByText('Topics').closest('li')).toHaveAttribute('aria-current', 'step')
     expect(within(stages).getByText('Scoring').parentElement).toHaveTextContent('not started')
     expect(screen.getByText('55%')).toBeInTheDocument()
   })
@@ -231,7 +231,7 @@ describe('SessionDetailPage', () => {
     })
     const { user } = renderApp('/sessions/5')
 
-    expect(await screen.findByText('The analysis failed at the Themes stage')).toBeInTheDocument()
+    expect(await screen.findByText('The analysis failed at the Topics stage')).toBeInTheDocument()
     expect(screen.getByText(/Too little text/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Retry/ }))
 
@@ -244,7 +244,7 @@ describe('SessionDetailPage', () => {
 
     expect(await screen.findByText('Analysis complete')).toBeInTheDocument()
     expect(
-      screen.getByText(/7 recommendations from 7 themes found in 9 documents/),
+      screen.getByText(/7 recommendations from 7 topics found in 9 documents/),
     ).toBeInTheDocument()
     expect(screen.getByText('Synthetic core v1')).toBeInTheDocument()
   })

@@ -1,8 +1,9 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { apiDelete, apiGet, apiPost, apiUpload } from '@/lib/api'
+import { apiDelete, apiGet, apiPatch, apiPost, apiUpload } from '@/lib/api'
 import type {
   DocumentDetail,
+  DocumentEditRequest,
   DocumentList,
   DocumentListParams,
   DocumentSummary,
@@ -91,3 +92,13 @@ export function useDeleteDocument() {
 
 /** Download URL of the original file (served through the authorised API endpoint). */
 export const documentFileUrl = (id: number) => `/api/documents/${id}/file`
+
+/** Change the details shown wherever the document is referenced (title, source, link, date). */
+export function useEditDocument(id: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (changes: DocumentEditRequest) =>
+      apiPatch<DocumentSummary>(`/documents/${id}`, changes),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: documentsQueryKey }),
+  })
+}
