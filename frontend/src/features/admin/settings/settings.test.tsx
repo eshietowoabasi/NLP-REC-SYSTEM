@@ -31,6 +31,7 @@ const settings: SettingItem[] = [
   item('min_topic_size', 5),
   item('evidence_per_recommendation', 8),
   item('max_documents_per_session', 50),
+  item('nuc_course_exclusions', { code_prefixes: ['GST'], title_keywords: ['SIWES', 'Seminar'] }),
   item('credit_unit_allowance', null),
 ]
 
@@ -91,6 +92,42 @@ describe('Settings: general', () => {
       similarity_threshold: 0.75,
       credit_unit_allowance: 24,
     })
+  })
+
+  it('edits the NUC course exclusions as lists', async () => {
+    const server = settingsApi({
+      'PUT /admin/settings': ok({ settings, changed: ['nuc_course_exclusions'] }),
+    })
+    const { user } = renderApp('/admin/settings')
+
+    const prefixes = await screen.findByLabelText('Course-code prefixes')
+    expect(prefixes).toHaveValue('GST')
+    const keywords = screen.getByLabelText('Title keywords')
+    expect(keywords).toHaveValue('SIWES\nSeminar')
+    await user.type(prefixes, ', ent')
+    await user.type(keywords, '\nFinal Year Project')
+    await user.click(screen.getByRole('button', { name: 'Save settings' }))
+
+    await waitFor(() => expect(server.calls('PUT', '/admin/settings')).toHaveLength(1))
+    expect(server.calls('PUT', '/admin/settings')[0].body).toEqual({
+      nuc_course_exclusions: {
+        code_prefixes: ['GST', 'ENT'],
+        title_keywords: ['SIWES', 'Seminar', 'Final Year Project'],
+      },
+    })
+  })
+
+  it('rejects malformed course-code prefixes', async () => {
+    const server = settingsApi()
+    const { user } = renderApp('/admin/settings')
+
+    await user.type(await screen.findByLabelText('Course-code prefixes'), ', G5T')
+    await user.click(screen.getByRole('button', { name: 'Save settings' }))
+
+    expect(
+      await screen.findByText('Course-code prefixes are 2 to 4 letters, separated by commas.'),
+    ).toBeInTheDocument()
+    expect(server.calls('PUT', '/admin/settings')).toHaveLength(0)
   })
 
   it('checks the weight sum and ranges before saving', async () => {

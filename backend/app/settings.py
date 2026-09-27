@@ -59,6 +59,21 @@ SETTING_DEFINITIONS: tuple[SettingDefinition, ...] = (
         "max_documents_per_session", 50, "Maximum number of documents in one session."
     ),
     SettingDefinition(
+        "nuc_course_exclusions",
+        {
+            "code_prefixes": ["GST"],
+            "title_keywords": [
+                "SIWES",
+                "Industrial Work Experience",
+                "Industrial Training",
+                "Final Year Project",
+                "Seminar",
+            ],
+        },
+        "NUC core courses left out of the overlap comparison: course-code prefixes and title "
+        "keywords (case-insensitive), e.g. general studies, SIWES and project courses.",
+    ),
+    SettingDefinition(
         "credit_unit_allowance",
         None,
         "Credit units available for the institution-designed 30% (unset until configured).",

@@ -7,6 +7,7 @@ import numpy as np
 from app.services.ingestion.courses import (
     MAX_COURSE_WORDS,
     CourseData,
+    CourseExclusions,
     course_chunks,
     embed_courses,
     extract_courses,
@@ -56,6 +57,19 @@ def test_a_repeated_code_keeps_its_longest_description_and_text_is_capped() -> N
     (course,) = extract_courses(pages)
 
     assert len(course.text.split()) == MAX_COURSE_WORDS
+
+
+def test_exclusions_match_code_prefixes_and_title_keywords_case_insensitively() -> None:
+    rules = CourseExclusions.from_setting(
+        {"code_prefixes": ["gst"], "title_keywords": ["SIWES", "Final Year Project"]}
+    )
+
+    assert rules.excludes("GST 111", "Communication in English")
+    assert rules.excludes("CSC 299", "Students Industrial Work Experience Scheme (siwes)")
+    assert rules.excludes("SEN 498", "Final year project II")
+    assert not rules.excludes("INS 401", "Project Management")
+    assert not rules.excludes("ENT 312", "Venture Creation")
+    assert not CourseExclusions.from_setting(None).excludes("GST 111", "Anything")
 
 
 def test_course_embedding_is_the_normalised_mean_of_its_chunks() -> None:

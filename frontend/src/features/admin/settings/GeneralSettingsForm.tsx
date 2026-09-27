@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { formatDateTime } from '@/lib/format'
 import { applyServerErrors } from '@/lib/forms'
 import { cn } from '@/lib/utils'
@@ -32,6 +33,14 @@ const range = (min: number, max: number) =>
     .object({ min: int(min, max), max: int(min, max) })
     .refine((r) => r.min <= r.max, { message: 'The minimum cannot exceed the maximum.' })
 
+/** Non-empty trimmed entries of a comma- or line-separated list. */
+function splitList(value: string, separator: RegExp): string[] {
+  return value
+    .split(separator)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
 const schema = z.object({
   score_weights: z
     .object({ ner: weight, topic: weight, novelty: weight })
@@ -46,6 +55,16 @@ const schema = z.object({
   min_topic_size: int(2, 100),
   evidence_per_recommendation: int(1, 20),
   max_documents_per_session: int(1, 200),
+  excluded_prefixes: z
+    .string()
+    .refine((v) => splitList(v, /[,\s]+/).every((p) => /^[A-Za-z]{2,4}$/.test(p)), {
+      message: 'Course-code prefixes are 2 to 4 letters, separated by commas.',
+    }),
+  excluded_keywords: z
+    .string()
+    .refine((v) => splitList(v, /\n/).every((k) => k.length >= 2 && k.length <= 80), {
+      message: 'Each keyword needs 2 to 80 characters (one per line).',
+    }),
   credit_unit_allowance: z
     .string()
     .trim()
@@ -70,6 +89,8 @@ function toForm(settings: ByKey): FormValues {
     min_topic_size: value('min_topic_size'),
     evidence_per_recommendation: value('evidence_per_recommendation'),
     max_documents_per_session: value('max_documents_per_session'),
+    excluded_prefixes: value('nuc_course_exclusions').code_prefixes.join(', '),
+    excluded_keywords: value('nuc_course_exclusions').title_keywords.join('\n'),
     credit_unit_allowance:
       value('credit_unit_allowance') === null ? '' : String(value('credit_unit_allowance')),
     passage_sentences: { ...value('passage_sentences') },
@@ -80,8 +101,13 @@ function toForm(settings: ByKey): FormValues {
 }
 
 function fromForm(values: FormValues): SettingValues {
+  const { excluded_prefixes, excluded_keywords, ...rest } = values
   return {
-    ...values,
+    ...rest,
+    nuc_course_exclusions: {
+      code_prefixes: splitList(excluded_prefixes, /[,\s]+/).map((p) => p.toUpperCase()),
+      title_keywords: splitList(excluded_keywords, /\n/),
+    },
     credit_unit_allowance:
       values.credit_unit_allowance === '' ? null : Number(values.credit_unit_allowance),
   }
@@ -104,6 +130,8 @@ const FIELDS = [
   'evidence_per_recommendation',
   'max_documents_per_session',
   'credit_unit_allowance',
+  'excluded_prefixes',
+  'excluded_keywords',
   'passage_sentences',
   'passage_words',
   'sbert_model',
@@ -300,6 +328,47 @@ export function GeneralSettingsForm({ settings }: { settings: SettingItem[] }) {
                 'Credit units available for the institution-designed 30%. Leave empty until the department confirms the figure.',
               )}
               <FieldError errors={[errors.credit_unit_allowance]} />
+            </Field>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>NUC courses excluded from the overlap comparison</CardTitle>
+          <CardDescription>
+            General studies, SIWES, project and seminar courses describe work experience or
+            communication rather than subject content, so they are not compared with themes. Applies
+            to sessions run after saving; the NUC Core page lists what is excluded.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field data-invalid={!!errors.excluded_prefixes}>
+              <FieldLabel htmlFor="excluded_prefixes">Course-code prefixes</FieldLabel>
+              <Input
+                id="excluded_prefixes"
+                autoComplete="off"
+                placeholder="e.g. GST"
+                aria-invalid={!!errors.excluded_prefixes}
+                {...register('excluded_prefixes')}
+              />
+              {hint('nuc_course_exclusions', 'Separated by commas. Default GST.')}
+              <FieldError errors={[errors.excluded_prefixes]} />
+            </Field>
+            <Field data-invalid={!!errors.excluded_keywords}>
+              <FieldLabel htmlFor="excluded_keywords">Title keywords</FieldLabel>
+              <Textarea
+                id="excluded_keywords"
+                rows={5}
+                aria-invalid={!!errors.excluded_keywords}
+                {...register('excluded_keywords')}
+              />
+              <FieldDescription>
+                One per line; a course is excluded when its title contains any of them (upper or
+                lower case).
+              </FieldDescription>
+              <FieldError errors={[errors.excluded_keywords]} />
             </Field>
           </div>
         </CardContent>

@@ -10,8 +10,10 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -28,7 +30,7 @@ import { applyServerErrors } from '@/lib/forms'
 import { formatDateTime, formatNumber } from '@/lib/format'
 import type { NucCoreVersion } from '@/types/api'
 
-import { useNucCore, useNucCoreVersions, useUploadNucCore } from './api'
+import { useNucCore, useNucCoreCourses, useNucCoreVersions, useUploadNucCore } from './api'
 
 export function NucCorePage() {
   return (
@@ -42,6 +44,7 @@ export function NucCorePage() {
         </p>
       </div>
       <CurrentVersion />
+      <CoursesCard />
       <UploadVersionCard />
       <VersionHistory />
     </div>
@@ -111,6 +114,88 @@ function CurrentVersion() {
 
       {pendingLatest && <LatestUploadNotice version={pendingLatest} />}
     </div>
+  )
+}
+
+function CoursesCard() {
+  const courses = useNucCoreCourses()
+  const [excludedOnly, setExcludedOnly] = useState(false)
+
+  if (courses.isPending) return <Skeleton className="h-40 w-full" />
+  if (courses.isError) {
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Could not load the NUC core courses</AlertTitle>
+        <AlertDescription>{courses.error.message}</AlertDescription>
+      </Alert>
+    )
+  }
+  const { courses: items, excluded_count: excluded, exclusions } = courses.data
+  if (!courses.data.version) return null
+  const shown = excludedOnly ? items.filter((c) => c.excluded) : items
+  const rules = [
+    ...exclusions.code_prefixes.map((p) => `${p} courses`),
+    ...exclusions.title_keywords.map((k) => `“${k}”`),
+  ]
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Courses</CardTitle>
+        <CardDescription>
+          {items.length === 0
+            ? 'No course headers (e.g. “SEN 304: Software Testing (2 Units)”) were recognised, so themes are compared with individual passages of the NUC core.'
+            : `${items.length} courses found. Themes are compared with ${items.length - excluded} of them; ${excluded} are excluded from comparison${rules.length ? ` (${rules.join(', ')})` : ''}. Administrators can change the exclusions in Settings.`}
+        </CardDescription>
+      </CardHeader>
+      {items.length > 0 && (
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="excluded-only"
+              checked={excludedOnly}
+              onCheckedChange={(checked) => setExcludedOnly(checked === true)}
+            />
+            <Label htmlFor="excluded-only">Show only excluded courses</Label>
+          </div>
+          <div className="max-h-96 overflow-y-auto rounded-md border">
+            <Table aria-label="NUC core courses">
+              <TableHeader className="sticky top-0 bg-background">
+                <TableRow>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead className="text-right">Units</TableHead>
+                  <TableHead className="text-right">Page</TableHead>
+                  <TableHead>Comparison</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {shown.map((course) => (
+                  <TableRow
+                    key={course.id}
+                    className={course.excluded ? 'text-muted-foreground' : undefined}
+                  >
+                    <TableCell className="font-medium whitespace-nowrap">{course.code}</TableCell>
+                    <TableCell className="whitespace-normal">{course.title}</TableCell>
+                    <TableCell className="text-right tabular-nums">{course.units ?? '—'}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {course.page_number ?? '—'}
+                    </TableCell>
+                    <TableCell>
+                      {course.excluded ? (
+                        <Badge variant="outline">Excluded from comparison</Badge>
+                      ) : (
+                        <span className="text-sm">Compared</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      )}
+    </Card>
   )
 }
 

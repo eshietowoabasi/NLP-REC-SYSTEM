@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { adminUser, healthyStatus, makeDocument } from '@/test/fixtures'
@@ -16,9 +16,70 @@ const version = (overrides: Partial<NucCoreVersion> = {}): NucCoreVersion => ({
   ...overrides,
 })
 
-const base = { 'GET /auth/me': ok(adminUser), 'GET /health': ok(healthyStatus) }
+const exclusions = { code_prefixes: ['GST'], title_keywords: ['SIWES'] }
+const noCourses = { version: null, exclusions, courses: [], excluded_count: 0 }
+
+const base = {
+  'GET /auth/me': ok(adminUser),
+  'GET /health': ok(healthyStatus),
+  'GET /nuc-core/courses': ok(noCourses),
+}
 
 describe('NucCorePage', () => {
+  it('lists the courses and marks those excluded from comparison', async () => {
+    const active = version()
+    const course = (id: number, code: string, title: string, excluded: boolean) => ({
+      id,
+      code,
+      title,
+      units: 3,
+      page_number: 10 + id,
+      excluded,
+    })
+    mockApi({
+      ...base,
+      'GET /nuc-core': ok({ active, latest: active }),
+      'GET /nuc-core/versions': ok([active]),
+      'GET /nuc-core/courses': ok({
+        version: active,
+        exclusions,
+        courses: [
+          course(1, 'CSC 301', 'Synthetic Data Structures', false),
+          course(2, 'CSC 299', 'SIWES I', true),
+          course(3, 'GST 111', 'Synthetic Communication in English', true),
+        ],
+        excluded_count: 2,
+      }),
+    })
+    const { user } = renderApp('/admin/nuc-core')
+
+    const table = await screen.findByRole('table', { name: 'NUC core courses' })
+    expect(
+      screen.getByText(/3 courses found. Themes are compared with 1 of them; 2 are excluded/),
+    ).toHaveTextContent('(GST courses, “SIWES”)')
+    expect(within(table).getAllByText('Excluded from comparison')).toHaveLength(2)
+    expect(within(table).getByText('CSC 301').closest('tr')).toHaveTextContent('Compared')
+
+    await user.click(screen.getByLabelText('Show only excluded courses'))
+    expect(within(table).queryByText('CSC 301')).not.toBeInTheDocument()
+    expect(within(table).getByText('GST 111')).toBeInTheDocument()
+  })
+
+  it('explains when no course headers were recognised', async () => {
+    const active = version()
+    mockApi({
+      ...base,
+      'GET /nuc-core': ok({ active, latest: active }),
+      'GET /nuc-core/versions': ok([active]),
+      'GET /nuc-core/courses': ok({ ...noCourses, version: active }),
+    })
+    renderApp('/admin/nuc-core')
+
+    expect(
+      await screen.findByText(/themes are compared with individual passages of the NUC core/),
+    ).toBeInTheDocument()
+  })
+
   it('warns that sessions cannot run without an active version', async () => {
     mockApi({
       ...base,

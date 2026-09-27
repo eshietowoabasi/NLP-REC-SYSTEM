@@ -16,9 +16,11 @@ from sqlalchemy import select
 from app.audit import AuditAction, record_audit
 from app.auth.decorators import login_required, role_required
 from app.extensions import db
-from app.models import NucCoreVersion, SourceCategory, UserRole
-from app.schemas.documents import NucCoreUploadForm, NucCoreVersionOut
+from app.models import NucCoreVersion, NucCourse, SourceCategory, UserRole
+from app.schemas.documents import NucCoreUploadForm, NucCoreVersionOut, NucCourseOut
+from app.services.ingestion.courses import CourseExclusions
 from app.services.ingestion.validation import UploadRejectedError
+from app.settings import get_setting
 from app.tasks.queue import enqueue
 from app.uploads import discard, store_upload
 from app.utils.errors import ApiError
@@ -49,6 +51,47 @@ def list_versions() -> tuple[Response, int]:
     """Every uploaded version, newest first."""
     versions = db.session.scalars(select(NucCoreVersion).order_by(NucCoreVersion.id.desc()))
     return success([version_json(version) for version in versions])
+
+
+@bp.get("/courses")
+@login_required
+def list_courses() -> tuple[Response, int]:
+    """The courses found in the active version, and whether each is compared with themes.
+
+    Courses matching the ``nuc_course_exclusions`` setting are listed but excluded from the
+    overlap comparison.
+    """
+    active = db.session.scalar(select(NucCoreVersion).where(NucCoreVersion.is_active.is_(True)))
+    setting = get_setting("nuc_course_exclusions")
+    exclusions = CourseExclusions.from_setting(setting)
+    courses = (
+        db.session.scalars(
+            select(NucCourse)
+            .where(NucCourse.document_id == active.document_id)
+            .order_by(NucCourse.page_number, NucCourse.code)
+        ).all()
+        if active
+        else []
+    )
+    items = [
+        NucCourseOut(
+            id=course.id,
+            code=course.code,
+            title=course.title,
+            units=course.units,
+            page_number=course.page_number,
+            excluded=exclusions.excludes(course.code, course.title),
+        ).model_dump(mode="json")
+        for course in courses
+    ]
+    return success(
+        {
+            "version": version_json(active),
+            "exclusions": setting,
+            "courses": items,
+            "excluded_count": sum(item["excluded"] for item in items),
+        }
+    )
 
 
 @bp.post("")

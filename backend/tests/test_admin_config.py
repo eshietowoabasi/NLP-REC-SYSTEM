@@ -64,6 +64,24 @@ def test_update_changes_only_the_sent_settings_and_audits_them(admin: ApiClient)
     assert setting(cleared.get_json()["data"], "credit_unit_allowance")["value"] is None
 
 
+def test_course_exclusions_are_normalised(admin: ApiClient) -> None:
+    response = admin.put(
+        "/api/admin/settings",
+        json={
+            "nuc_course_exclusions": {
+                "code_prefixes": [" gst ", "GST", "ent"],
+                "title_keywords": ["SIWES", "siwes", "Final Year Project"],
+            }
+        },
+    )
+
+    assert response.status_code == 200, response.get_json()
+    assert get_setting("nuc_course_exclusions") == {
+        "code_prefixes": ["GST", "ENT"],
+        "title_keywords": ["SIWES", "Final Year Project"],
+    }
+
+
 def test_new_session_defaults_follow_the_settings(admin: ApiClient, login_as) -> None:
     admin.put("/api/admin/settings", json={"max_recommendations": 12, "min_topic_size": 4})
 
@@ -85,6 +103,9 @@ def test_new_session_defaults_follow_the_settings(admin: ApiClient, login_as) ->
         ({"spacy_model": "xx_not_installed_sm"}, "spacy_model"),
         ({"min_topic_size": 1}, "min_topic_size"),
         ({"credit_unit_allowance": 0}, "credit_unit_allowance"),
+        ({"nuc_course_exclusions": {"code_prefixes": ["G5T"]}}, "nuc_course_exclusions"),
+        ({"nuc_course_exclusions": {"title_keywords": ["x"]}}, "nuc_course_exclusions"),
+        ({"nuc_course_exclusions": None}, None),
         ({"max_documents_per_session": None}, None),
         ({"unknown_setting": 1}, "unknown_setting"),
         ({}, None),

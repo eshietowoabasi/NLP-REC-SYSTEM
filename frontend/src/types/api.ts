@@ -371,6 +371,9 @@ export interface SimilarityResults {
   threshold: number
   /** "course": themes compared with whole NUC courses; "passage": with NUC passages. */
   basis: 'course' | 'passage'
+  /** Present for course-based sessions run after course exclusions existed. */
+  courses_compared?: number
+  courses_excluded?: number
   candidates: SimilarityCandidate[]
   nuc_core_version: { id: number; version_label: string } | null
 }
@@ -593,11 +596,18 @@ export type SettingKey =
   | 'min_topic_size'
   | 'evidence_per_recommendation'
   | 'max_documents_per_session'
+  | 'nuc_course_exclusions'
   | 'credit_unit_allowance'
 
 export interface NumberRange {
   min: number
   max: number
+}
+
+/** NUC core courses left out of the overlap comparison. */
+export interface CourseExclusions {
+  code_prefixes: string[]
+  title_keywords: string[]
 }
 
 /** Value types of each setting. */
@@ -612,6 +622,7 @@ export interface SettingValues {
   min_topic_size: number
   evidence_per_recommendation: number
   max_documents_per_session: number
+  nuc_course_exclusions: CourseExclusions
   credit_unit_allowance: number | null
 }
 
@@ -714,6 +725,19 @@ export interface NucCoreVersion {
   created_at: string
   uploaded_by: UserRef
   document: DocumentSummary
+}
+
+export interface NucCoreCourse extends NucCourse {
+  /** Excluded courses are listed but not compared with themes. */
+  excluded: boolean
+}
+
+/** GET /api/nuc-core/courses */
+export interface NucCoreCourses {
+  version: NucCoreVersion | null
+  exclusions: CourseExclusions
+  courses: NucCoreCourse[]
+  excluded_count: number
 }
 
 /** GET /api/nuc-core */

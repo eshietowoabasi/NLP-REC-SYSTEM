@@ -42,6 +42,32 @@ class CourseData:
     text: str  # header + content, at most MAX_COURSE_WORDS words
 
 
+@dataclass(frozen=True)
+class CourseExclusions:
+    """Courses left out of the overlap comparison (the ``nuc_course_exclusions`` setting).
+
+    General studies, SIWES, project and seminar courses describe work experience or
+    communication skills rather than subject content, so they attract generic themes.
+    """
+
+    code_prefixes: tuple[str, ...] = ()
+    title_keywords: tuple[str, ...] = ()
+
+    @classmethod
+    def from_setting(cls, value: dict[str, list[str]] | None) -> CourseExclusions:
+        value = value or {}
+        return cls(
+            code_prefixes=tuple(p.strip().upper() for p in value.get("code_prefixes", [])),
+            title_keywords=tuple(k.strip().lower() for k in value.get("title_keywords", [])),
+        )
+
+    def excludes(self, code: str, title: str) -> bool:
+        lowered = title.lower()
+        return code.upper().startswith(self.code_prefixes) or any(
+            keyword in lowered for keyword in self.title_keywords
+        )
+
+
 def _page_of(offset: int, page_starts: list[int]) -> int:
     page = 0
     for index, start in enumerate(page_starts):

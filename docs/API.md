@@ -372,6 +372,15 @@ which may still be processing or may have failed.
 
 Access: any. Every version, newest first.
 
+### `GET /api/nuc-core/courses`
+
+Access: any. The courses recognised in the active version (course header with a unit count),
+ordered by page: `{ "version", "exclusions": { "code_prefixes", "title_keywords" }, "courses":
+[{ "id", "code", "title", "units", "page_number", "excluded" }], "excluded_count" }`.
+`excluded` courses (matching the `nuc_course_exclusions` setting) are not compared with themes.
+`courses` is empty when there is no active version or no course headers were recognised (themes
+are then compared with passages).
+
 ### `POST /api/nuc-core`
 
 Access: admin. `multipart/form-data` with `file` and `version_label` (1–64 characters). The file
@@ -526,7 +535,8 @@ document frequencies of its top skills) and `skill_demand` (min-max scaled).
 `{ "threshold", "basis", "nuc_core_version": { "id", "version_label" }, "candidates": [...] }`,
 ranked like the recommendations. `basis` is `"course"` when themes were compared with whole NUC
 courses (the similarity is then the closest course's) or `"passage"` when the NUC core had no
-recognisable courses (and for sessions run before course-level overlap). Each candidate:
+recognisable courses (and for sessions run before course-level overlap). Sessions run with
+course exclusions also report `courses_compared` and `courses_excluded`. Each candidate:
 `topic_id`, `title`, `max_similarity`, `novelty`, `overlap_status`, `closest_nuc_passage`
 (`{ "id", "text", "page_number" }`), `closest_nuc_course`
 (`{ "id", "code", "title", "units", "page_number" }` or null).
@@ -727,6 +737,7 @@ Access: admin. Any subset of the settings; only the keys sent change.
 | `min_topic_size` | 2–100 |
 | `evidence_per_recommendation` | 1–20 |
 | `max_documents_per_session` | 1–200 |
+| `nuc_course_exclusions` | `{ "code_prefixes": [2–4 letters], "title_keywords": [2–80 chars] }`, at most 30 each; duplicates dropped, prefixes upper-cased |
 | `credit_unit_allowance` | 1–300, or `null` to clear |
 
 Response: `{ "settings": [...], "changed": [keys whose value changed] }`. Changes are audited as

@@ -39,10 +39,12 @@ from app.services.analysis import (
     run_analysis,
 )
 from app.services.exceptions import AnalysisError
+from app.services.ingestion.courses import CourseExclusions
 from app.services.ner.skills import SkillPatternSpec, build_skill_pipeline, canonical_lookup
 from app.services.preprocessing.spacy_model import get_nlp
 from app.services.recommendations.scoring import ScoreWeights, WeightsError
 from app.sessions import active_nuc_core
+from app.settings import get_setting
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
@@ -168,12 +170,17 @@ def load_core(document_id: int) -> list[CorePassage]:
     ]
 
 
-def load_courses(document_id: int) -> list[CoreCourse]:
-    """The NUC core's courses, if they were embedded with the same model as its passages.
+def load_courses(
+    document_id: int, exclusions: CourseExclusions | None = None
+) -> tuple[list[CoreCourse], int]:
+    """The NUC core's courses to compare with, and how many were excluded.
 
-    Courses from another model (or none at all) make the session fall back to comparing
-    themes with NUC core passages.
+    Only courses embedded with the same model as the core's passages are used; courses from
+    another model (or none at all) make the session fall back to comparing themes with NUC
+    core passages. Courses matching ``exclusions`` (the ``nuc_course_exclusions`` setting)
+    are left out.
     """
+    exclusions = exclusions or CourseExclusions()
     passage_model = db.session.scalar(
         select(Passage.embedding_model).where(Passage.document_id == document_id).limit(1)
     )
@@ -182,11 +189,12 @@ def load_courses(document_id: int) -> list[CoreCourse]:
         .where(NucCourse.document_id == document_id, NucCourse.embedding_model == passage_model)
         .order_by(NucCourse.id)
     )
+    usable = [c for c in courses if c.embedding is not None]
+    kept = [c for c in usable if not exclusions.excludes(c.code, c.title)]
     return [
         CoreCourse(id=c.id, code=c.code, title=c.title, embedding=_vector(c.embedding))
-        for c in courses
-        if c.embedding is not None
-    ]
+        for c in kept
+    ], len(usable) - len(kept)
 
 
 def load_skill_patterns() -> list[SkillPatternSpec]:
@@ -283,7 +291,9 @@ def run_session(session_id: int) -> None:
         check_embedding_models(session, core_document_id)
         corpus = load_corpus(session)
         core = load_core(core_document_id)
-        courses = load_courses(core_document_id)
+        courses, excluded_courses = load_courses(
+            core_document_id, CourseExclusions.from_setting(get_setting("nuc_course_exclusions"))
+        )
         specs = load_skill_patterns()
         model_name = config.get("spacy_model", "en_core_web_sm")
         skill_nlp = build_skill_pipeline(model_name, specs)
@@ -298,6 +308,8 @@ def run_session(session_id: int) -> None:
             on_stage=progress.stage,
             courses=courses,
         )
+        output.similarity["courses_compared"] = len(courses)
+        output.similarity["courses_excluded"] = excluded_courses
 
         save_results(session, output)
         progress.timings.update(output.stage_timings)

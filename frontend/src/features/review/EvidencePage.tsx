@@ -392,6 +392,14 @@ function OverlapTab({ sessionId }: { sessionId: number }) {
             of {nuc_core_version?.version_label ?? 'the NUC core'}. Above {formatScore(threshold)} a
             theme is marked as a potential duplicate of existing core content ({duplicates} of{' '}
             {candidates.length}).
+            {result.data.courses_compared != null && (
+              <>
+                {' '}
+                {result.data.courses_compared} courses were compared;{' '}
+                {result.data.courses_excluded ?? 0} general-studies, SIWES and project courses were
+                excluded from comparison.
+              </>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

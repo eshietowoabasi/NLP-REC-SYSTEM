@@ -50,6 +50,28 @@ ModelName = Annotated[
 ]
 
 
+CodePrefix = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, to_upper=True, pattern=r"^[A-Za-z]{2,4}$"),
+]
+TitleKeyword = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=80)]
+
+
+class CourseExclusionsIn(RequestModel):
+    """NUC core courses left out of the overlap comparison."""
+
+    code_prefixes: list[CodePrefix] = Field(default_factory=list, max_length=30)
+    title_keywords: list[TitleKeyword] = Field(default_factory=list, max_length=30)
+
+    @field_validator("code_prefixes", "title_keywords")
+    @classmethod
+    def _unique(cls, values: list[str]) -> list[str]:
+        seen: dict[str, str] = {}
+        for value in values:
+            seen.setdefault(value.lower(), value)
+        return list(seen.values())
+
+
 class SettingsUpdate(RequestModel):
     """Any subset of the settings; only the fields sent are changed.
 
@@ -66,6 +88,7 @@ class SettingsUpdate(RequestModel):
     min_topic_size: int | None = Field(default=None, ge=2, le=100)
     evidence_per_recommendation: int | None = Field(default=None, ge=1, le=20)
     max_documents_per_session: int | None = Field(default=None, ge=1, le=200)
+    nuc_course_exclusions: CourseExclusionsIn | None = None
     credit_unit_allowance: int | None = Field(default=None, ge=1, le=300)
 
     @model_validator(mode="after")

@@ -240,15 +240,33 @@ def test_themes_are_compared_with_whole_nuc_courses(
     ).all()
     assert [(c.code, c.title, c.units) for c in courses] == [
         ("CSC 101", "Introduction to Computer Science", 3),
+        ("CSC 299", "SIWES I", 3),
         ("CSC 309", "Computer Security Fundamentals", 2),
         ("CSC 402", "Numerical Methods", 3),
+        ("GST 111", "Communication in English", 2),
     ]
     assert all(c.embedding is not None and c.embedding_model for c in courses)
+    listing = planner.get("/api/nuc-core/courses").get_json()["data"]
+    assert {c["code"]: c["excluded"] for c in listing["courses"]} == {
+        "CSC 101": False,
+        "CSC 299": True,
+        "CSC 309": False,
+        "CSC 402": False,
+        "GST 111": True,
+    }
+    assert listing["excluded_count"] == 2 and listing["exclusions"]["code_prefixes"] == ["GST"]
 
     session_id = create(planner, corpus_ids, run=True).get_json()["data"]["id"]
 
     similarity = planner.get(f"/api/sessions/{session_id}/similarity").get_json()["data"]
     assert similarity["basis"] == "course"
+    assert similarity["courses_compared"] == 3 and similarity["courses_excluded"] == 2
+    # The SIWES and GST courses repeat the security text but are never matched.
+    assert {c["closest_nuc_course"]["code"] for c in similarity["candidates"]} <= {
+        "CSC 101",
+        "CSC 309",
+        "CSC 402",
+    }
     most_similar = max(similarity["candidates"], key=lambda c: c["max_similarity"])
     assert most_similar["closest_nuc_course"]["code"] == "CSC 309"
     assert most_similar["closest_nuc_course"]["units"] == 2

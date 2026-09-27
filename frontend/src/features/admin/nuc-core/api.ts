@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { documentsQueryKey } from '@/features/documents/api'
 import { IN_PROGRESS } from '@/features/documents/labels'
 import { apiGet, apiUpload } from '@/lib/api'
-import type { NucCoreState, NucCoreVersion } from '@/types/api'
+import type { NucCoreCourses, NucCoreState, NucCoreVersion } from '@/types/api'
 
 export const nucCoreQueryKey = ['nuc-core'] as const
 const POLL_MS = 3000
@@ -25,6 +25,14 @@ export function useNucCoreVersions() {
     queryKey: [...nucCoreQueryKey, 'versions'],
     queryFn: () => apiGet<NucCoreVersion[]>('/nuc-core/versions'),
     refetchInterval: (query) => (query.state.data?.some(processing) ? POLL_MS : false),
+  })
+}
+
+/** Courses of the active version, with whether each is excluded from the comparison. */
+export function useNucCoreCourses() {
+  return useQuery({
+    queryKey: [...nucCoreQueryKey, 'courses'],
+    queryFn: () => apiGet<NucCoreCourses>('/nuc-core/courses'),
   })
 }
 

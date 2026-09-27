@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import Field, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints
 
 from app.models.enums import DocumentStatus, FileType, SessionStatus, SourceCategory
 from app.schemas.common import PaginationQuery, RequestModel, ResponseModel
@@ -85,6 +85,17 @@ class NucCoreVersionOut(ResponseModel):
     created_at: datetime
     uploaded_by: UserRef
     document: DocumentOut
+
+
+class NucCourseOut(BaseModel):
+    """A course of the NUC core; ``excluded`` courses are not compared with themes."""
+
+    id: int
+    code: str
+    title: str
+    units: int | None
+    page_number: int | None
+    excluded: bool
 
 
 VersionLabel = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
