@@ -181,13 +181,20 @@ describe('RecommendationsPage', () => {
     expect(within(items[0]).getByText('Accepted')).toBeInTheDocument()
     expect(within(items[1]).getByText('Potential Duplicate')).toBeInTheDocument()
     expect(within(items[1]).getByText('Undecided')).toBeInTheDocument()
-    // The composite and its three weighted parts, readable without the colours.
+    // The score out of 100 and its three weighted parts, readable without the colours; the
+    // contributed points add up to the total (36 + 17 + 7 = 60).
     expect(
       within(items[0]).getByRole('figure', {
-        name: 'Composite score 0.60 = Skill demand 0.40 × 0.90 + Theme strength 0.35 × 0.50 + Novelty 0.25 × 0.30',
+        name:
+          'Score 60/100. Skill demand 90 (High, counts for 40%) adds 36 points; ' +
+          'Theme strength 50 (Medium, counts for 35%) adds 17 points; ' +
+          'Novelty 30 (Low, counts for 25%) adds 7 points.',
       }),
     ).toBeInTheDocument()
-    expect(screen.getByText(/0\.40 × skill demand \+ 0\.35 × theme strength/)).toBeInTheDocument()
+    expect(within(items[0]).getByText('High')).toBeInTheDocument()
+    expect(screen.getByText(/ranked by a score out of 100: skill demand/)).toHaveTextContent(
+      'skill demand counts for 40%, theme strength counts for 35% and novelty counts for 25%',
+    )
     expect(screen.getByText('2 of 3')).toBeInTheDocument()
     expect(screen.getByText(/1 potential duplicate of NUC core content/)).toBeInTheDocument()
   })
@@ -208,6 +215,20 @@ describe('RecommendationsPage', () => {
         decision: 'undecided',
         hide_duplicates: 'true',
       }),
+    )
+  })
+
+  it('opens with the decision filter from the link (dashboard "Awaiting review")', async () => {
+    const server = reviewApi(plannerUser)
+    renderApp('/sessions/5/recommendations?decision=undecided')
+
+    expect(await screen.findByRole('radio', { name: /Undecided/ })).toBeChecked()
+    expect(server.calls('GET', '/sessions/5/recommendations')[0].params).toEqual({
+      decision: 'undecided',
+    })
+    expect(screen.getByRole('link', { name: /Download CSV/ })).toHaveAttribute(
+      'href',
+      '/api/sessions/5/recommendations/export',
     )
   })
 
@@ -262,25 +283,38 @@ describe('RecommendationsPage', () => {
 })
 
 describe('RecommendationDetailPage', () => {
-  it('shows the score formula with the real numbers, overlap and grouped evidence', async () => {
+  it('shows points out of 100, the exact calculation on request, overlap and evidence', async () => {
     reviewApi(plannerUser)
-    renderApp('/recommendations/31')
+    const { user } = renderApp('/recommendations/31')
 
-    const formula = await screen.findByLabelText('Composite score formula')
-    expect(formula).toHaveTextContent(
+    expect(await screen.findByText(/points/, { selector: 'p strong' })).toHaveTextContent(
+      '60 points',
+    )
+    expect(screen.getByText(/\(skill demand\)/).closest('p')).toHaveTextContent(
+      '36 (skill demand) + 17 (theme strength) + 7 (novelty) = 60 points out of 100',
+    )
+    expect(screen.queryByLabelText('Composite score formula')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Show calculation' }))
+    expect(screen.getByLabelText('Composite score formula')).toHaveTextContent(
       '0.40 × 0.90 (skill demand) + 0.35 × 0.50 (theme strength) + 0.25 × 0.30 (novelty) = 0.60',
     )
+    expect(screen.getByRole('button', { name: 'Hide calculation' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+
     expect(screen.getByText('Synthetic core passage on computer networks.')).toBeInTheDocument()
     expect(screen.getByText('Synthetic core v1 · p. 14')).toBeInTheDocument()
     expect(
-      screen.getByText(/Highest similarity 0.70 against a threshold of 0.80/),
+      screen.getByText(/70% similar to the closest NUC core passage; above 80%/),
     ).toBeInTheDocument()
 
     const advert = screen.getByRole('region', { name: 'Synthetic cloud advert' })
     expect(within(advert).getAllByRole('listitem')).toHaveLength(2)
-    expect(within(advert).getByText(/Page 2 · relevance 0.80/)).toBeInTheDocument()
+    expect(within(advert).getByText(/Page 2 · 80% relevant/)).toBeInTheDocument()
     const policy = screen.getByRole('region', { name: 'Synthetic ICT policy' })
-    expect(within(policy).getByText(/Passage 5 · relevance 0.88/)).toBeInTheDocument()
+    expect(within(policy).getByText(/Passage 5 · 88% relevant/)).toBeInTheDocument()
   })
 
   it('names the closest NUC course when themes were compared with courses', async () => {
@@ -300,9 +334,9 @@ describe('RecommendationDetailPage', () => {
     })
     renderApp('/recommendations/31')
 
-    const label = await screen.findByText('Closest NUC course:')
-    expect(label.closest('p')).toHaveTextContent(
-      'Closest NUC course: SEN 304 – Software Testing & Quality Assurance (similarity 0.63) · 2 units · p. 219',
+    const similar = await screen.findByText('63% similar')
+    expect(similar.closest('p')).toHaveTextContent(
+      '63% similar to the closest NUC course: SEN 304 – Software Testing & Quality Assurance · 2 units · p. 219',
     )
     expect(screen.getByText(/Compared with every NUC core course/)).toBeInTheDocument()
   })

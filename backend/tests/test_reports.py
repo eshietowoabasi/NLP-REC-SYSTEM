@@ -175,22 +175,30 @@ def test_findings_overlap_and_recommendations_use_the_stored_results() -> None:
     assert "6 passages fitted no theme" in findings[-2].text
 
     overlap = blocks_of(doc, "overlap")
-    assert "above 0.80" in overlap[0].text and "1 of 1" in overlap[0].text
-    assert overlap[1].rows[0][3] == "Potential Duplicate"
+    assert "more than 80% similar" in overlap[0].text and "1 of 1" in overlap[0].text
+    assert overlap[1].rows[0][1:4] == ["83%", "17 Low", "Potential Duplicate"]
     assert overlap[1].rows[0][4].endswith("…") and len(overlap[1].rows[0][4]) <= 220
 
+    # Scores are shown out of 100 with High/Medium/Low levels, as on screen.
     recs = blocks_of(doc, "recommendations")
-    assert "0.40 × skill demand + 0.35 × theme strength + 0.25 × novelty" in recs[0].text
+    assert (
+        "skill demand counts for 40%, theme strength counts for 35% and novelty counts for 25%"
+        in recs[0].text
+    )
     assert recs[1].rows[0] == [
         "1",
         "Cloud & DevOps",
-        "0.71",
-        "1.00",
-        "0.50",
-        "0.17",
+        "71",
+        "100 High",
+        "50 Medium",
+        "17 Low",
         "Potential duplicate",
     ]
     assert recs[1].rows[1][-1] == "New"
+    assert recs[3].text == (
+        "Score 71/100: skill demand 100 High, theme strength 50 Medium, novelty 17 Low."
+    )
+    assert ("Duplicate threshold", "more than 80% similar") in doc.meta
 
 
 def test_decisions_summarise_and_list_reviewed_recommendations() -> None:

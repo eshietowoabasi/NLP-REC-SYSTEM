@@ -161,8 +161,34 @@ class ReportData:
 # --------------------------------------------------------------------------- helpers
 
 
-def fmt_score(value: float) -> str:
-    return f"{value:.2f}"
+def points(value: float) -> int:
+    """A 0-1 score as whole points out of 100."""
+    return round(min(max(value, 0.0), 1.0) * 100)
+
+
+def score_level(value: float) -> str:
+    """High (70+), Medium (40-69) or Low (below 40), as on screen."""
+    score = points(value)
+    return "High" if score >= 70 else "Medium" if score >= 40 else "Low"
+
+
+def fmt_points(value: float) -> str:
+    """0.8492 -> "85/100"."""
+    return f"{points(value)}/100"
+
+
+def fmt_level(value: float) -> str:
+    """0.9 -> "90 High"."""
+    return f"{points(value)} {score_level(value)}"
+
+
+def fmt_percent(value: float) -> str:
+    """A similarity or threshold: 0.576 -> "58%"."""
+    return f"{points(value)}%"
+
+
+def fmt_weight(value: float) -> str:
+    return f"counts for {round(value * 100)}%"
 
 
 def fmt_number(value: int | None) -> str:
@@ -287,7 +313,7 @@ def nlp_findings(data: ReportData) -> list[Block]:
                         t["title"],
                         fmt_number(t["size"]),
                         fmt_number(t["document_count"]),
-                        fmt_score(t["strength"]),
+                        fmt_level(t["strength"]),
                         ", ".join(k["term"] for k in t.get("keywords", [])[:8]),
                     ]
                     for t in topics
@@ -311,23 +337,23 @@ def overlap(data: ReportData) -> list[Block]:
         Paragraph(
             f"Each theme was compared with {compared_with} of the NUC core reference "
             f"({data.nuc_core_version or 'unknown version'}) by cosine similarity of sentence "
-            f"embeddings. Themes with a highest similarity above {fmt_score(threshold)} are "
+            f"embeddings. Themes more than {fmt_percent(threshold)} similar are "
             f"flagged as potential duplicates of existing core content: {duplicates} of "
             f"{len(candidates)}."
         ),
         Table(
             columns=[
                 "Theme",
-                "Max similarity",
-                "Novelty",
+                "Similarity",
+                "Novelty (/100)",
                 "Status",
                 "Closest NUC course" if by_course else "Closest NUC core passage",
             ],
             rows=[
                 [
                     c["title"],
-                    fmt_score(c["max_similarity"]),
-                    fmt_score(c["novelty"]),
+                    fmt_percent(c["max_similarity"]),
+                    fmt_level(c["novelty"]),
                     c["overlap_status"],
                     (
                         f"{course['code']} – {course['title']}"
@@ -347,17 +373,18 @@ def recommendations(data: ReportData) -> list[Block]:
     weights = data.parameters.get("weights", {})
     blocks: list[Block] = [
         Paragraph(
-            "Composite score = "
-            f"{weights.get('ner', 0):.2f} × skill demand + "
-            f"{weights.get('topic', 0):.2f} × theme strength + "
-            f"{weights.get('novelty', 0):.2f} × novelty; each score is scaled to 0–1 across "
-            "the session's themes."
+            "Each topic has a score out of 100 made of three scores out of 100, each compared "
+            "with the session's other themes: skill demand "
+            f"{fmt_weight(weights.get('ner', 0))}, theme strength "
+            f"{fmt_weight(weights.get('topic', 0))} and novelty "
+            f"{fmt_weight(weights.get('novelty', 0))}. High = 70 or more, Medium = 40–69, "
+            "Low = below 40."
         ),
         Table(
             columns=[
                 "#",
                 "Recommended topic",
-                "Composite",
+                "Score (/100)",
                 "Skill demand",
                 "Theme strength",
                 "Novelty",
@@ -367,10 +394,10 @@ def recommendations(data: ReportData) -> list[Block]:
                 [
                     str(r.rank),
                     r.title,
-                    fmt_score(r.composite),
-                    fmt_score(r.ner),
-                    fmt_score(r.topic),
-                    fmt_score(r.novelty),
+                    str(points(r.composite)),
+                    fmt_level(r.ner),
+                    fmt_level(r.topic),
+                    fmt_level(r.novelty),
                     "Potential duplicate" if r.overlap_status == "Potential Duplicate" else "New",
                 ]
                 for r in data.recommendations
@@ -381,6 +408,13 @@ def recommendations(data: ReportData) -> list[Block]:
     ]
     for r in data.recommendations:
         blocks.append(Subheading(f"{r.rank}. {r.title}"))
+        blocks.append(
+            Paragraph(
+                f"Score {fmt_points(r.composite)}: skill demand {fmt_level(r.ner)}, theme "
+                f"strength {fmt_level(r.topic)}, novelty {fmt_level(r.novelty)}.",
+                muted=True,
+            )
+        )
         blocks.append(Paragraph(r.description))
         if r.skills:
             blocks.append(Paragraph("Skills: " + ", ".join(r.skills), muted=True))
@@ -492,12 +526,14 @@ def build_report(data: ReportData, sections: list[str]) -> ReportDocument:
         ("NUC core reference", data.nuc_core_version or "—"),
         (
             "Score weights",
-            f"skill demand {weights.get('ner', 0):.2f} · theme strength "
-            f"{weights.get('topic', 0):.2f} · novelty {weights.get('novelty', 0):.2f}",
+            f"skill demand {fmt_weight(weights.get('ner', 0))} · theme strength "
+            f"{fmt_weight(weights.get('topic', 0))} · novelty "
+            f"{fmt_weight(weights.get('novelty', 0))}",
         ),
         (
             "Duplicate threshold",
-            fmt_score(float(data.parameters.get("similarity_threshold", 0.8))),
+            f"more than {fmt_percent(float(data.parameters.get('similarity_threshold', 0.8)))}"
+            " similar",
         ),
         ("Generated", f"{fmt_datetime(data.generated_at)} by {data.generated_by}"),
     ]

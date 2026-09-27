@@ -40,6 +40,7 @@ from app.schemas.review import (
     RecommendationOut,
     SessionContext,
 )
+from app.utils.csv_export import csv_cell, csv_response
 from app.utils.errors import ApiError
 from app.utils.responses import success
 from app.utils.time import utcnow
@@ -132,6 +133,69 @@ def list_recommendations(session_id: int) -> tuple[Response, int]:
             },
         }
     )
+
+
+def _points(value: float) -> int:
+    return round(min(max(value, 0.0), 1.0) * 100)
+
+
+@bp.get("/sessions/<int:session_id>/recommendations/export")
+@login_required
+def export_recommendations(session_id: int) -> Response:
+    """Every recommendation as CSV, with scores both out of 100 and as exact 0-1 decimals."""
+    session = db.session.get(AnalysisSession, session_id)
+    if session is None:
+        raise ApiError("NOT_FOUND", "Analysis session not found.", 404)
+    recs = db.session.scalars(
+        select(Recommendation)
+        .where(Recommendation.session_id == session_id)
+        .options(selectinload(Recommendation.closest_nuc_course))
+        .order_by(Recommendation.rank)
+    )
+    header = [
+        "rank",
+        "topic_title",
+        "score_out_of_100",
+        "skill_demand_out_of_100",
+        "theme_strength_out_of_100",
+        "novelty_out_of_100",
+        "similarity_percent",
+        "composite_score",
+        "skill_demand_score",
+        "theme_strength_score",
+        "novelty_score",
+        "max_similarity",
+        "overlap_status",
+        "closest_nuc_course",
+        "decision",
+        "skills",
+    ]
+    rows = (
+        [
+            rec.rank,
+            csv_cell(rec.topic_title),
+            _points(rec.composite_score),
+            _points(rec.ner_score),
+            _points(rec.topic_score),
+            _points(rec.novelty_score),
+            _points(rec.max_similarity),
+            f"{rec.composite_score:.4f}",
+            f"{rec.ner_score:.4f}",
+            f"{rec.topic_score:.4f}",
+            f"{rec.novelty_score:.4f}",
+            f"{rec.max_similarity:.4f}",
+            rec.overlap_status.value,
+            csv_cell(
+                f"{rec.closest_nuc_course.code} {rec.closest_nuc_course.title}"
+                if rec.closest_nuc_course
+                else ""
+            ),
+            rec.planner_decision.value if rec.planner_decision else "undecided",
+            csv_cell("; ".join(skill["name"] for skill in rec.skills or [])),
+        ]
+        for rec in recs
+    )
+    return csv_response(f"nlp-rs-session-{session_id}-recommendations.csv", header, rows)
 
 
 @bp.get("/recommendations/<int:recommendation_id>")

@@ -137,7 +137,7 @@ describe('Settings: general', () => {
     const ner = await screen.findByLabelText('Skill demand (NER)')
     await user.clear(ner)
     await user.type(ner, '0.6')
-    expect(screen.getByText(/Sum: 1.20 — the weights must add up to 1.00/)).toBeInTheDocument()
+    expect(screen.getByText(/Total: 120% — the weights must add up to 100%/)).toBeInTheDocument()
     const words = screen.getByLabelText('Words per passage: minimum')
     await user.clear(words)
     await user.type(words, '300')

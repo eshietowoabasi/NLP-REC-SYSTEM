@@ -26,7 +26,7 @@ import {
   OverlapBadge,
   SessionReviewHeader,
 } from './components'
-import { formatScore } from './labels'
+import { formatOutOf100 } from './labels'
 
 export function CurriculumPage() {
   const sessionId = Number(useParams().sessionId)
@@ -130,7 +130,7 @@ function CurriculumView({ sessionId }: { sessionId: number }) {
                     #{course.recommendation.rank} {course.recommendation.topic_title}
                   </Link>
                   <span className="block text-xs text-muted-foreground tabular-nums">
-                    score {formatScore(course.recommendation.composite_score)}
+                    Score {formatOutOf100(course.recommendation.composite_score)}
                   </span>
                   <OverlapBadge status={course.recommendation.overlap_status} />
                 </TableCell>

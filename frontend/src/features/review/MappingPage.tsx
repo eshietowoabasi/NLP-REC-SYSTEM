@@ -38,7 +38,7 @@ import type { MappingRequest, RecommendationDetail } from '@/types/api'
 
 import { useDeleteMapping, useRecommendation, useSaveMapping } from './api'
 import { EmptyPanel, ErrorPanel, LoadingBlock, OverlapBadge } from './components'
-import { formatScore } from './labels'
+import { formatOutOf100 } from './labels'
 
 const COURSE_CODE = /^([A-Za-z]{2,4})\s*(\d{3}[A-Za-z]?)$/
 const MAX_PREREQUISITES = 10
@@ -445,7 +445,7 @@ function EvidencePanel({ recommendation }: { recommendation: RecommendationDetai
         <CardTitle className="text-base">{recommendation.topic_title}</CardTitle>
         <CardDescription className="flex flex-wrap items-center gap-2">
           <span className="tabular-nums">
-            Rank {recommendation.rank} · score {formatScore(recommendation.composite_score)}
+            Rank {recommendation.rank} · Score {formatOutOf100(recommendation.composite_score)}
           </span>
           <OverlapBadge status={recommendation.overlap_status} />
         </CardDescription>

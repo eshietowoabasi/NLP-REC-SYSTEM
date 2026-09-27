@@ -15,6 +15,7 @@ import { formatDateTime } from '@/lib/format'
 import { applyServerErrors } from '@/lib/forms'
 import { cn } from '@/lib/utils'
 import type { SettingItem, SettingKey, SettingValues, SettingsUpdate } from '@/types/api'
+import { formatWeight } from '@/features/review/labels'
 
 import { useUpdateSettings } from './api'
 
@@ -229,6 +230,9 @@ export function GeneralSettingsForm({ settings }: { settings: SettingItem[] }) {
                       aria-invalid={!!errors.score_weights?.[key]}
                       {...number(`score_weights.${key}`, '0.01')}
                     />
+                    <FieldDescription>
+                      {Number.isFinite(weights[key]) ? formatWeight(weights[key]) : '—'}
+                    </FieldDescription>
                     <FieldError errors={[errors.score_weights?.[key]]} />
                   </Field>
                 ))}
@@ -240,7 +244,8 @@ export function GeneralSettingsForm({ settings }: { settings: SettingItem[] }) {
                   sumOk ? 'text-muted-foreground' : 'font-medium text-destructive',
                 )}
               >
-                Sum: {sum.toFixed(2)} {sumOk ? '✓' : '— the weights must add up to 1.00'}
+                Total: {Math.round(sum * 100)}%{' '}
+                {sumOk ? '✓' : '— the weights must add up to 100% (1.00)'}
               </p>
               <FieldError errors={[errors.score_weights?.root ?? errors.score_weights]} />
             </fieldset>
@@ -254,7 +259,7 @@ export function GeneralSettingsForm({ settings }: { settings: SettingItem[] }) {
                 />
                 {hint(
                   'similarity_threshold',
-                  'A theme more similar than this to the NUC core is marked a potential duplicate. Default 0.80.',
+                  'A theme more similar than this to the NUC core is marked a potential duplicate. Default 0.80 (80% similar).',
                 )}
                 <FieldError errors={[errors.similarity_threshold]} />
               </Field>

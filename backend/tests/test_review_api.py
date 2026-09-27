@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import io
 
 import pytest
@@ -115,6 +116,30 @@ def test_results_endpoints_after_a_real_pipeline_run(login_as) -> None:
 
 
 # ------------------------------------------------------------------- recommendations
+
+
+def test_csv_export_has_points_and_exact_decimals(
+    login_as, planner: ApiClient, review: ReviewSession
+) -> None:
+    accept(planner, review.recommendations[0].id)
+    review.recommendations[2].topic_title = "=HYPERLINK(1)"  # formula injection attempt
+    db.session.commit()
+
+    response = login_as("viewer").get(f"/api/sessions/{review.session.id}/recommendations/export")
+
+    assert response.status_code == 200
+    assert response.mimetype == "text/csv"
+    assert "recommendations.csv" in response.headers["Content-Disposition"]
+    rows = list(csv.reader(io.StringIO(response.get_data(as_text=True).lstrip("﻿"))))
+    header, first = rows[0], rows[1]
+    record = dict(zip(header, first, strict=True))
+    assert record["topic_title"] == "Cloud Security and Kubernetes"
+    assert (record["score_out_of_100"], record["composite_score"]) == ("90", "0.9000")
+    assert (record["skill_demand_out_of_100"], record["skill_demand_score"]) == ("100", "1.0000")
+    assert (record["similarity_percent"], record["max_similarity"]) == ("40", "0.4000")
+    assert record["decision"] == "accepted" and record["skills"] == "Kubernetes"
+    assert rows[3][1] == "'=HYPERLINK(1)"
+    assert planner.get("/api/sessions/999999/recommendations/export").status_code == 404
 
 
 def test_list_in_rank_order_with_counts_and_filters(

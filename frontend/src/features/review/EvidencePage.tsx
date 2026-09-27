@@ -33,10 +33,11 @@ import {
   ErrorPanel,
   LoadingBlock,
   OverlapBadge,
+  ScoreLevelText,
   ScoreMeter,
   SessionReviewHeader,
 } from './components'
-import { formatScore, SKILL_LABELS } from './labels'
+import { formatPercent, SKILL_LABELS, toPoints } from './labels'
 import { RankedBarChart } from './RankedBarChart'
 
 const CHART_ROWS = 15
@@ -388,10 +389,10 @@ function OverlapTab({ sessionId }: { sessionId: number }) {
         <CardHeader>
           <CardTitle>Similarity to the NUC core</CardTitle>
           <CardDescription>
-            Highest cosine similarity between each theme and any {byCourse ? 'course' : 'passage'}{' '}
-            of {nuc_core_version?.version_label ?? 'the NUC core'}. Above {formatScore(threshold)} a
-            theme is marked as a potential duplicate of existing core content ({duplicates} of{' '}
-            {candidates.length}).
+            Highest similarity (cosine, as a percentage) between each theme and any{' '}
+            {byCourse ? 'course' : 'passage'} of {nuc_core_version?.version_label ?? 'the NUC core'}
+            . Above {formatPercent(threshold)} a theme is marked as a potential duplicate of
+            existing core content ({duplicates} of {candidates.length}).
             {result.data.courses_compared != null && (
               <>
                 {' '}
@@ -417,8 +418,8 @@ function OverlapTab({ sessionId }: { sessionId: number }) {
           <RankedBarChart
             label="Maximum similarity of each theme to the NUC core"
             domain={[0, 1]}
-            format={formatScore}
-            threshold={{ value: threshold, label: `threshold ${formatScore(threshold)}` }}
+            format={formatPercent}
+            threshold={{ value: threshold, label: `threshold ${formatPercent(threshold)}` }}
             data={candidates.map((c) => ({
               label: c.title,
               value: c.max_similarity,
@@ -434,7 +435,7 @@ function OverlapTab({ sessionId }: { sessionId: number }) {
           <TableHeader>
             <TableRow>
               <TableHead>Theme</TableHead>
-              <TableHead className="text-right">Max similarity</TableHead>
+              <TableHead className="text-right">Similarity</TableHead>
               <TableHead className="text-right">Novelty</TableHead>
               <TableHead>Status</TableHead>
               {byCourse && <TableHead className="min-w-48">Closest NUC course</TableHead>}
@@ -451,10 +452,10 @@ function OverlapTab({ sessionId }: { sessionId: number }) {
                 >
                   <TableCell className="font-medium">{c.title}</TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatScore(c.max_similarity)}
+                    {formatPercent(c.max_similarity)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatScore(c.novelty)}
+                  <TableCell className="text-right whitespace-nowrap tabular-nums">
+                    {toPoints(c.novelty)} <ScoreLevelText value={c.novelty} />
                   </TableCell>
                   <TableCell>
                     <OverlapBadge status={c.overlap_status} />

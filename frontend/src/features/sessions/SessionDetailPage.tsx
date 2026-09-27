@@ -25,6 +25,7 @@ import { ApiError } from '@/lib/api'
 import { formatDateTime } from '@/lib/format'
 import { NotFoundPage } from '@/routes/NotFoundPage'
 import type { SessionDetail } from '@/types/api'
+import { formatPercent, formatWeight } from '@/features/review/labels'
 
 import { useRetrySession, useRunSession, useSession } from './api'
 import { DeleteSessionDialog } from './DeleteSessionDialog'
@@ -203,13 +204,13 @@ function SessionView({ session }: { session: SessionDetail }) {
             <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
               <dt className="text-muted-foreground">Weights</dt>
               <dd className="font-medium tabular-nums">
-                skills {session.parameter_config.weights.ner.toFixed(2)} · themes{' '}
-                {session.parameter_config.weights.topic.toFixed(2)} · novelty{' '}
-                {session.parameter_config.weights.novelty.toFixed(2)}
+                skill demand {formatWeight(session.parameter_config.weights.ner)} · theme strength{' '}
+                {formatWeight(session.parameter_config.weights.topic)} · novelty{' '}
+                {formatWeight(session.parameter_config.weights.novelty)}
               </dd>
               <dt className="text-muted-foreground">Duplicate threshold</dt>
               <dd className="font-medium tabular-nums">
-                {session.parameter_config.similarity_threshold.toFixed(2)}
+                above {formatPercent(session.parameter_config.similarity_threshold)} similar
               </dd>
               <dt className="text-muted-foreground">Max recommendations</dt>
               <dd className="font-medium">{session.parameter_config.max_recommendations}</dd>

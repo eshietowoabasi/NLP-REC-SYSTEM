@@ -1,6 +1,6 @@
-import { BookOpenCheck, Inbox, Loader2 } from 'lucide-react'
+import { BookOpenCheck, Download, Inbox, Loader2 } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -30,7 +30,14 @@ import {
   ScoreContribution,
   SessionReviewHeader,
 } from './components'
-import { DECISION_ACTIONS, DECISION_ICONS, DECISION_LABELS, DECISIONS } from './labels'
+import {
+  DECISION_ACTIONS,
+  DECISION_ICONS,
+  DECISION_LABELS,
+  DECISIONS,
+  formatPercent,
+  formatWeight,
+} from './labels'
 
 const FILTERS: { value: DecisionFilter; label: string; count: keyof ReviewCounts }[] = [
   { value: 'all', label: 'All', count: 'total' },
@@ -65,7 +72,21 @@ function RecommendationReview({
   sessionId: number
   weights: ScoreWeights
 }) {
-  const [decision, setDecision] = useState<DecisionFilter>('all')
+  // The decision filter lives in the URL (?decision=undecided) so dashboard links can open it.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const fromUrl = searchParams.get('decision')
+  const decision: DecisionFilter = FILTERS.some((f) => f.value === fromUrl)
+    ? (fromUrl as DecisionFilter)
+    : 'all'
+  const setDecision = (value: DecisionFilter) =>
+    setSearchParams(
+      (params) => {
+        if (value === 'all') params.delete('decision')
+        else params.set('decision', value)
+        return params
+      },
+      { replace: true },
+    )
   const [hideDuplicates, setHideDuplicates] = useState(false)
   const list = useRecommendations(sessionId, { decision, hide_duplicates: hideDuplicates })
 
@@ -93,14 +114,20 @@ function RecommendationReview({
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-muted-foreground">
-        Candidate course topics ranked by composite score ={' '}
-        <span className="text-foreground tabular-nums">
-          {weights.ner.toFixed(2)} × skill demand + {weights.topic.toFixed(2)} × theme strength +{' '}
-          {weights.novelty.toFixed(2)} × novelty
-        </span>
-        . Open a topic to see its evidence and decide.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="max-w-prose text-sm text-muted-foreground">
+          Candidate course topics ranked by a score out of 100: skill demand{' '}
+          <span className="text-foreground">{formatWeight(weights.ner)}</span>, theme strength{' '}
+          <span className="text-foreground">{formatWeight(weights.topic)}</span> and novelty{' '}
+          <span className="text-foreground">{formatWeight(weights.novelty)}</span>. Open a topic to
+          see its evidence and decide.
+        </p>
+        <Button variant="outline" size="sm" asChild>
+          <a href={`/api/sessions/${sessionId}/recommendations/export`} download>
+            <Download aria-hidden="true" /> Download CSV
+          </a>
+        </Button>
+      </div>
       <div className="space-y-2">
         <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
           <p>
@@ -206,6 +233,15 @@ function RecommendationCard({
                 .slice(0, 6)
                 .map((s) => s.name)
                 .join(', ')}
+            </p>
+          )}
+          {recommendation.closest_nuc_course && (
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium text-foreground tabular-nums">
+                {formatPercent(recommendation.max_similarity)} similar
+              </span>{' '}
+              to {recommendation.closest_nuc_course.code} {recommendation.closest_nuc_course.title}{' '}
+              (closest NUC course)
             </p>
           )}
           {canEdit && <QuickDecision recommendation={recommendation} />}

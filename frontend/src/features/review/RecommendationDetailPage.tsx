@@ -36,9 +36,12 @@ import {
   DECISION_ACTIONS,
   DECISION_ICONS,
   DECISIONS,
-  formatScore,
+  contributionPoints,
+  formatDecimal,
+  formatPercent,
   SCORE_PARTS,
   SKILL_LABELS,
+  toPoints,
 } from './labels'
 
 export function RecommendationDetailPage() {
@@ -229,35 +232,72 @@ function EditForm({
 
 function ScoreCard({ recommendation }: { recommendation: RecommendationDetail }) {
   const weights = recommendation.session.weights
+  const [showCalculation, setShowCalculation] = useState(false)
   const terms = SCORE_PARTS.map((part) => ({
     ...part,
     weight: weights[part.key],
     value: recommendation[part.field],
   }))
+  const points = contributionPoints(
+    terms.map((t) => t.weight * t.value),
+    recommendation.composite_score,
+  )
   return (
     <Card>
       <CardHeader>
         <CardTitle>Why it ranks #{recommendation.rank}</CardTitle>
         <CardDescription>
-          Composite score = weighted sum of three scores, each scaled to 0–1 across this
-          session&apos;s themes.
+          The score out of 100 adds up three scores, each out of 100 compared with this
+          session&apos;s other themes and weighted by how much it counts.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p
-          className="rounded-md bg-muted/60 p-3 font-mono text-sm leading-relaxed tabular-nums"
-          aria-label="Composite score formula"
-        >
+        <p className="rounded-md bg-muted/60 p-3 text-sm leading-relaxed tabular-nums">
           {terms.map((term, index) => (
             <span key={term.key}>
               {index > 0 && ' + '}
-              {term.weight.toFixed(2)} × {formatScore(term.value)}
+              <strong>{points[index]}</strong>
               <span className="text-muted-foreground"> ({term.label.toLowerCase()})</span>
             </span>
           ))}{' '}
-          = <strong>{formatScore(recommendation.composite_score)}</strong>
+          = <strong>{toPoints(recommendation.composite_score)} points</strong> out of 100
         </p>
         <ScoreContribution recommendation={recommendation} weights={weights} detailed />
+        <div className="space-y-2">
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="h-auto px-0"
+            aria-expanded={showCalculation}
+            aria-controls="score-calculation"
+            onClick={() => setShowCalculation((shown) => !shown)}
+          >
+            {showCalculation ? 'Hide calculation' : 'Show calculation'}
+          </Button>
+          {showCalculation && (
+            <div id="score-calculation" className="space-y-1.5">
+              <p
+                className="rounded-md bg-muted/60 p-3 font-mono text-sm leading-relaxed tabular-nums"
+                aria-label="Composite score formula"
+              >
+                {terms.map((term, index) => (
+                  <span key={term.key}>
+                    {index > 0 && ' + '}
+                    {formatDecimal(term.weight)} × {formatDecimal(term.value)}
+                    <span className="text-muted-foreground"> ({term.label.toLowerCase()})</span>
+                  </span>
+                ))}{' '}
+                = <strong>{formatDecimal(recommendation.composite_score)}</strong>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                The exact calculation on the 0–1 scale; the points above are these values × 100,
+                rounded so that the parts add up to the total. Highest similarity to the NUC core:{' '}
+                {recommendation.max_similarity.toFixed(3)}.
+              </p>
+            </div>
+          )}
+        </div>
         <dl className="grid gap-3 border-t pt-4 text-xs text-muted-foreground sm:grid-cols-3">
           <div>
             <dt className="font-medium text-foreground">Skill demand</dt>
@@ -270,10 +310,11 @@ function ScoreCard({ recommendation }: { recommendation: RecommendationDetail })
           <div>
             <dt className="font-medium text-foreground">Novelty</dt>
             <dd>
-              1 − the highest similarity to any NUC core{' '}
+              100 − the % similarity to the closest NUC core{' '}
               {recommendation.closest_nuc_course ? 'course' : 'passage'}.
             </dd>
           </div>
+          <p className="sm:col-span-3">High = 70 or more, Medium = 40–69, Low = below 40.</p>
         </dl>
       </CardContent>
     </Card>
@@ -298,13 +339,13 @@ function OverlapCard({ recommendation }: { recommendation: RecommendationDetail 
         <CardDescription>
           {course ? (
             <>
-              Compared with every NUC core course. Above a threshold of {formatScore(threshold)} a
-              theme is a potential duplicate: {verdict}
+              Compared with every NUC core course. A theme more than {formatPercent(threshold)}{' '}
+              similar to a course is a potential duplicate: {verdict}
             </>
           ) : (
             <>
-              Highest similarity {formatScore(recommendation.max_similarity)} against a threshold of{' '}
-              {formatScore(threshold)}: {verdict}
+              {formatPercent(recommendation.max_similarity)} similar to the closest NUC core
+              passage; above {formatPercent(threshold)} a theme is a potential duplicate: {verdict}
             </>
           )}
         </CardDescription>
@@ -318,10 +359,11 @@ function OverlapCard({ recommendation }: { recommendation: RecommendationDetail 
                 'border-amber-300 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-950/40',
             )}
           >
-            <span className="font-medium">Closest NUC course:</span> {course.code} – {course.title}{' '}
-            <span className="tabular-nums">
-              (similarity {formatScore(recommendation.max_similarity)})
-            </span>
+            <span className="font-medium tabular-nums">
+              {formatPercent(recommendation.max_similarity)} similar
+            </span>{' '}
+            to the closest NUC course: <span className="font-medium">{course.code}</span> –{' '}
+            {course.title}
             {(course.units != null || course.page_number != null) && (
               <span className="text-muted-foreground">
                 {' · '}
@@ -425,7 +467,7 @@ function EvidenceCard({ evidence }: { evidence: Evidence[] }) {
                     {passage.page_number != null
                       ? `Page ${passage.page_number}`
                       : `Passage ${passage.position + 1}`}{' '}
-                    · relevance {formatScore(passage.relevance_score)}
+                    · {formatPercent(passage.relevance_score)} relevant
                   </p>
                   <p className="text-sm">{passage.text}</p>
                 </li>

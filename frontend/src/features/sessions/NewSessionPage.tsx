@@ -26,6 +26,7 @@ import { ApiError } from '@/lib/api'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { DocumentSummary, SessionDefaults, UploadCategory } from '@/types/api'
+import { formatWeight } from '@/features/review/labels'
 
 import { useCreateSession, useReadyDocuments, useSessionDefaults } from './api'
 
@@ -346,9 +347,9 @@ function WeightsFields({
   const sum = (weights.ner || 0) + (weights.topic || 0) + (weights.novelty || 0)
   const valid = Math.abs(sum - 1) <= WEIGHT_TOLERANCE
   const items = [
-    { name: 'weights.ner', label: 'Skill demand (NER)', error: errors.weights?.ner },
-    { name: 'weights.topic', label: 'Theme strength', error: errors.weights?.topic },
-    { name: 'weights.novelty', label: 'Novelty', error: errors.weights?.novelty },
+    { key: 'ner', name: 'weights.ner', label: 'Skill demand (NER)', error: errors.weights?.ner },
+    { key: 'topic', name: 'weights.topic', label: 'Theme strength', error: errors.weights?.topic },
+    { key: 'novelty', name: 'weights.novelty', label: 'Novelty', error: errors.weights?.novelty },
   ] as const
 
   return (
@@ -367,6 +368,9 @@ function WeightsFields({
               aria-invalid={!!item.error}
               {...register(item.name, { valueAsNumber: true })}
             />
+            <FieldDescription>
+              {Number.isFinite(weights[item.key]) ? formatWeight(weights[item.key]) : '—'}
+            </FieldDescription>
             <FieldError errors={[item.error]} />
           </Field>
         ))}
@@ -378,8 +382,8 @@ function WeightsFields({
           valid ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive',
         )}
       >
-        Sum: {Number.isFinite(sum) ? sum.toFixed(2) : '—'}{' '}
-        {valid ? '✓' : '— the weights must add up to 1.00'}
+        Total: {Number.isFinite(sum) ? `${Math.round(sum * 100)}%` : '—'}{' '}
+        {valid ? '✓' : '— the weights must add up to 100% (1.00)'}
       </p>
       <FieldError errors={[errors.weights?.root, errors.weights as { message?: string }]} />
     </fieldset>

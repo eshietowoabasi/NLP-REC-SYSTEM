@@ -142,11 +142,11 @@ describe('NewSessionPage', () => {
 
     const ner = screen.getByLabelText('Skill demand (NER)')
     expect(ner).toHaveValue(0.4)
-    expect(screen.getByText(/Sum: 1.00 ✓/)).toBeInTheDocument()
+    expect(screen.getByText(/Total: 100% ✓/)).toBeInTheDocument()
     await user.clear(ner)
     await user.type(ner, '0.6')
 
-    expect(screen.getByText(/Sum: 1.20 — the weights must add up to 1.00/)).toBeInTheDocument()
+    expect(screen.getByText(/Total: 120% — the weights must add up to 100%/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Create' }))
     expect(await screen.findByText('The three weights must add up to 1.00.')).toBeInTheDocument()
     expect(server.calls('POST', '/sessions')).toHaveLength(0)

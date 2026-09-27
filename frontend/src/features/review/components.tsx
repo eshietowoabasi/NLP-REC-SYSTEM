@@ -25,7 +25,17 @@ import type {
   SessionDetail,
 } from '@/types/api'
 
-import { DECISION_ICONS, DECISION_LABELS, formatScore, SCORE_PARTS } from './labels'
+import {
+  contributionPoints,
+  DECISION_ICONS,
+  DECISION_LABELS,
+  formatOutOf100,
+  formatWeight,
+  SCORE_PARTS,
+  type ScoreLevel,
+  scoreLevel,
+  toPoints,
+} from './labels'
 
 /** Green "New" or amber "Potential Duplicate": always icon + words, never colour alone. */
 export function OverlapBadge({ status }: { status: OverlapStatus }) {
@@ -69,9 +79,21 @@ export function DecisionBadge({ decision }: { decision: PlannerDecision | null }
   )
 }
 
+const LEVEL_STYLES: Record<ScoreLevel, string> = {
+  High: 'text-foreground font-medium',
+  Medium: 'text-muted-foreground',
+  Low: 'text-muted-foreground',
+}
+
+/** "High", "Medium" or "Low" for a 0–1 score (words, never colour alone). */
+export function ScoreLevelText({ value, className }: { value: number; className?: string }) {
+  const level = scoreLevel(value)
+  return <span className={cn('text-xs', LEVEL_STYLES[level], className)}>{level}</span>
+}
+
 /**
- * A 0–1 score as a thin meter: the filled part in the series colour on a lighter track of
- * the same hue, with the number beside it in text ink.
+ * A 0–1 score as a thin meter out of 100: the filled part in the series colour on a lighter
+ * track of the same hue, with the points and the High/Medium/Low level beside it in text ink.
  */
 export function ScoreMeter({
   label,
@@ -82,9 +104,9 @@ export function ScoreMeter({
   value: number
   emphasis?: boolean
 }) {
-  const percent = Math.round(Math.min(Math.max(value, 0), 1) * 100)
+  const points = toPoints(value)
   return (
-    <div className="grid grid-cols-[7.5rem_1fr_2.5rem] items-center gap-2 text-xs">
+    <div className="grid grid-cols-[7.5rem_1fr_4.75rem] items-center gap-2 text-xs">
       <span className={cn('text-muted-foreground', emphasis && 'font-medium text-foreground')}>
         {label}
       </span>
@@ -92,19 +114,21 @@ export function ScoreMeter({
         role="meter"
         aria-label={label}
         aria-valuemin={0}
-        aria-valuemax={1}
-        aria-valuenow={Number(value.toFixed(2))}
+        aria-valuemax={100}
+        aria-valuenow={points}
+        aria-valuetext={`${points} out of 100, ${scoreLevel(value)}`}
         className="h-1.5 overflow-hidden rounded-full bg-viz-series/15"
       >
         <div
           className={cn('h-full rounded-full bg-viz-series', !emphasis && 'opacity-70')}
-          style={{ width: `${percent}%` }}
+          style={{ width: `${points}%` }}
         />
       </div>
-      <span
-        className={cn('text-right tabular-nums', emphasis ? 'font-semibold' : 'text-foreground')}
-      >
-        {formatScore(value)}
+      <span className="flex items-baseline justify-end gap-1.5">
+        <span className={cn('tabular-nums', emphasis ? 'font-semibold' : 'text-foreground')}>
+          {points}
+        </span>
+        <ScoreLevelText value={value} className="w-12" />
       </span>
     </div>
   )
@@ -117,9 +141,9 @@ const PART_COLOURS = {
 } as const
 
 /**
- * The composite score as the sum of its three weighted parts: a large figure, a stacked bar
- * (each segment = weight × score, on a 0–1 track) and a legend naming every part with its
- * numbers, so the colours are never the only way to read it.
+ * The composite score out of 100 as the sum of its three weighted parts: a large figure, a
+ * stacked bar (each segment = the points a part contributes) and a legend naming every part
+ * with its numbers, so the colours are never the only way to read it.
  */
 export function ScoreContribution({
   recommendation,
@@ -128,32 +152,36 @@ export function ScoreContribution({
 }: {
   recommendation: Recommendation
   weights: ScoreWeights
-  /** Show the full "weight × score = contribution" arithmetic in the legend. */
+  /** Show each part's weight and contributed points in the legend. */
   detailed?: boolean
 }) {
-  const parts = SCORE_PARTS.map((part) => {
+  const composite = recommendation.composite_score
+  const raw = SCORE_PARTS.map((part) => {
     const value = recommendation[part.field]
     const weight = weights[part.key]
     return { ...part, value, weight, contribution: weight * value }
   })
-  const composite = recommendation.composite_score
+  const points = contributionPoints(
+    raw.map((p) => p.contribution),
+    composite,
+  )
+  const parts = raw.map((part, index) => ({ ...part, points: points[index] }))
   const summary = parts
-    .map((p) => `${p.label} ${formatScore(p.weight)} × ${formatScore(p.value)}`)
-    .join(' + ')
+    .map(
+      (p) =>
+        `${p.label} ${toPoints(p.value)} (${scoreLevel(p.value)}, ${formatWeight(p.weight)}) adds ${p.points} points`,
+    )
+    .join('; ')
   return (
-    <figure
-      className="space-y-2"
-      aria-label={`Composite score ${formatScore(composite)} = ${summary}`}
-    >
+    <figure className="space-y-2" aria-label={`Score ${formatOutOf100(composite)}. ${summary}.`}>
       <div className="flex items-baseline justify-between gap-2">
-        <figcaption className="text-xs font-medium text-muted-foreground">
-          Composite score
-        </figcaption>
+        <figcaption className="text-xs font-medium text-muted-foreground">Score</figcaption>
         <span
           className={cn('font-semibold tabular-nums', detailed ? 'text-3xl' : 'text-2xl')}
           aria-hidden="true"
         >
-          {formatScore(composite)}
+          {toPoints(composite)}
+          <span className="text-sm font-normal text-muted-foreground">/100</span>
         </span>
       </div>
       <div className="flex h-2.5 w-full gap-0.5 rounded-sm bg-muted" aria-hidden="true">
@@ -165,24 +193,24 @@ export function ScoreContribution({
               index === parts.length - 1 && 'rounded-r-sm',
               index === 0 && 'rounded-l-sm',
             )}
-            style={{ width: `${Math.max(part.contribution, 0) * 100}%` }}
-            title={`${part.label}: ${formatScore(part.weight)} × ${formatScore(part.value)} = ${formatScore(part.contribution)}`}
+            style={{ width: `${part.points}%` }}
+            title={`${part.label}: ${toPoints(part.value)}/100, ${formatWeight(part.weight)} → ${part.points} points`}
           />
         ))}
       </div>
       <ul className={cn('text-xs', detailed ? 'space-y-1.5' : 'space-y-1')} aria-hidden="true">
         {parts.map((part) => (
-          <li key={part.key} className="flex items-center gap-2">
+          <li key={part.key} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span className={cn('size-2.5 shrink-0 rounded-sm', PART_COLOURS[part.key])} />
             <span className="text-muted-foreground">{part.label}</span>
-            <span className="ml-auto text-foreground tabular-nums">
-              {detailed ? (
-                <>
-                  {formatScore(part.weight)} × {formatScore(part.value)} ={' '}
-                  <strong>{formatScore(part.contribution)}</strong>
-                </>
-              ) : (
-                formatScore(part.value)
+            <span className="ml-auto flex items-baseline gap-1.5 text-foreground tabular-nums">
+              {toPoints(part.value)}
+              <ScoreLevelText value={part.value} />
+              {detailed && (
+                <span className="text-muted-foreground">
+                  · {formatWeight(part.weight)} →{' '}
+                  <strong className="text-foreground">+{part.points}</strong> points
+                </span>
               )}
             </span>
           </li>
