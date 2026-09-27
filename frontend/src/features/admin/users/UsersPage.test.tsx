@@ -138,6 +138,48 @@ describe('UsersPage', () => {
     expect(server.calls('PATCH', '/admin/users/2')[0].body).toEqual({ is_active: false })
   })
 
+  it('lets an admin edit their own name and email with the role locked', async () => {
+    const server = usersApi({
+      'PATCH /admin/users/:id': (request) => ok({ ...adminUser, ...(request.body as object) }),
+    })
+    const { user } = renderApp('/admin/users')
+
+    await user.click(await screen.findByRole('button', { name: 'Actions for test.admin' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit details' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByLabelText('Role')).toBeDisabled()
+    expect(within(dialog).getByText('You cannot change your own role.')).toBeInTheDocument()
+    const name = within(dialog).getByLabelText('Full name')
+    await user.clear(name)
+    await user.type(name, 'Renamed Admin')
+    const email = within(dialog).getByLabelText('Email')
+    await user.clear(email)
+    await user.type(email, 'renamed.admin@example.com')
+    await user.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+
+    await waitFor(() =>
+      expect(server.calls('PATCH', `/admin/users/${adminUser.id}`)).toHaveLength(1),
+    )
+    expect(server.calls('PATCH', `/admin/users/${adminUser.id}`)[0].body).toEqual({
+      full_name: 'Renamed Admin',
+      email: 'renamed.admin@example.com',
+    })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('opens your own details from the Profile link and the header button', async () => {
+    usersApi()
+    const { user } = renderApp('/admin/users?edit=me')
+
+    const dialog = await screen.findByRole('dialog', { name: `Edit ${adminUser.username}` })
+    expect(within(dialog).getByLabelText('Full name')).toHaveValue(adminUser.full_name)
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Edit my details' }))
+    expect(await screen.findByRole('dialog', { name: `Edit ${adminUser.username}` })).toBeVisible()
+  })
+
   it('does not offer to deactivate your own account', async () => {
     usersApi()
     const { user } = renderApp('/admin/users')

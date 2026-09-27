@@ -1,4 +1,8 @@
+import { Pencil } from 'lucide-react'
+import { Link } from 'react-router'
+
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDate, formatDateTime } from '@/lib/format'
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/lib/roles'
@@ -7,7 +11,7 @@ import { ChangePasswordForm } from './ChangePasswordForm'
 import { useAuth } from './useAuth'
 
 export function ProfilePage() {
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
 
   const details: [string, React.ReactNode][] = [
     ['Full name', user.full_name],
@@ -39,9 +43,22 @@ export function ProfilePage() {
               </div>
             ))}
           </dl>
-          <p className="mt-4 text-xs text-muted-foreground">
-            To change your name, email or role, contact an administrator.
-          </p>
+          {isAdmin ? (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/admin/users?edit=me">
+                  <Pencil aria-hidden="true" /> Edit name and email
+                </Link>
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Your own role cannot be changed, so an active administrator always remains.
+              </p>
+            </div>
+          ) : (
+            <p className="mt-4 text-xs text-muted-foreground">
+              To change your name, email or role, contact an administrator.
+            </p>
+          )}
         </CardContent>
       </Card>
       <Card>

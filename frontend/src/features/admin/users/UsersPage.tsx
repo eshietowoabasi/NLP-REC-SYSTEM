@@ -1,5 +1,6 @@
 import { KeyRound, MoreHorizontal, Pencil, Search, UserCheck, UserPlus, UserX } from 'lucide-react'
 import { useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 
 import { PaginationControls } from '@/components/shared/PaginationControls'
@@ -73,7 +74,23 @@ export function UsersPage() {
   const users = useUsers(params)
 
   const [creating, setCreating] = useState(false)
-  const [editing, setEditing] = useState<User | null>(null)
+  // /admin/users?edit=me (linked from the Profile page) opens the admin's own details.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [editing, setEditing] = useState<User | null>(() =>
+    searchParams.get('edit') === 'me' ? me : null,
+  )
+  const closeEditing = () => {
+    setEditing(null)
+    if (searchParams.has('edit')) {
+      setSearchParams(
+        (next) => {
+          next.delete('edit')
+          return next
+        },
+        { replace: true },
+      )
+    }
+  }
   const [resetting, setResetting] = useState<User | null>(null)
   const [toggling, setToggling] = useState<User | null>(null)
 
@@ -94,9 +111,14 @@ export function UsersPage() {
             Create accounts, change roles and deactivate users. Users are never deleted.
           </p>
         </div>
-        <Button onClick={() => setCreating(true)}>
-          <UserPlus aria-hidden="true" /> Add user
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setEditing(me)}>
+            <Pencil aria-hidden="true" /> Edit my details
+          </Button>
+          <Button onClick={() => setCreating(true)}>
+            <UserPlus aria-hidden="true" /> Add user
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-end gap-3" role="search">
@@ -218,7 +240,7 @@ export function UsersPage() {
       <UserFormDialog open={creating} onOpenChange={setCreating} />
       <UserFormDialog
         open={editing !== null}
-        onOpenChange={(open) => !open && setEditing(null)}
+        onOpenChange={(open) => !open && closeEditing()}
         user={editing ?? undefined}
         isSelf={editing?.id === me.id}
       />
