@@ -17,7 +17,13 @@ import { useSession } from '@/features/sessions/api'
 import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { NotFoundPage } from '@/routes/NotFoundPage'
-import type { OverlapStatus, PlannerDecision, Recommendation, SessionDetail } from '@/types/api'
+import type {
+  OverlapStatus,
+  PlannerDecision,
+  Recommendation,
+  ScoreWeights,
+  SessionDetail,
+} from '@/types/api'
 
 import { DECISION_ICONS, DECISION_LABELS, formatScore, SCORE_PARTS } from './labels'
 
@@ -104,14 +110,85 @@ export function ScoreMeter({
   )
 }
 
-export function ScoreBreakdown({ recommendation }: { recommendation: Recommendation }) {
+const PART_COLOURS = {
+  ner: 'bg-viz-skill',
+  topic: 'bg-viz-theme',
+  novelty: 'bg-viz-novelty',
+} as const
+
+/**
+ * The composite score as the sum of its three weighted parts: a large figure, a stacked bar
+ * (each segment = weight × score, on a 0–1 track) and a legend naming every part with its
+ * numbers, so the colours are never the only way to read it.
+ */
+export function ScoreContribution({
+  recommendation,
+  weights,
+  detailed = false,
+}: {
+  recommendation: Recommendation
+  weights: ScoreWeights
+  /** Show the full "weight × score = contribution" arithmetic in the legend. */
+  detailed?: boolean
+}) {
+  const parts = SCORE_PARTS.map((part) => {
+    const value = recommendation[part.field]
+    const weight = weights[part.key]
+    return { ...part, value, weight, contribution: weight * value }
+  })
+  const composite = recommendation.composite_score
+  const summary = parts
+    .map((p) => `${p.label} ${formatScore(p.weight)} × ${formatScore(p.value)}`)
+    .join(' + ')
   return (
-    <div className="space-y-1.5">
-      <ScoreMeter label="Composite" value={recommendation.composite_score} emphasis />
-      {SCORE_PARTS.map((part) => (
-        <ScoreMeter key={part.key} label={part.label} value={recommendation[part.field]} />
-      ))}
-    </div>
+    <figure
+      className="space-y-2"
+      aria-label={`Composite score ${formatScore(composite)} = ${summary}`}
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <figcaption className="text-xs font-medium text-muted-foreground">
+          Composite score
+        </figcaption>
+        <span
+          className={cn('font-semibold tabular-nums', detailed ? 'text-3xl' : 'text-2xl')}
+          aria-hidden="true"
+        >
+          {formatScore(composite)}
+        </span>
+      </div>
+      <div className="flex h-2.5 w-full gap-0.5 rounded-sm bg-muted" aria-hidden="true">
+        {parts.map((part, index) => (
+          <div
+            key={part.key}
+            className={cn(
+              PART_COLOURS[part.key],
+              index === parts.length - 1 && 'rounded-r-sm',
+              index === 0 && 'rounded-l-sm',
+            )}
+            style={{ width: `${Math.max(part.contribution, 0) * 100}%` }}
+            title={`${part.label}: ${formatScore(part.weight)} × ${formatScore(part.value)} = ${formatScore(part.contribution)}`}
+          />
+        ))}
+      </div>
+      <ul className={cn('text-xs', detailed ? 'space-y-1.5' : 'space-y-1')} aria-hidden="true">
+        {parts.map((part) => (
+          <li key={part.key} className="flex items-center gap-2">
+            <span className={cn('size-2.5 shrink-0 rounded-sm', PART_COLOURS[part.key])} />
+            <span className="text-muted-foreground">{part.label}</span>
+            <span className="ml-auto text-foreground tabular-nums">
+              {detailed ? (
+                <>
+                  {formatScore(part.weight)} × {formatScore(part.value)} ={' '}
+                  <strong>{formatScore(part.contribution)}</strong>
+                </>
+              ) : (
+                formatScore(part.value)
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </figure>
   )
 }
 

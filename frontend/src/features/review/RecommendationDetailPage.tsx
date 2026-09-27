@@ -24,7 +24,13 @@ import { NotFoundPage } from '@/routes/NotFoundPage'
 import type { Evidence, PlannerDecision, RecommendationDetail } from '@/types/api'
 
 import { useDecide, useEditRecommendation, useRecommendation } from './api'
-import { DecisionBadge, ErrorPanel, LoadingBlock, OverlapBadge, ScoreMeter } from './components'
+import {
+  DecisionBadge,
+  ErrorPanel,
+  LoadingBlock,
+  OverlapBadge,
+  ScoreContribution,
+} from './components'
 import {
   DECISION_ACTIONS,
   DECISION_ICONS,
@@ -250,13 +256,8 @@ function ScoreCard({ recommendation }: { recommendation: RecommendationDetail })
           ))}{' '}
           = <strong>{formatScore(recommendation.composite_score)}</strong>
         </p>
-        <div className="space-y-1.5">
-          <ScoreMeter label="Composite" value={recommendation.composite_score} emphasis />
-          {terms.map((term) => (
-            <ScoreMeter key={term.key} label={term.label} value={term.value} />
-          ))}
-        </div>
-        <dl className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+        <ScoreContribution recommendation={recommendation} weights={weights} detailed />
+        <dl className="grid gap-3 border-t pt-4 text-xs text-muted-foreground sm:grid-cols-3">
           <div>
             <dt className="font-medium text-foreground">Skill demand</dt>
             <dd>How many documents mention the theme&apos;s top skills.</dd>

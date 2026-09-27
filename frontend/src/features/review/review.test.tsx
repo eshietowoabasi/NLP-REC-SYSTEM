@@ -180,10 +180,13 @@ describe('RecommendationsPage', () => {
     expect(within(items[0]).getByText('Accepted')).toBeInTheDocument()
     expect(within(items[1]).getByText('Potential Duplicate')).toBeInTheDocument()
     expect(within(items[1]).getByText('Undecided')).toBeInTheDocument()
-    expect(within(items[0]).getByRole('meter', { name: 'Composite' })).toHaveAttribute(
-      'aria-valuenow',
-      '0.6',
-    )
+    // The composite and its three weighted parts, readable without the colours.
+    expect(
+      within(items[0]).getByRole('figure', {
+        name: 'Composite score 0.60 = Skill demand 0.40 × 0.90 + Theme strength 0.35 × 0.50 + Novelty 0.25 × 0.30',
+      }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/0\.40 × skill demand \+ 0\.35 × theme strength/)).toBeInTheDocument()
     expect(screen.getByText('2 of 3')).toBeInTheDocument()
     expect(screen.getByText(/1 potential duplicate of NUC core content/)).toBeInTheDocument()
   })

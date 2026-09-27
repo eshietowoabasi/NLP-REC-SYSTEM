@@ -11,7 +11,13 @@ import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useAuth } from '@/features/auth/useAuth'
-import type { DecisionFilter, PlannerDecision, Recommendation, ReviewCounts } from '@/types/api'
+import type {
+  DecisionFilter,
+  PlannerDecision,
+  Recommendation,
+  ReviewCounts,
+  ScoreWeights,
+} from '@/types/api'
 
 import { useDecide, useRecommendations } from './api'
 import {
@@ -21,7 +27,7 @@ import {
   ErrorPanel,
   LoadingBlock,
   OverlapBadge,
-  ScoreBreakdown,
+  ScoreContribution,
   SessionReviewHeader,
 } from './components'
 import { DECISION_ACTIONS, DECISION_ICONS, DECISION_LABELS, DECISIONS } from './labels'
@@ -45,14 +51,20 @@ export function RecommendationsPage() {
             sessionName={session.session_name}
             title="Recommendations"
           />
-          <RecommendationReview sessionId={session.id} />
+          <RecommendationReview sessionId={session.id} weights={session.parameter_config.weights} />
         </div>
       )}
     </CompletedSessionGate>
   )
 }
 
-function RecommendationReview({ sessionId }: { sessionId: number }) {
+function RecommendationReview({
+  sessionId,
+  weights,
+}: {
+  sessionId: number
+  weights: ScoreWeights
+}) {
   const [decision, setDecision] = useState<DecisionFilter>('all')
   const [hideDuplicates, setHideDuplicates] = useState(false)
   const list = useRecommendations(sessionId, { decision, hide_duplicates: hideDuplicates })
@@ -81,6 +93,14 @@ function RecommendationReview({ sessionId }: { sessionId: number }) {
 
   return (
     <div className="space-y-5">
+      <p className="text-sm text-muted-foreground">
+        Candidate course topics ranked by composite score ={' '}
+        <span className="text-foreground tabular-nums">
+          {weights.ner.toFixed(2)} × skill demand + {weights.topic.toFixed(2)} × theme strength +{' '}
+          {weights.novelty.toFixed(2)} × novelty
+        </span>
+        . Open a topic to see its evidence and decide.
+      </p>
       <div className="space-y-2">
         <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
           <p>
@@ -131,7 +151,7 @@ function RecommendationReview({ sessionId }: { sessionId: number }) {
         <ol className="space-y-4" aria-label="Ranked recommendations">
           {items.map((recommendation) => (
             <li key={recommendation.id}>
-              <RecommendationCard recommendation={recommendation} />
+              <RecommendationCard recommendation={recommendation} weights={weights} />
             </li>
           ))}
         </ol>
@@ -140,11 +160,17 @@ function RecommendationReview({ sessionId }: { sessionId: number }) {
   )
 }
 
-function RecommendationCard({ recommendation }: { recommendation: Recommendation }) {
+function RecommendationCard({
+  recommendation,
+  weights,
+}: {
+  recommendation: Recommendation
+  weights: ScoreWeights
+}) {
   const { canEdit } = useAuth()
   return (
     <Card>
-      <CardContent className="grid gap-4 lg:grid-cols-[1fr_17rem]">
+      <CardContent className="grid gap-5 lg:grid-cols-[1fr_16rem]">
         <div className="min-w-0 space-y-2">
           <div className="flex items-start gap-3">
             <span
@@ -184,7 +210,9 @@ function RecommendationCard({ recommendation }: { recommendation: Recommendation
           )}
           {canEdit && <QuickDecision recommendation={recommendation} />}
         </div>
-        <ScoreBreakdown recommendation={recommendation} />
+        <div className="lg:border-l lg:pl-5">
+          <ScoreContribution recommendation={recommendation} weights={weights} />
+        </div>
       </CardContent>
     </Card>
   )
