@@ -576,8 +576,12 @@ export interface DashboardSummary {
     accepted: number
     rejected: number
     flagged: number
+    /** Latest completed session that still has undecided recommendations. */
+    review_session: { id: number; session_name: string; undecided: number } | null
   }
   courses_mapped: number
+  /** Latest session with courses mapped. */
+  curriculum_session: { id: number; session_name: string } | null
   reports: number
   nuc_core_version: { id: number; version_label: string } | null
   recent_sessions: SessionSummary[]

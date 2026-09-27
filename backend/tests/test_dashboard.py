@@ -16,7 +16,9 @@ def test_empty_system(login_as) -> None:
         "by_status": {"pending": 0, "processing": 0, "completed": 0, "failed": 0},
     }
     assert data["recommendations"]["pending_review"] == 0
+    assert data["recommendations"]["review_session"] is None
     assert data["courses_mapped"] == 0
+    assert data["curriculum_session"] is None
     assert data["nuc_core_version"] is None
     assert data["recent_sessions"] == []
 
@@ -57,14 +59,18 @@ def test_counts_documents_sessions_reviews_and_courses(login_as, make_user) -> N
     }
     assert data["sessions"]["total"] == 2
     assert data["sessions"]["by_status"]["completed"] == 1
+    # The cards link to the session awaiting review and the session with mapped courses.
+    session_ref = {"id": review.session.id, "session_name": "Synthetic review"}
     assert data["recommendations"] == {
         "total": 3,
         "pending_review": 1,
         "accepted": 1,
         "rejected": 1,
         "flagged": 0,
+        "review_session": {**session_ref, "undecided": 1},
     }
     assert data["courses_mapped"] == 1
+    assert data["curriculum_session"] == session_ref
     assert data["nuc_core_version"]["version_label"] == "Synthetic core"
     assert [s["session_name"] for s in data["recent_sessions"]] == [
         "Synthetic draft",

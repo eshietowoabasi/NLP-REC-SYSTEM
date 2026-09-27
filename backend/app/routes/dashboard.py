@@ -65,6 +65,26 @@ def summary() -> tuple[Response, int]:
     )
     documents, recommendations = session_counts([s.id for s in recent])
     version = active_nuc_core()
+    # Where the dashboard cards lead: the latest completed session that still has undecided
+    # recommendations, and the latest session with courses mapped.
+    review_session = db.session.execute(
+        select(AnalysisSession.id, AnalysisSession.session_name, func.count(Recommendation.id))
+        .join(Recommendation, Recommendation.session_id == AnalysisSession.id)
+        .where(
+            AnalysisSession.status == SessionStatus.COMPLETED,
+            Recommendation.planner_decision.is_(None),
+        )
+        .group_by(AnalysisSession.id)
+        .order_by(AnalysisSession.completed_at.desc(), AnalysisSession.id.desc())
+        .limit(1)
+    ).first()
+    curriculum_session = db.session.execute(
+        select(AnalysisSession.id, AnalysisSession.session_name)
+        .join(Recommendation, Recommendation.session_id == AnalysisSession.id)
+        .join(CurriculumMap, CurriculumMap.recommendation_id == Recommendation.id)
+        .order_by(CurriculumMap.updated_at.desc(), AnalysisSession.id.desc())
+        .limit(1)
+    ).first()
     return success(
         {
             "documents": {
@@ -87,8 +107,22 @@ def summary() -> tuple[Response, int]:
                 "accepted": decisions.get("accepted", 0),
                 "rejected": decisions.get("rejected", 0),
                 "flagged": decisions.get("flagged", 0),
+                "review_session": (
+                    {
+                        "id": review_session[0],
+                        "session_name": review_session[1],
+                        "undecided": review_session[2],
+                    }
+                    if review_session
+                    else None
+                ),
             },
             "courses_mapped": db.session.scalar(select(func.count(CurriculumMap.id))) or 0,
+            "curriculum_session": (
+                {"id": curriculum_session[0], "session_name": curriculum_session[1]}
+                if curriculum_session
+                else None
+            ),
             "reports": db.session.scalar(select(func.count(Report.id))) or 0,
             "nuc_core_version": (
                 {"id": version.id, "version_label": version.version_label} if version else None

@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   BookOpenCheck,
+  ChevronRight,
   FileBarChart,
   FileText,
   FlaskConical,
@@ -80,6 +81,8 @@ export function DashboardPage() {
 function Overview({ data }: { data: DashboardSummary }) {
   const { canEdit, isAdmin } = useAuth()
   const firstRun = data.documents.total === 0 && data.sessions.total === 0
+  const review = data.recommendations.review_session
+  const curriculum = data.curriculum_session
 
   if (firstRun) {
     return (
@@ -135,23 +138,36 @@ function Overview({ data }: { data: DashboardSummary }) {
           icon={ListChecks}
           label="Awaiting review"
           value={data.recommendations.pending_review}
+          to={review ? `/sessions/${review.id}/recommendations?decision=undecided` : '/sessions'}
+          linkHint={review ? `Review ${review.session_name}` : 'Analysis sessions'}
           detail={
-            <>
-              of {data.recommendations.total} recommendation
-              {data.recommendations.total === 1 ? '' : 's'} · {data.recommendations.accepted}{' '}
-              accepted
-            </>
+            review ? (
+              <>
+                {review.undecided} undecided in “{review.session_name}”
+              </>
+            ) : (
+              <>
+                of {data.recommendations.total} recommendation
+                {data.recommendations.total === 1 ? '' : 's'} · {data.recommendations.accepted}{' '}
+                accepted
+              </>
+            )
           }
         />
         <StatTile
           icon={BookOpenCheck}
           label="Courses mapped"
           value={data.courses_mapped}
-          to="/reports"
+          to={curriculum ? `/sessions/${curriculum.id}/curriculum` : '/reports'}
+          linkHint={curriculum ? `Proposed curriculum of ${curriculum.session_name}` : 'Reports'}
           detail={
-            <>
-              {data.reports} report{data.reports === 1 ? '' : 's'} generated
-            </>
+            curriculum ? (
+              <>Latest in “{curriculum.session_name}”</>
+            ) : (
+              <>
+                {data.reports} report{data.reports === 1 ? '' : 's'} generated
+              </>
+            )
           }
         />
       </div>
@@ -176,45 +192,43 @@ function Overview({ data }: { data: DashboardSummary }) {
                 )}
               </p>
             ) : (
-              <div className="overflow-x-auto">
-                <Table aria-label="Recent sessions">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Documents</TableHead>
-                      <TableHead className="text-right">Recommendations</TableHead>
-                      <TableHead>Created</TableHead>
+              <Table aria-label="Recent sessions" className="table-fixed">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Session</TableHead>
+                    <TableHead className="w-32">Status</TableHead>
+                    <TableHead className="w-20 text-right">
+                      <abbr title="Recommendations" className="no-underline">
+                        Topics
+                      </abbr>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.recent_sessions.map((session) => (
+                    <TableRow key={session.id}>
+                      <TableCell className="whitespace-normal">
+                        <Link
+                          to={`/sessions/${session.id}`}
+                          className="font-medium break-words hover:underline"
+                        >
+                          {session.session_name}
+                        </Link>
+                        <span className="block text-xs text-muted-foreground">
+                          {formatDate(session.created_at)} · {session.document_count} document
+                          {session.document_count === 1 ? '' : 's'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="whitespace-normal">
+                        <SessionStatusBadge status={session.status} stage={session.current_stage} />
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {session.recommendation_count}
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.recent_sessions.map((session) => (
-                      <TableRow key={session.id}>
-                        <TableCell className="font-medium">
-                          <Link to={`/sessions/${session.id}`} className="hover:underline">
-                            {session.session_name}
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          <SessionStatusBadge
-                            status={session.status}
-                            stage={session.current_stage}
-                          />
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {session.document_count}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {session.recommendation_count}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          {formatDate(session.created_at)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>
@@ -258,41 +272,43 @@ function Overview({ data }: { data: DashboardSummary }) {
   )
 }
 
-/** A headline number with its label and one line of context. */
+/** A clickable headline number with its label and one line of context. */
 function StatTile({
   icon: Icon,
   label,
   value,
   detail,
   to,
+  linkHint,
 }: {
   icon: LucideIcon
   label: string
   value: number
   detail: ReactNode
-  to?: string
+  to: string
+  /** Where the tile leads, for screen readers (defaults to the label). */
+  linkHint?: string
 }) {
-  const body = (
-    <Card className="h-full transition-colors hover:bg-muted/40">
-      <CardContent className="space-y-1">
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Icon className="size-4" aria-hidden="true" /> {label}
-        </p>
-        <p className="text-3xl font-semibold">{value.toLocaleString()}</p>
-        <p className="text-xs text-muted-foreground">{detail}</p>
-      </CardContent>
-    </Card>
-  )
-  return to ? (
+  return (
     <Link
       to={to}
-      aria-label={`${label}: ${value}`}
-      className="rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      aria-label={`${label}: ${value}${linkHint ? `. ${linkHint}` : ''}`}
+      className="group rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
     >
-      {body}
+      <Card className="h-full transition-colors group-hover:border-foreground/20 group-hover:bg-muted/40">
+        <CardContent className="space-y-1">
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Icon className="size-4" aria-hidden="true" /> {label}
+            <ChevronRight
+              className="ml-auto size-4 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+              aria-hidden="true"
+            />
+          </p>
+          <p className="text-3xl font-semibold">{value.toLocaleString()}</p>
+          <p className="text-xs text-muted-foreground">{detail}</p>
+        </CardContent>
+      </Card>
     </Link>
-  ) : (
-    <section aria-label={`${label}: ${value}`}>{body}</section>
   )
 }
 

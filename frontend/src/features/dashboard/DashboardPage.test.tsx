@@ -16,8 +16,16 @@ const summary = (overrides: Partial<DashboardSummary> = {}): DashboardSummary =>
     by_category: { job_market: 8, policy: 4 },
   },
   sessions: { total: 3, by_status: { pending: 0, processing: 1, completed: 2, failed: 0 } },
-  recommendations: { total: 30, pending_review: 18, accepted: 7, rejected: 3, flagged: 2 },
+  recommendations: {
+    total: 30,
+    pending_review: 18,
+    accepted: 7,
+    rejected: 3,
+    flagged: 2,
+    review_session: null,
+  },
   courses_mapped: 4,
+  curriculum_session: null,
   reports: 2,
   nuc_core_version: { id: 1, version_label: 'Synthetic core v1' },
   recent_sessions: [
@@ -56,10 +64,11 @@ describe('DashboardPage', () => {
       '/documents',
     )
     expect(screen.getByText('10 ready · 1 processing · 1 failed')).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'Awaiting review: 18' })).toHaveTextContent(
-      'of 30 recommendations · 7 accepted',
-    )
-    expect(screen.getByRole('link', { name: 'Courses mapped: 4' })).toHaveTextContent(
+    // Every card is a link; without a session to review they fall back to the lists.
+    const awaiting = screen.getByRole('link', { name: 'Awaiting review: 18. Analysis sessions' })
+    expect(awaiting).toHaveAttribute('href', '/sessions')
+    expect(awaiting).toHaveTextContent('of 30 recommendations · 7 accepted')
+    expect(screen.getByRole('link', { name: 'Courses mapped: 4. Reports' })).toHaveTextContent(
       '2 reports generated',
     )
     const recent = screen.getByRole('table', { name: 'Recent sessions' })
@@ -70,6 +79,35 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('link', { name: /New analysis session/ })).toBeInTheDocument()
     expect(screen.getByText('NUC core: Synthetic core v1')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Welcome, Test' })).toBeInTheDocument()
+  })
+
+  it('links the cards to the session awaiting review and its proposed curriculum', async () => {
+    dashboardApi(
+      plannerUser,
+      summary({
+        recommendations: {
+          total: 30,
+          pending_review: 18,
+          accepted: 7,
+          rejected: 3,
+          flagged: 2,
+          review_session: { id: 5, session_name: 'Synthetic 2026 review', undecided: 11 },
+        },
+        curriculum_session: { id: 4, session_name: 'Synthetic pilot' },
+      }),
+    )
+    renderApp('/')
+
+    const awaiting = await screen.findByRole('link', {
+      name: 'Awaiting review: 18. Review Synthetic 2026 review',
+    })
+    expect(awaiting).toHaveAttribute('href', '/sessions/5/recommendations?decision=undecided')
+    expect(awaiting).toHaveTextContent('11 undecided in “Synthetic 2026 review”')
+    expect(
+      screen.getByRole('link', {
+        name: 'Courses mapped: 4. Proposed curriculum of Synthetic pilot',
+      }),
+    ).toHaveAttribute('href', '/sessions/4/curriculum')
   })
 
   it('guides a first run and warns about a missing NUC core', async () => {

@@ -569,6 +569,16 @@ Access: any. Every recommendation of the session in rank order (not paginated: a
 "flagged", "potential_duplicates" } }`; the counts always cover the whole session. **404** if
 the session is unknown.
 
+### `GET /api/sessions/{id}/recommendations/export`
+
+Access: any. Every recommendation of the session as a CSV attachment (UTF-8 with BOM), in rank
+order, with each score both out of 100 (as shown on screen) and as the exact 0–1 decimal:
+`rank, topic_title, score_out_of_100, skill_demand_out_of_100, theme_strength_out_of_100,
+novelty_out_of_100, similarity_percent, composite_score, skill_demand_score,
+theme_strength_score, novelty_score, max_similarity, overlap_status, closest_nuc_course,
+decision, skills`. Text cells are protected against spreadsheet formula injection. **404** if
+the session is unknown.
+
 ### `GET /api/recommendations/{id}`
 
 Access: any. The recommendation object plus:
@@ -702,13 +712,19 @@ Access: any.
   "documents": { "total": 12, "ready": 10, "processing": 1, "failed": 1,
                  "by_category": { "job_market": 8, "policy": 4 } },
   "sessions": { "total": 3, "by_status": { "pending": 0, "processing": 1, "completed": 2, "failed": 0 } },
-  "recommendations": { "total": 30, "pending_review": 18, "accepted": 7, "rejected": 3, "flagged": 2 },
+  "recommendations": { "total": 30, "pending_review": 18, "accepted": 7, "rejected": 3, "flagged": 2,
+                       "review_session": { "id": 9, "session_name": "...", "undecided": 11 } },
   "courses_mapped": 4,
+  "curriculum_session": { "id": 9, "session_name": "..." },
   "reports": 2,
   "nuc_core_version": { "id": 1, "version_label": "CCMAS 2023" },
   "recent_sessions": [ ...five newest session objects... ]
 }
 ```
+
+`review_session` is the most recently completed session that still has undecided
+recommendations, and `curriculum_session` the session with the most recently changed course
+mapping (both null when there is none); the dashboard cards link to them.
 
 Documents exclude archived ones and the NUC core; recommendation counts cover completed sessions.
 
