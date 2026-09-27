@@ -147,7 +147,7 @@ function Overview({ data }: { data: DashboardSummary }) {
           detail={
             review ? (
               <>
-                {review.undecided} undecided in “{review.session_name}”
+                {review.undecided} not reviewed yet in “{review.session_name}”
               </>
             ) : (
               <>

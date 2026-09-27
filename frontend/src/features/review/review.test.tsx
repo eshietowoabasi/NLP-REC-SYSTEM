@@ -302,7 +302,7 @@ describe('RecommendationsPage', () => {
     const server = reviewApi(plannerUser)
     const { user } = renderApp('/sessions/5/recommendations')
 
-    await user.click(await screen.findByRole('radio', { name: /Undecided/ }))
+    await user.click(await screen.findByRole('radio', { name: /Not reviewed yet/ }))
     await waitFor(() =>
       expect(server.calls('GET', '/sessions/5/recommendations').at(-1)?.params).toEqual({
         decision: 'undecided',
@@ -321,7 +321,7 @@ describe('RecommendationsPage', () => {
     const server = reviewApi(plannerUser)
     renderApp('/sessions/5/recommendations?decision=undecided')
 
-    expect(await screen.findByRole('radio', { name: /Undecided/ })).toBeChecked()
+    expect(await screen.findByRole('radio', { name: /Not reviewed yet/ })).toBeChecked()
     expect(server.calls('GET', '/sessions/5/recommendations')[0].params).toEqual({
       decision: 'undecided',
     })

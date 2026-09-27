@@ -86,7 +86,7 @@ export function DecisionBadge({ decision }: { decision: PlannerDecision | null }
   if (!decision) {
     return (
       <Badge variant="outline" className="text-muted-foreground">
-        <CircleDashed aria-hidden="true" /> Undecided
+        <CircleDashed aria-hidden="true" /> Not reviewed yet
       </Badge>
     )
   }

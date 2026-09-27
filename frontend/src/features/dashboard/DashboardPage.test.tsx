@@ -102,7 +102,7 @@ describe('DashboardPage', () => {
       name: 'Awaiting review: 18. Review Synthetic 2026 review',
     })
     expect(awaiting).toHaveAttribute('href', '/sessions/5/recommendations?decision=undecided')
-    expect(awaiting).toHaveTextContent('11 undecided in “Synthetic 2026 review”')
+    expect(awaiting).toHaveTextContent('11 not reviewed yet in “Synthetic 2026 review”')
     expect(
       screen.getByRole('link', {
         name: 'Courses designed: 4. Proposed courses of Synthetic pilot',

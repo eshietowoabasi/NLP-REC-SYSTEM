@@ -168,11 +168,16 @@ StageCallback = Callable[[str], None]
 
 
 def unique_keywords(keywords: list[tuple[str, float]], labels: list[str]) -> list[dict[str, Any]]:
-    """Keywords with their display labels, dropping repeated labels ("datum" and "data")."""
+    """Keywords with their display labels, without repeats.
+
+    Drops repeated labels ("datum" and "data" both read "data") and single words that are part
+    of a phrase in the list ("threat" next to "Threat Intelligence").
+    """
+    phrase_words = {word for label in labels if " " in label for word in label.lower().split()}
     seen: set[str] = set()
     result = []
     for (term, weight), label in zip(keywords, labels, strict=True):
-        if label.lower() in seen:
+        if label.lower() in seen or (" " not in label and label.lower() in phrase_words):
             continue
         seen.add(label.lower())
         result.append({"term": term, "label": label, "weight": round(weight, 6)})

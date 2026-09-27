@@ -26,7 +26,7 @@ import { DECISION_LABELS, formatPercent, formatWeight } from './labels'
 
 const FILTERS: { value: DecisionFilter; label: string; count: keyof ReviewCounts }[] = [
   { value: 'all', label: 'All', count: 'total' },
-  { value: 'undecided', label: 'Undecided', count: 'undecided' },
+  { value: 'undecided', label: 'Not reviewed yet', count: 'undecided' },
   { value: 'accepted', label: DECISION_LABELS.accepted, count: 'accepted' },
   { value: 'rejected', label: DECISION_LABELS.rejected, count: 'rejected' },
   { value: 'flagged', label: DECISION_LABELS.flagged, count: 'flagged' },

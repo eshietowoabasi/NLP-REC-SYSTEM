@@ -28,7 +28,12 @@ export function monthYear(iso: string | null | undefined): string | null {
 /** Shorten long text at a word boundary, with an ellipsis. */
 export function shorten(text: string, length: number): string {
   const flat = text.split(/\s+/).join(' ').trim()
-  return flat.length <= length ? flat : `${flat.slice(0, length).replace(/\s+\S*$/, '')}…`
+  if (flat.length <= length) return flat
+  // Cut at a word boundary and drop trailing punctuation before the ellipsis (no ".…").
+  return `${flat
+    .slice(0, length)
+    .replace(/\s+\S*$/, '')
+    .replace(/[\s.,;:!?…]+$/, '')}…`
 }
 
 export const UPLOAD_CATEGORIES: readonly UploadCategory[] = [
