@@ -32,6 +32,7 @@ from app.tasks.analysis import (
     load_core,
     load_corpus,
     load_courses,
+    load_naming,
     load_parameters,
     load_skill_patterns,
 )
@@ -126,6 +127,11 @@ def reanalyse(session_id: int) -> Reanalysis:
         build_skill_pipeline(model_name, specs),
         canonical_lookup(specs, get_nlp(model_name)),
         courses=courses,
+        text_nlp=get_nlp(model_name),
+        naming=load_naming(
+            (session.parameter_config or {}).get("sbert_model") or get_setting("sbert_model")
+        ),
+        document_titles={link.document.id: link.document.title for link in session.document_links},
     )
     embeddings = {p.id: p.embedding for p in corpus}
     centres = {}

@@ -25,6 +25,7 @@ from app.models import (
     SourceCategory,
 )
 from app.utils.errors import ApiError
+from app.utils.labels import document_label
 from app.utils.responses import success
 
 bp = Blueprint("results", __name__, url_prefix="/sessions")
@@ -85,14 +86,24 @@ def topics(session_id: int) -> tuple[Response, int]:
         for topic in data.get("topics", [])
         for sample in topic.get("samples", [])
     }
-    titles = dict(
-        db.session.execute(
-            select(Document.id, Document.title).where(Document.id.in_(document_ids))
-        ).all()
-    )
+    documents = {
+        document.id: document
+        for document in db.session.scalars(select(Document).where(Document.id.in_(document_ids)))
+    }
     for topic in data.get("topics", []):
         for sample in topic.get("samples", []):
-            sample["document_title"] = titles.get(sample["document_id"], "(deleted document)")
+            document = documents.get(sample["document_id"])
+            sample["document_title"] = document.title if document else "(deleted document)"
+            sample["document_label"] = (
+                document_label(
+                    document.title,
+                    document.source_category,
+                    document.source,
+                    document.published_on,
+                )
+                if document
+                else "(deleted document)"
+            )
     return success(data)
 
 

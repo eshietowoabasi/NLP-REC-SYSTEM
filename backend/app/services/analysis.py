@@ -1,6 +1,6 @@
 """The analysis pipeline for one session, on in-memory data (no database).
 
-    keywords → skills → embeddings → themes → overlap → scoring
+    keywords → skills → embeddings → themes (topics) → overlap → scoring
 
 The session job (``app.tasks.analysis``) loads passages from the database, calls
 :func:`run_analysis` and stores the returned results. Keeping the pipeline free of database
@@ -10,6 +10,7 @@ access makes it testable on synthetic data and lets the benchmark time it direct
 from __future__ import annotations
 
 import time
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -19,6 +20,7 @@ from numpy.typing import NDArray
 from spacy.language import Language
 
 from app.models.enums import OverlapStatus
+from app.services.embeddings.encoder import Encoder
 from app.services.exceptions import AnalysisError
 from app.services.ner.skills import (
     aggregate_skills,
@@ -26,6 +28,7 @@ from app.services.ner.skills import (
     ranked_skills,
     skills_in_passages,
 )
+from app.services.preprocessing.normalise import StopWords
 from app.services.recommendations.scoring import (
     ScoreWeights,
     composite_score,
@@ -39,7 +42,9 @@ from app.services.recommendations.scoring import (
 from app.services.similarity.overlap import compare_to_core
 from app.services.tfidf.keywords import extract_keywords
 from app.services.topics.modelling import centroid, fit_topics, representative_passages
-from app.services.topics.titles import excerpt, make_description, make_title
+from app.services.topics.naming import name_topics
+from app.services.topics.surface import SurfaceForms
+from app.services.topics.titles import excerpt, keyword_label, make_description, make_title
 
 TOP_SKILLS_PER_CANDIDATE = 10
 TOP_KEYWORDS_PER_CANDIDATE = 10
@@ -91,6 +96,15 @@ class CoreCourse:
 
 
 @dataclass(frozen=True)
+class TopicNaming:
+    """The catalogue of course-style names and what is needed to compare topics with it."""
+
+    names: list[str]
+    name_vectors: NDArray[np.float32]
+    encoder: Encoder  # embeds each topic's keywords as a phrase
+
+
+@dataclass(frozen=True)
 class AnalysisParameters:
     weights: ScoreWeights
     similarity_threshold: float = 0.80
@@ -115,7 +129,9 @@ class Candidate:
     """A candidate course topic (one BERTopic theme) with its scores."""
 
     topic_id: int
-    auto_title: str
+    auto_title: str  # course-style name, or the keyword title when no name is close enough
+    keyword_title: str
+    name_similarity: float | None
     description: str
     keywords: list[dict[str, Any]]
     skills: list[dict[str, Any]]
@@ -151,6 +167,18 @@ class AnalysisOutput:
 StageCallback = Callable[[str], None]
 
 
+def unique_keywords(keywords: list[tuple[str, float]], labels: list[str]) -> list[dict[str, Any]]:
+    """Keywords with their display labels, dropping repeated labels ("datum" and "data")."""
+    seen: set[str] = set()
+    result = []
+    for (term, weight), label in zip(keywords, labels, strict=True):
+        if label.lower() in seen:
+            continue
+        seen.add(label.lower())
+        result.append({"term": term, "label": label, "weight": round(weight, 6)})
+    return result
+
+
 def run_analysis(
     corpus: list[CorpusPassage],
     core: list[CorePassage],
@@ -159,6 +187,10 @@ def run_analysis(
     canonical_names: dict[str, str],
     on_stage: StageCallback | None = None,
     courses: list[CoreCourse] | None = None,
+    *,
+    text_nlp: Language | None = None,
+    naming: TopicNaming | None = None,
+    document_titles: dict[int, str] | None = None,
 ) -> AnalysisOutput:
     """Run the keyword, skill, theme, overlap and scoring stages.
 
@@ -168,6 +200,9 @@ def run_analysis(
     courses (similarity, novelty and duplicate status come from the closest course); without
     them, it is compared with individual NUC core passages. The closest passage is always
     recorded, for side-by-side evidence.
+    ``text_nlp`` (a spaCy pipeline with the lemmatiser) turns keyword lemmas back into the words
+    as written; ``naming`` gives topics course-style names; ``document_titles`` are used in the
+    plain-language descriptions. All three are optional (tests run without them).
     Raises AnalysisError when the data cannot produce recommendations.
     """
     if not corpus:
@@ -228,6 +263,18 @@ def run_analysis(
     weights = np.asarray(document_weights(document_ids))
     total = float(weights[model.assignments != -1].sum())
 
+    member_indices = sorted({i for topic in model.topics for i in topic.members})
+    surfaces = (
+        SurfaceForms(StopWords.build(parameters.stop_words)).learn(
+            text_nlp, [texts[i] for i in member_indices]
+        )
+        if text_nlp is not None
+        else None
+    )
+    titles = document_titles or {}
+    category_of = dict(zip(document_ids, categories, strict=True))
+    total_documents = len(set(document_ids))
+
     candidates: list[Candidate] = []
     centres: list[NDArray[np.float32]] = []  # one topic centre per candidate, for overlap
     for topic in model.topics:
@@ -239,19 +286,33 @@ def run_analysis(
         )
         words = [word for word, _ in topic.keywords]
         top_skills = skills_in_passages(mentions, members, TOP_SKILLS_PER_CANDIDATE)
-        document_count = len({document_ids[i] for i in members})
+        passages_per_document = Counter(document_ids[i] for i in members)
+        document_count = len(passages_per_document)
         mean_probability = float(np.mean(model.probabilities[members]))
+        top_keywords = topic.keywords[:TOP_KEYWORDS_PER_CANDIDATE]
+        keyword_labels = [keyword_label(w, canonical_names, surfaces) for w, _ in top_keywords]
+        keyword_title = make_title(words, canonical_names, surfaces)
         candidates.append(
             Candidate(
                 topic_id=topic.topic_id,
-                auto_title=make_title(words, canonical_names),
+                auto_title=keyword_title,
+                keyword_title=keyword_title,
+                name_similarity=None,
                 description=make_description(
-                    words, canonical_names, len(members), document_count, texts[evidence_idx[0][0]]
+                    document_count=document_count,
+                    total_documents=total_documents,
+                    documents_by_category=dict(
+                        Counter(category_of[d] for d in passages_per_document)
+                    ),
+                    advert_titles=[
+                        titles.get(d, "")
+                        for d, _ in passages_per_document.most_common()
+                        if category_of[d] == "job_market"
+                    ],
+                    skills=[name for name, _, _ in top_skills],
+                    keywords=keyword_labels,
                 ),
-                keywords=[
-                    {"term": w, "weight": round(weight, 6)}
-                    for w, weight in topic.keywords[:TOP_KEYWORDS_PER_CANDIDATE]
-                ],
+                keywords=unique_keywords(top_keywords, keyword_labels),
                 skills=[
                     {
                         "name": name,
@@ -276,6 +337,19 @@ def run_analysis(
                 ),
             )
         )
+
+    if naming is not None and naming.names and candidates:
+        phrases = [", ".join(k["label"] for k in c.keywords[:8]) for c in candidates]
+        chosen = name_topics(
+            np.vstack(centres),
+            naming.encoder.encode(phrases),
+            naming.names,
+            naming.name_vectors,
+        )
+        for candidate, topic_name in zip(candidates, chosen, strict=True):
+            candidate.name_similarity = round(topic_name.similarity, 4)
+            if topic_name.name:
+                candidate.auto_title = topic_name.name
 
     stage("overlap")
     centre_matrix = np.vstack(centres)
@@ -326,10 +400,14 @@ def run_analysis(
             "topic_count": len(candidates),
             "outlier_passages": int(np.sum(model.assignments == -1)),
             "modelled_passages": len(corpus),
+            # Near-duplicate topics merged after clustering (groups of original topic ids).
+            "merged_topics": model.merged,
             "topics": [
                 {
                     "topic_id": c.topic_id,
                     "title": c.auto_title,
+                    "keyword_title": c.keyword_title,
+                    "name_similarity": c.name_similarity,
                     "keywords": c.keywords,
                     "size": c.size,
                     "document_count": c.document_count,

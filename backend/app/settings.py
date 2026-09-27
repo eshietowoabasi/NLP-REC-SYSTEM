@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.extensions import db
+from app.seed.topic_names import TOPIC_NAMES
 
 
 @dataclass(frozen=True)
@@ -72,6 +73,11 @@ SETTING_DEFINITIONS: tuple[SettingDefinition, ...] = (
         },
         "NUC core courses left out of the overlap comparison: course-code prefixes and title "
         "keywords (case-insensitive), e.g. general studies, SIWES and project courses.",
+    ),
+    SettingDefinition(
+        "topic_name_catalogue",
+        list(TOPIC_NAMES),
+        "Course-style names given to topics (the closest one by meaning, if close enough).",
     ),
     SettingDefinition(
         "credit_unit_allowance",

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
@@ -42,6 +42,11 @@ class Document(db.Model):
         enum_type(DocumentStatus, "processing_status"), default=DocumentStatus.UPLOADED
     )
     error_message: Mapped[str | None] = mapped_column(sa.Text)
+    # Where the document comes from, for readable references such as
+    # "Senior QA Engineer – Hydrogen, job advert (MyJobMag, Sep 2026)".
+    source: Mapped[str | None] = mapped_column(sa.String(128))
+    source_url: Mapped[str | None] = mapped_column(sa.String(1024))
+    published_on: Mapped[date | None] = mapped_column(sa.Date)
     page_count: Mapped[int | None]
     word_count: Mapped[int | None]
     uploaded_at: Mapped[datetime] = mapped_column(

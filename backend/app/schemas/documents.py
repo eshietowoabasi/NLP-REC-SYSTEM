@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated
 
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints, computed_field, field_validator
 
 from app.models.enums import DocumentStatus, FileType, SessionStatus, SourceCategory
 from app.schemas.common import PaginationQuery, RequestModel, ResponseModel
+from app.utils.labels import document_label
 
 # Categories a planner can choose when uploading; ``nuc_core`` has its own admin screen.
 UPLOAD_CATEGORIES = (
@@ -33,11 +34,41 @@ class DocumentOut(ResponseModel):
     source_category: SourceCategory
     processing_status: DocumentStatus
     error_message: str | None
+    source: str | None
+    source_url: str | None
+    published_on: date | None
     page_count: int | None
     word_count: int | None
     uploaded_at: datetime
     parsed_at: datetime | None
     uploaded_by: UserRef
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def label(self) -> str:
+        """Readable reference: "Title, job advert (MyJobMag, Sep 2026)"."""
+        return document_label(self.title, self.source_category, self.source, self.published_on)
+
+
+class DocumentEdit(RequestModel):
+    """Details shown wherever the document is referenced (any subset)."""
+
+    title: (
+        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
+        | None
+    ) = None
+    source: Annotated[str, StringConstraints(strip_whitespace=True, max_length=128)] | None = None
+    source_url: Annotated[str, StringConstraints(strip_whitespace=True, max_length=1024)] | None = (
+        None
+    )
+    published_on: date | None = None
+
+    @field_validator("source_url")
+    @classmethod
+    def _http(cls, value: str | None) -> str | None:
+        if value and not value.lower().startswith(("http://", "https://")):
+            raise ValueError("Enter a web address starting with http:// or https://.")
+        return value or None
 
 
 class PassageOut(ResponseModel):

@@ -61,6 +61,11 @@ def _keep(token: Token, stop_words: StopWords) -> str | None:
     return lemma
 
 
+def keep_lemma(token: Token, stop_words: StopWords) -> str | None:
+    """Public form of the token filter, shared with the readable-keyword helper."""
+    return _keep(token, stop_words)
+
+
 def normalise_spans(spans: Iterable[Span], stop_words: StopWords) -> str:
     """Normalised text for a passage made of the given spaCy sentence spans."""
     lemmas = [

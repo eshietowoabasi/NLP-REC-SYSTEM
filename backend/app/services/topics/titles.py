@@ -23,6 +23,9 @@ from functools import lru_cache
 
 from nltk.stem import PorterStemmer
 
+from app.services.topics.surface import SurfaceForms
+from app.utils.labels import document_type
+
 ACRONYMS = {
     "ai": "AI", "api": "API", "apis": "APIs", "aws": "AWS", "ci": "CI", "cd": "CD",
     "css": "CSS", "gcp": "GCP", "html": "HTML", "ict": "ICT", "iot": "IoT", "it": "IT",
@@ -119,19 +122,38 @@ def fix_lemmas(term: str) -> str:
     return " ".join(LEMMA_FIXES.get(word, word) for word in term.split())
 
 
-def pretty_term(term: str, canonical: dict[str, str]) -> str:
-    """Display form of a keyword: canonical skill name, acronym, or title case."""
+def pretty_term(term: str, canonical: dict[str, str], surfaces: SurfaceForms | None = None) -> str:
+    """Display form of a keyword: canonical skill name, acronym, or title case.
+
+    With ``surfaces``, lemmas are shown as they were written ("Problem Solving", not "Problem
+    Solve").
+    """
     term = fix_lemmas(term)
     for key in (term, stem_key(term)):
         if key in canonical:
             return canonical[key]
+    written = surfaces.form(term) if surfaces else term
     words: list[str] = []
-    for word in term.split():
-        shown = canonical.get(word) or ACRONYMS.get(word) or word.capitalize()
+    for lemma, word in zip(term.split(), written.split(), strict=False):
+        shown = canonical.get(lemma) or ACRONYMS.get(lemma) or ACRONYMS.get(word)
+        shown = shown or word.capitalize()
         # Two words of one skill ("agile methodology") both map to "Agile Methodologies".
         if not words or words[-1] != shown:
             words.append(shown)
     return " ".join(words)
+
+
+def keyword_label(term: str, canonical: dict[str, str], surfaces: SurfaceForms | None) -> str:
+    """A keyword for the "Keywords: …" line: skill name, acronym, or the written words."""
+    term = fix_lemmas(term)
+    for key in (term, stem_key(term)):
+        if key in canonical:
+            return canonical[key]
+    written = surfaces.form(term) if surfaces else term
+    return " ".join(
+        ACRONYMS.get(lemma) or ACRONYMS.get(word) or word
+        for lemma, word in zip(term.split(), written.split(), strict=False)
+    )
 
 
 def _is_generic(term: str) -> bool:
@@ -193,11 +215,14 @@ def merge_known_phrases(terms: list[str], canonical: dict[str, str]) -> list[str
     return merged
 
 
-def make_title(keywords: list[str], canonical: dict[str, str]) -> str:
+def make_title(
+    keywords: list[str], canonical: dict[str, str], surfaces: SurfaceForms | None = None
+) -> str:
+    """Keyword title ("Threat Intelligence, Vulnerability and Security")."""
     # Pick a few extra terms so that merging known phrases still leaves enough for a title.
     candidates = merge_known_phrases(title_terms(keywords, MAX_TITLE_TERMS + 2), canonical)
-    terms = [pretty_term(term, canonical) for term in candidates[:MAX_TITLE_TERMS]]
-    return (join_terms(terms) or "Untitled theme")[:MAX_TITLE_LENGTH]
+    terms = [pretty_term(term, canonical, surfaces) for term in candidates[:MAX_TITLE_TERMS]]
+    return (join_terms(terms) or "Untitled topic")[:MAX_TITLE_LENGTH]
 
 
 def excerpt(text: str, length: int = EXCERPT_LENGTH) -> str:
@@ -207,18 +232,44 @@ def excerpt(text: str, length: int = EXCERPT_LENGTH) -> str:
     return text[:length].rsplit(" ", 1)[0] + "…"
 
 
+def _role(title: str) -> str:
+    """ "Senior QA Engineer – Hydrogen Payment Services" → "Senior QA Engineer"."""
+    return title.split(" – ")[0].split(" - ")[0].strip()
+
+
 def make_description(
-    keywords: list[str],
-    canonical: dict[str, str],
-    passage_count: int,
+    *,
     document_count: int,
-    representative_text: str,
+    total_documents: int,
+    documents_by_category: dict[str, int],
+    advert_titles: list[str],
+    skills: list[str],
+    keywords: list[str],
 ) -> str:
-    """One short paragraph: size, main terms and the most representative passage."""
-    terms = [pretty_term(term, canonical) for term in title_terms(keywords, limit=6)]
-    documents = "document" if document_count == 1 else "documents"
-    return (
-        f"A theme found in {passage_count} passages from {document_count} {documents}, "
-        f"centred on {join_terms(terms) or 'no distinctive terms'}. "
-        f"Most representative passage: “{excerpt(representative_text)}”"
+    """Why the topic is recommended, in plain words (editable by planners afterwards).
+
+    "Why this is recommended: 9 of the 56 documents mention this area, mostly job adverts for
+    roles such as QA Engineer and Test Analyst. Employers ask for skills in Selenium, …"
+    """
+    documents = "document" if total_documents == 1 else "documents"
+    mention = "mentions" if document_count == 1 else "mention"
+    text = (
+        f"Why this is recommended: {document_count} of the {total_documents} {documents} "
+        f"{mention} this area"
     )
+    main = max(documents_by_category.items(), key=lambda item: item[1], default=None)
+    job_adverts = main is not None and main[0] == "job_market"
+    if main is not None and document_count > 1:
+        share = "mostly" if main[1] * 2 >= document_count else "including"
+        text += f", {share} {document_type(main[0], plural=True)}"
+    if job_adverts:
+        roles = list(dict.fromkeys(_role(t) for t in advert_titles if t))[:2]
+        if roles:
+            text += f" for roles such as {join_terms([f'“{r}”' for r in roles])}"
+    text += "."
+    if skills:
+        subject = "Employers ask for" if job_adverts else "They mention"
+        text += f" {subject} skills in {join_terms(skills[:5])}."
+    elif keywords:
+        text += f" Main words: {join_terms(keywords[:5])}."
+    return text

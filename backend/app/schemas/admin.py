@@ -72,6 +72,16 @@ class CourseExclusionsIn(RequestModel):
         return list(seen.values())
 
 
+TopicName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=120)]
+
+
+def _unique_names(names: list[str]) -> list[str]:
+    seen: dict[str, str] = {}
+    for name in names:
+        seen.setdefault(name.lower(), name)
+    return list(seen.values())
+
+
 class SettingsUpdate(RequestModel):
     """Any subset of the settings; only the fields sent are changed.
 
@@ -89,6 +99,9 @@ class SettingsUpdate(RequestModel):
     evidence_per_recommendation: int | None = Field(default=None, ge=1, le=20)
     max_documents_per_session: int | None = Field(default=None, ge=1, le=200)
     nuc_course_exclusions: CourseExclusionsIn | None = None
+    topic_name_catalogue: (
+        Annotated[list[TopicName], Field(max_length=400), AfterValidator(_unique_names)] | None
+    ) = None
     credit_unit_allowance: int | None = Field(default=None, ge=1, le=300)
 
     @model_validator(mode="after")

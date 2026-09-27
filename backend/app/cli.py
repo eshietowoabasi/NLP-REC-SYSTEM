@@ -37,6 +37,46 @@ def register_cli(app: Flask) -> None:
         click.echo(f"Skill patterns added: {summary['skill_patterns']}")
         click.echo(f"Stop words added: {summary['stop_words']}")
 
+    @app.cli.command("import-manifest")
+    @click.argument("manifest", type=click.Path(exists=True, dir_okay=False))
+    def import_manifest_command(manifest: str) -> None:
+        """Set titles, source, link and date of library documents from a corpus manifest.
+
+        MANIFEST is the collector's ``manifest.csv`` (columns file, source, url, title, company,
+        date_posted, ...). Documents are matched by file name; job adverts get
+        "Title – Company" as their title. Documents not in the manifest are left unchanged.
+        """
+        import csv
+        from datetime import date
+        from pathlib import PurePosixPath
+
+        from sqlalchemy import select
+
+        from app.extensions import db
+        from app.models import Document, SourceCategory
+
+        with open(manifest, encoding="utf-8-sig", newline="") as handle:
+            rows = {
+                PurePosixPath(r["file"]).name: r for r in csv.DictReader(handle) if r.get("file")
+            }
+        updated = 0
+        for document in db.session.scalars(select(Document)):
+            row = rows.get(document.original_filename)
+            if row is None:
+                continue
+            title = (row.get("title") or "").strip() or document.title
+            company = (row.get("company") or "").strip()
+            if document.source_category == SourceCategory.JOB_MARKET and company:
+                title = f"{title} – {company}"
+            posted = (row.get("date_posted") or "").strip()
+            document.title = title[:255]
+            document.source = (row.get("source") or "").strip() or None
+            document.source_url = (row.get("url") or "").strip() or None
+            document.published_on = date.fromisoformat(posted) if posted else None
+            updated += 1
+        db.session.commit()
+        click.echo(f"Updated {updated} of {len(rows)} manifest entries.")
+
     @app.cli.command("extract-courses")
     def extract_courses_command() -> None:
         """(Re)build the course list of every NUC core document (course-level overlap).

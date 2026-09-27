@@ -5,7 +5,7 @@ from __future__ import annotations
 import io
 import sys
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 from docx import Document as DocxDocument
@@ -60,7 +60,9 @@ def report_data(**overrides) -> ReportData:
             "similarity_threshold": 0.8,
         },
         documents=[
-            DocumentRow("Synthetic advert", "job_market", "pdf", 2, 800, 6),
+            DocumentRow(
+                "Synthetic advert", "job_market", "pdf", 2, 800, 6, "MyJobMag", date(2026, 9, 18)
+            ),
             DocumentRow("Synthetic policy", "policy", "docx", None, 1200, 9),
         ],
         keywords={"overall": [{"term": "kubernetes", "score": 0.031, "passage_count": 4}]},
@@ -159,10 +161,12 @@ def test_sections_follow_the_standard_order_whatever_the_request_order() -> None
 def test_corpus_summary_counts_documents_words_and_passages() -> None:
     blocks = blocks_of(build_report(report_data(), ["corpus_summary"]), "corpus_summary")
 
-    assert "2 documents (2,000 words, 15 passages)" in blocks[0].text
-    assert blocks[1] == KeyValues([("Job market", "1 document"), ("Policy", "1 document")])
+    assert "2 documents (2,000 words)" in blocks[0].text and "15 extracts" in blocks[0].text
+    assert blocks[1] == KeyValues([("Job adverts", "1"), ("Policy documents", "1")])
     table = blocks[2]
-    assert table.rows[1] == ["Synthetic policy", "Policy", "DOCX", "—", "1,200", "9"]
+    # Documents are referenced by title, type, source and date, never by file name.
+    assert table.rows[0][0] == "Synthetic advert, job advert (MyJobMag, Sep 2026)"
+    assert table.rows[1] == ["Synthetic policy, policy document", "DOCX", "—", "1,200", "9"]
 
 
 def test_findings_overlap_and_recommendations_use_the_stored_results() -> None:
@@ -172,18 +176,18 @@ def test_findings_overlap_and_recommendations_use_the_stored_results() -> None:
     tables = [b for b in findings if isinstance(b, Table)]
     assert tables[0].rows == [["kubernetes", "0.031", "4"]]
     assert tables[1].rows[1][1] == "Certification"
-    assert "6 passages fitted no theme" in findings[-2].text
+    assert "6 extracts did not fit any topic" in findings[-2].text
 
     overlap = blocks_of(doc, "overlap")
     assert "more than 80% similar" in overlap[0].text and "1 of 1" in overlap[0].text
-    assert overlap[1].rows[0][1:4] == ["83%", "17 Low", "Potential Duplicate"]
+    assert overlap[1].rows[0][1:4] == ["83%", "17 Low", "May already be in NUC core"]
     assert overlap[1].rows[0][4].endswith("…") and len(overlap[1].rows[0][4]) <= 220
 
     # Scores are shown out of 100 with High/Medium/Low levels, as on screen.
     recs = blocks_of(doc, "recommendations")
     assert (
-        "skill demand counts for 40%, theme strength counts for 35% and novelty counts for 25%"
-        in recs[0].text
+        "employer demand counts for 40%, how often it comes up counts for 35% and how new it is "
+        "compared with the NUC core counts for 25%" in recs[0].text
     )
     assert recs[1].rows[0] == [
         "1",
@@ -192,13 +196,14 @@ def test_findings_overlap_and_recommendations_use_the_stored_results() -> None:
         "100 High",
         "50 Medium",
         "17 Low",
-        "Potential duplicate",
+        "May already be in NUC core",
     ]
-    assert recs[1].rows[1][-1] == "New"
+    assert recs[1].rows[1][-1] == "Not in NUC core"
     assert recs[3].text == (
-        "Score 71/100: skill demand 100 High, theme strength 50 Medium, novelty 17 Low."
+        "Score 71/100: employer demand 100 High, how often it comes up 50 Medium, "
+        "how new it is 17 Low."
     )
-    assert ("Duplicate threshold", "more than 80% similar") in doc.meta
+    assert ("“May already be in NUC core” when", "more than 80% similar") in doc.meta
 
 
 def test_decisions_summarise_and_list_reviewed_recommendations() -> None:
@@ -242,8 +247,8 @@ def test_empty_sections_say_so() -> None:
     doc = build_report(data, ["nlp_findings", "proposed_courses"])
 
     findings = blocks_of(doc, "nlp_findings")
-    assert Paragraph("No terms were extracted.", muted=True) in findings
-    assert Paragraph("No skill patterns matched the documents.", muted=True) in findings
+    assert Paragraph("No words stood out.", muted=True) in findings
+    assert Paragraph("No known skills were found in the documents.", muted=True) in findings
     assert blocks_of(doc, "proposed_courses")[0].muted
 
 
@@ -272,7 +277,7 @@ def test_docx_contains_the_report_content() -> None:
     text = "\n".join(p.text for p in document.paragraphs)
     cells = {c.text for t in document.tables for row in t.rows for c in row.cells}
     assert "Curriculum Recommendation Report" in text
-    assert "1. Corpus summary" in text and "6. Proposed courses" in text
+    assert "1. Documents analysed" in text and "6. Proposed courses" in text
     assert "Deploy apps" in text
     assert {"CSC 419", "Cloud Engineering", "Synthetic core v1"} <= cells
 

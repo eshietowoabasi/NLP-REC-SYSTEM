@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Any, Literal
 
 from pydantic import (
@@ -12,12 +12,14 @@ from pydantic import (
     ConfigDict,
     Field,
     StringConstraints,
+    computed_field,
     model_validator,
 )
 
 from app.models.enums import OverlapStatus, PlannerDecision, SourceCategory
 from app.schemas.common import RequestModel, ResponseModel
 from app.schemas.documents import UserRef
+from app.utils.labels import document_label
 
 # --------------------------------------------------------------------- recommendations
 
@@ -77,6 +79,15 @@ class DocumentRef(ResponseModel):
     id: int
     title: str
     source_category: SourceCategory
+    source: str | None = None
+    source_url: str | None = None
+    published_on: date | None = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def label(self) -> str:
+        """ "Senior QA Engineer – Hydrogen, job advert (MyJobMag, Sep 2026)"."""
+        return document_label(self.title, self.source_category, self.source, self.published_on)
 
 
 class EvidenceOut(BaseModel):

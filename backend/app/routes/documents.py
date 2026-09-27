@@ -22,6 +22,7 @@ from app.models import (
 from app.schemas.documents import (
     UPLOAD_CATEGORIES,
     DocumentDetailOut,
+    DocumentEdit,
     DocumentListQuery,
     DocumentOut,
     PassageListQuery,
@@ -34,7 +35,7 @@ from app.tasks.queue import enqueue
 from app.uploads import discard, store_upload
 from app.utils.errors import ApiError
 from app.utils.responses import success
-from app.utils.validation import paginate, parse_query
+from app.utils.validation import paginate, parse_body, parse_query
 
 bp = Blueprint("documents", __name__, url_prefix="/documents")
 
@@ -198,6 +199,44 @@ def get_document(document_id: int) -> tuple[Response, int]:
         }
     )
     return success(data.model_dump(mode="json"))
+
+
+@bp.patch("/<int:document_id>")
+@role_required(*EDITOR_ROLES)
+def edit_document(document_id: int) -> tuple[Response, int]:
+    """Change the details used wherever the document is referenced: title, source, link, date.
+
+    Only the fields sent are changed; ``null`` clears source, link or date.
+    """
+    document = get_document_or_404(document_id)
+    data = parse_body(DocumentEdit)
+    changes = {}
+    for field in sorted(data.model_fields_set):
+        value = getattr(data, field)
+        if field == "title" and value is None:
+            raise ApiError(
+                "VALIDATION_ERROR",
+                "Some fields are invalid.",
+                422,
+                {"fields": {"title": ["Enter a title."]}},
+            )
+        if field == "source":
+            value = value or None
+        if getattr(document, field) != value:
+            changes[field] = {"from": getattr(document, field), "to": value}
+            setattr(document, field, value)
+    if changes:
+        record_audit(
+            AuditAction.DOCUMENT_UPDATED,
+            "document",
+            document.id,
+            {
+                key: {k: str(v) if v is not None else None for k, v in c.items()}
+                for key, c in changes.items()
+            },
+        )
+    db.session.commit()
+    return success(DocumentOut.model_validate(document).model_dump(mode="json"))
 
 
 @bp.get("/<int:document_id>/passages")

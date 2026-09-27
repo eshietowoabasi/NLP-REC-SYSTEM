@@ -38,6 +38,7 @@ def main() -> None:
         load_core,
         load_corpus,
         load_courses,
+        load_naming,
         load_parameters,
         load_skill_patterns,
     )
@@ -66,13 +67,28 @@ def main() -> None:
         model = (session.parameter_config or {}).get("spacy_model", "en_core_web_sm")
         skill_nlp = build_skill_pipeline(model, specs)
         canonical = canonical_lookup(specs, get_nlp(model))
+        text_nlp = get_nlp(model)
+        naming = load_naming(
+            (session.parameter_config or {}).get("sbert_model") or get_setting("sbert_model")
+        )
+        titles = {link.document.id: link.document.title for link in session.document_links}
         loading = time.perf_counter() - started
         document_count = len(session.document_links)
 
     runs = []
     for number in range(1, args.runs + 1):
         started = time.perf_counter()
-        output = run_analysis(corpus, core, parameters, skill_nlp, canonical, courses=courses)
+        output = run_analysis(
+            corpus,
+            core,
+            parameters,
+            skill_nlp,
+            canonical,
+            courses=courses,
+            text_nlp=text_nlp,
+            naming=naming,
+            document_titles=titles,
+        )
         total = time.perf_counter() - started
         runs.append({"run": number, "seconds": round(total, 2), "stages": output.stage_timings})
         print(f"run {number}: {total:.1f} s  {output.stage_timings}")

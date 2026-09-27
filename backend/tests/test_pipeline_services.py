@@ -9,6 +9,7 @@ import math
 
 import numpy as np
 import pytest
+import spacy
 
 from app.models.enums import OverlapStatus
 from app.services.ner.skills import (
@@ -32,9 +33,12 @@ from app.services.recommendations.scoring import (
 )
 from app.services.similarity.overlap import compare_to_core, overlap_status
 from app.services.tfidf.keywords import extract_keywords
-from app.services.topics.modelling import centroid, representative_passages
+from app.services.topics.modelling import centroid, merge_groups, representative_passages
+from app.services.topics.naming import name_topics
+from app.services.topics.surface import SurfaceForms
 from app.services.topics.titles import (
     excerpt,
+    keyword_label,
     make_description,
     make_title,
     pretty_term,
@@ -404,21 +408,96 @@ def test_separately_ranked_words_of_a_known_skill_are_joined() -> None:
 
 def test_title_terms_and_fallbacks() -> None:
     assert title_terms(["a b", "b", "c"], limit=5) == ["a b", "c"]
-    assert make_title([], {}) == "Untitled theme"
+    assert make_title([], {}) == "Untitled topic"
     assert make_title(["python"], {}) == "Python"
-
-
-def test_description_mentions_size_terms_and_excerpt() -> None:
-    description = make_description(
-        ["payment gateway", "fintech"],
-        {},
-        passage_count=12,
-        document_count=1,
-        representative_text="x " * 300,
-    )
-
-    assert description.startswith(
-        "A theme found in 12 passages from 1 document, centred on Payment Gateway and Fintech."
-    )
-    assert description.endswith("…”")
     assert excerpt("short text") == "short text"
+
+
+def test_description_says_why_in_plain_words() -> None:
+    description = make_description(
+        document_count=9,
+        total_documents=56,
+        documents_by_category={"job_market": 8, "policy": 1},
+        advert_titles=["QA Engineer – Acme", "Test Analyst – Beta", "QA Engineer – Gamma"],
+        skills=["Selenium", "Jira", "SQL", "Postman", "Agile Methodologies", "Git"],
+        keywords=["test", "defect"],
+    )
+
+    assert description == (
+        "Why this is recommended: 9 of the 56 documents mention this area, mostly job adverts "
+        "for roles such as “QA Engineer” and “Test Analyst”. Employers ask for skills in "
+        "Selenium, Jira, SQL, Postman and Agile Methodologies."
+    )
+    policy = make_description(
+        document_count=1,
+        total_documents=56,
+        documents_by_category={"policy": 1},
+        advert_titles=[],
+        skills=[],
+        keywords=["digital economy", "broadband"],
+    )
+    assert policy == (
+        "Why this is recommended: 1 of the 56 documents mentions this area. "
+        "Main words: digital economy and broadband."
+    )
+
+
+def test_keywords_are_shown_as_written() -> None:
+    nlp = spacy.load("en_core_web_sm")
+    surfaces = SurfaceForms().learn(
+        nlp,
+        [
+            "Strong problem solving skills and distributed systems experience are needed.",
+            "We value problem solving and work on distributed systems.",
+        ],
+    )
+
+    assert surfaces.form("problem solve") == "problem solving"
+    assert surfaces.form("distribute system") == "distributed systems"
+    assert pretty_term("problem solve", {}, surfaces) == "Problem Solving"
+    assert keyword_label("problem solve", {}, surfaces) == "problem solving"
+    assert keyword_label("aws", {}, None) == "AWS"
+
+
+def test_near_duplicate_topics_are_merged_by_centre_similarity() -> None:
+    rng = np.random.default_rng(0)
+    base = rng.normal(size=(3, 16))
+    # Topics 0 and 1 share a direction (near-duplicates); topic 2 is different.
+    vectors = np.vstack(
+        [base[0] + rng.normal(scale=0.05, size=16) for _ in range(4)]
+        + [base[0] + rng.normal(scale=0.05, size=16) for _ in range(4)]
+        + [base[2] + rng.normal(scale=0.05, size=16) for _ in range(4)]
+    ).astype(np.float32)
+    vectors /= np.linalg.norm(vectors, axis=1, keepdims=True)
+    labels = np.array([0] * 4 + [1] * 4 + [2] * 4 + [-1], dtype=np.int64)
+    vectors = np.vstack([vectors, vectors[:1]])
+
+    assert merge_groups(labels, vectors, 0.83) == [[0, 1]]
+    assert merge_groups(labels, vectors, 0.9999) == []
+
+
+def test_topics_get_unique_catalogue_names_above_the_threshold() -> None:
+    names = ["Software Testing", "Cloud Computing", "Digital Policy"]
+    name_vectors = np.eye(3, 4, dtype=np.float32)
+    # Topic 0 and 1 both point at "Software Testing"; topic 0 is closer. Topic 2 matches nothing.
+    centres = np.array([[1, 0, 0, 0.1], [0.9, 0.2, 0, 0.3], [0, 0, 0, 1]], dtype=np.float32)
+
+    named = name_topics(centres, centres, names, name_vectors, threshold=0.5)
+
+    assert named[0].name == "Software Testing"
+    assert named[1].name is None  # its best name is taken and no other is close enough
+    assert named[2].name is None and named[2].similarity < 0.5
+    assert name_topics(centres, centres, [], np.zeros((0, 4)), 0.5)[0].name is None
+
+
+def test_document_labels_read_like_references() -> None:
+    from datetime import date
+
+    from app.utils.labels import document_label
+
+    assert (
+        document_label("Senior QA Engineer – Hydrogen", "job_market", "MyJobMag", date(2026, 9, 18))
+        == "Senior QA Engineer – Hydrogen, job advert (MyJobMag, Sep 2026)"
+    )
+    assert document_label("NDEPS", "policy", "NITDA") == "NDEPS, policy document (NITDA)"
+    assert document_label("Notes", "academic") == "Notes, academic paper"

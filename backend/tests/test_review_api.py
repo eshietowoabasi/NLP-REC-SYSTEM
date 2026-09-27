@@ -234,6 +234,10 @@ def test_detail_includes_evidence_nuc_passage_and_session_context(
         "id": review.documents[0].id,
         "title": "Synthetic cloud advert",
         "source_category": "job_market",
+        "source": None,
+        "source_url": None,
+        "published_on": None,
+        "label": "Synthetic cloud advert, job advert",
     }
     assert detail["evidence"][0]["page_number"] == 1
     assert detail["closest_nuc_passage"] == {

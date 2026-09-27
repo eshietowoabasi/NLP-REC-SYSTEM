@@ -82,6 +82,20 @@ def test_course_exclusions_are_normalised(admin: ApiClient) -> None:
     }
 
 
+def test_topic_name_catalogue_is_editable_and_deduplicated(admin: ApiClient) -> None:
+    assert len(get_setting("topic_name_catalogue")) >= 100  # seeded course-style names
+
+    response = admin.put(
+        "/api/admin/settings",
+        json={"topic_name_catalogue": [" Cloud Computing ", "cloud computing", "Data Mining"]},
+    )
+
+    assert response.status_code == 200, response.get_json()
+    assert get_setting("topic_name_catalogue") == ["Cloud Computing", "Data Mining"]
+    too_short = admin.put("/api/admin/settings", json={"topic_name_catalogue": ["x"]})
+    assert too_short.status_code == 422
+
+
 def test_new_session_defaults_follow_the_settings(admin: ApiClient, login_as) -> None:
     admin.put("/api/admin/settings", json={"max_recommendations": 12, "min_topic_size": 4})
 

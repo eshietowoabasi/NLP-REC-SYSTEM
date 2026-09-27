@@ -132,6 +132,11 @@ def fake_encoder(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
     if "real_models" in request.keywords:
         return
     monkeypatch.setattr("app.tasks.ingestion.get_encoder", lambda _name: FakeEncoder())
+    # Topic naming embeds the course-name catalogue with the same encoder as the extracts.
+    monkeypatch.setattr("app.tasks.analysis.get_encoder", lambda _name: FakeEncoder())
+    from app.tasks import analysis as analysis_task
+
+    analysis_task._name_vectors.cache_clear()
 
 
 @pytest.fixture

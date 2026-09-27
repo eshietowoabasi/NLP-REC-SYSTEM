@@ -9,9 +9,11 @@ from __future__ import annotations
 
 import logging
 import time
+from functools import lru_cache
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from sqlalchemy import select
 
 from app.extensions import db
@@ -36,8 +38,10 @@ from app.services.analysis import (
     CoreCourse,
     CorePassage,
     CorpusPassage,
+    TopicNaming,
     run_analysis,
 )
+from app.services.embeddings.encoder import get_encoder
 from app.services.exceptions import AnalysisError
 from app.services.ingestion.courses import CourseExclusions
 from app.services.ner.skills import SkillPatternSpec, build_skill_pipeline, canonical_lookup
@@ -168,6 +172,21 @@ def load_core(document_id: int) -> list[CorePassage]:
         for p in passages
         if p.embedding is not None
     ]
+
+
+@lru_cache(maxsize=4)
+def _name_vectors(model_name: str, names: tuple[str, ...]) -> NDArray[np.float32]:
+    return get_encoder(model_name).encode(list(names))
+
+
+def load_naming(model_name: str) -> TopicNaming:
+    """The course-name catalogue (setting) with its embeddings, cached per model and list."""
+    names = tuple(get_setting("topic_name_catalogue") or ())
+    return TopicNaming(
+        names=list(names),
+        name_vectors=_name_vectors(model_name, names),
+        encoder=get_encoder(model_name),
+    )
 
 
 def load_courses(
@@ -307,6 +326,11 @@ def run_session(session_id: int) -> None:
             canonical,
             on_stage=progress.stage,
             courses=courses,
+            text_nlp=get_nlp(model_name),
+            naming=load_naming(config.get("sbert_model") or get_setting("sbert_model")),
+            document_titles={
+                link.document.id: link.document.title for link in session.document_links
+            },
         )
         output.similarity["courses_compared"] = len(courses)
         output.similarity["courses_excluded"] = excluded_courses

@@ -1,4 +1,4 @@
-"""Theme discovery with BERTopic (UMAP + HDBSCAN) over precomputed passage embeddings.
+"""Topic discovery with BERTopic (UMAP + HDBSCAN) over precomputed passage embeddings.
 
 Only passages of non-NUC documents are modelled; the NUC core is the comparison baseline and
 never becomes a topic. Clustering uses the SBERT embeddings of the original text; the topic
@@ -8,7 +8,7 @@ stop words. The outlier topic (-1) is discarded. A fixed ``random_state`` makes 
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 from numpy.typing import NDArray
@@ -18,6 +18,9 @@ from app.services.exceptions import AnalysisError
 OUTLIER_TOPIC = -1
 TOP_WORDS = 10
 MIN_SAMPLES = 3  # HDBSCAN density parameter (see fit_topics)
+# Topics whose centres are more similar than this are near-duplicates and are merged (see
+# merge_groups). On the real corpus, true duplicates scored 0.84-0.85 and the next pair 0.81.
+MERGE_SIMILARITY = 0.83
 
 
 @dataclass(frozen=True)
@@ -34,6 +37,8 @@ class TopicModelResult:
     assignments: NDArray[np.int64]  # topic id per passage (-1 = outlier)
     probabilities: NDArray[np.float64]  # membership strength of each passage in its topic
     topics: list[Topic]
+    # Near-duplicate topics that were merged, as groups of the original topic ids.
+    merged: list[list[int]] = field(default_factory=list)
 
     @property
     def non_outlier_count(self) -> int:
@@ -50,8 +55,13 @@ def fit_topics(
     embeddings: NDArray[np.float32],
     min_topic_size: int = 5,
     random_state: int = 42,
+    merge_similarity: float | None = MERGE_SIMILARITY,
 ) -> TopicModelResult:
-    """Cluster passages into themes. Raises AnalysisError if there is too little text."""
+    """Cluster passages into themes. Raises AnalysisError if there is too little text.
+
+    Near-duplicate topics (centres more similar than ``merge_similarity``) are merged and
+    their topic words recomputed; ``None`` disables merging.
+    """
     from bertopic import BERTopic
     from hdbscan import HDBSCAN
     from sklearn.feature_extraction.text import CountVectorizer
@@ -97,6 +107,13 @@ def fit_topics(
     )
     assignments, probabilities = model.fit_transform(docs, embeddings=np.asarray(embeddings))
     labels = np.asarray(assignments, dtype=np.int64)
+    merged: list[list[int]] = []
+    if merge_similarity is not None:
+        merged = merge_groups(labels, np.asarray(embeddings, dtype=np.float32), merge_similarity)
+        if merged:
+            # BERTopic reassigns the passages and recomputes the c-TF-IDF topic words.
+            model.merge_topics(docs, merged)
+            labels = np.asarray(model.topics_, dtype=np.int64)
     probs = (
         np.asarray(probabilities, dtype=np.float64)
         if probabilities is not None
@@ -122,7 +139,35 @@ def fit_topics(
             "No recurring themes were found: every passage was classed as an outlier. "
             "Add more documents on related subjects and run the session again."
         )
-    return TopicModelResult(assignments=labels, probabilities=probs, topics=topics)
+    return TopicModelResult(assignments=labels, probabilities=probs, topics=topics, merged=merged)
+
+
+def merge_groups(
+    labels: NDArray[np.int64], embeddings: NDArray[np.float32], threshold: float
+) -> list[list[int]]:
+    """Groups of near-duplicate topics (average linkage on topic centres).
+
+    Repeatedly joins the two groups whose centres (L2-normalised mean of all member passages)
+    are most similar, while that similarity is above ``threshold``. Returns only the groups of
+    two or more topics, each sorted.
+    """
+    groups: dict[int, list[int]] = {}
+    members: dict[int, NDArray[np.bool_]] = {}
+    for topic_id in sorted(set(labels.tolist()) - {OUTLIER_TOPIC}):
+        groups[topic_id] = [topic_id]
+        members[topic_id] = labels == topic_id
+    while len(groups) > 1:
+        keys = sorted(groups)
+        centres = np.vstack([centroid(embeddings[members[k]]) for k in keys])
+        similarities = centres @ centres.T
+        np.fill_diagonal(similarities, -1.0)
+        i, j = np.unravel_index(int(np.argmax(similarities)), similarities.shape)
+        if similarities[i, j] <= threshold:
+            break
+        keep, gone = keys[min(i, j)], keys[max(i, j)]
+        groups[keep] = sorted(groups[keep] + groups.pop(gone))
+        members[keep] = members[keep] | members.pop(gone)
+    return [group for group in groups.values() if len(group) > 1]
 
 
 def centroid(vectors: NDArray[np.float32]) -> NDArray[np.float32]:

@@ -32,6 +32,7 @@ class AuditAction(StrEnum):
     USER_PASSWORD_RESET = "user.password_reset"
 
     DOCUMENT_UPLOADED = "document.uploaded"
+    DOCUMENT_UPDATED = "document.updated"
     DOCUMENT_ARCHIVED = "document.archived"
     DOCUMENT_DELETED = "document.deleted"
     NUC_CORE_UPLOADED = "nuc_core.uploaded"
