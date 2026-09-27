@@ -186,6 +186,8 @@ cosmetic.
 cp .env.example .env && docker compose up --build
 # Lightweight mode: only Postgres + Redis in Docker, app runs natively
 docker compose -f docker-compose.services.yml up -d --wait
+# One click (Windows): services + API, worker and Vite in their own windows + browser
+powershell -ExecutionPolicy Bypass -File .\start-demo.ps1      # see docs/DEMO.md
 
 # Backend (from backend/)
 python -m venv .venv && .venv/Scripts/activate      # Windows; source .venv/bin/activate on Linux
