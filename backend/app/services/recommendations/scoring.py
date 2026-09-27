@@ -2,10 +2,12 @@
 
     composite = w_ner × skill_demand + w_topic × theme_strength + w_novelty × novelty
 
-* skill demand (NER): for each of the candidate's top skills, count the distinct documents in
-  the session that mention it; sum, apply log1p, then min-max normalise across candidates.
-* theme strength (topic): (topic passages / all non-outlier passages) × mean topic probability,
-  then min-max normalise across candidates.
+* skill demand (NER): for each of the candidate's top skills, the distinct documents in the
+  session that mention it × the share of the skill's mentions that fall in this theme
+  (specificity); sum, apply log1p, then min-max over the candidates that have skills
+  (candidates without skills score 0).
+* theme strength (topic): (document-weighted topic passages / all non-outlier passages) × mean
+  topic probability, square root, then min-max normalise across candidates.
 * novelty: 1 - max similarity to the NUC core (already in [0, 1]).
 
 Min-max normalisation maps the lowest value to 0 and the highest to 1; if all candidates have
@@ -61,9 +63,42 @@ def min_max(values: Sequence[float]) -> list[float]:
     return [(value - low) / (high - low) for value in values]
 
 
-def skill_demand_raw(top_skills: Sequence[str], document_frequency: dict[str, int]) -> float:
-    """log1p of the summed document frequencies of the candidate's top skills."""
-    return math.log1p(sum(document_frequency.get(skill, 0) for skill in top_skills))
+def skill_demand_raw(
+    top_skills: Sequence[tuple[str, int]],
+    document_frequency: dict[str, int],
+    corpus_mentions: dict[str, int],
+) -> float:
+    """Specificity-weighted skill demand of a candidate (before scaling).
+
+    For each of the candidate's top skills ``(name, mentions in this theme)``: the number of
+    documents mentioning the skill, weighted by the share of the skill's mentions that fall in
+    this theme. Summed, then ``log1p``. A skill that appears everywhere (e.g. "Agile") adds
+    little to any one theme; a skill concentrated in the theme adds its full demand.
+    """
+    total = 0.0
+    for name, in_theme in top_skills:
+        corpus = max(corpus_mentions.get(name, 0), in_theme, 1)
+        total += document_frequency.get(name, 0) * (in_theme / corpus)
+    return math.log1p(total)
+
+
+def scale_skill_demand(raw: Sequence[float]) -> list[float]:
+    """Min-max over the candidates that have skills; candidates without skills stay at 0.
+
+    Themes with no recognised skills would otherwise set the minimum and push every other
+    theme towards 1.
+    """
+    with_skills = [index for index, value in enumerate(raw) if value > 0]
+    scaled = min_max([raw[index] for index in with_skills])
+    result = [0.0] * len(raw)
+    for index, value in zip(with_skills, scaled, strict=True):
+        result[index] = value
+    return result
+
+
+def scale_theme_strength(raw: Sequence[float]) -> list[float]:
+    """Square root, then min-max: shrinks the lead of the largest theme, keeps the order."""
+    return min_max([math.sqrt(max(value, 0.0)) for value in raw])
 
 
 def theme_strength_raw(

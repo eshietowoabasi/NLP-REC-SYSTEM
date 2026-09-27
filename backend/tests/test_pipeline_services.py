@@ -25,6 +25,8 @@ from app.services.recommendations.scoring import (
     composite_score,
     min_max,
     rank,
+    scale_skill_demand,
+    scale_theme_strength,
     skill_demand_raw,
     theme_strength_raw,
 )
@@ -255,12 +257,37 @@ def test_min_max(values, expected) -> None:
     assert min_max(values) == pytest.approx(expected)
 
 
-def test_skill_demand_uses_log1p_of_summed_document_frequency() -> None:
-    assert skill_demand_raw(["Python", "AWS"], {"Python": 3, "AWS": 2}) == pytest.approx(
-        math.log1p(5)
+def test_skill_demand_weights_document_frequency_by_specificity() -> None:
+    frequency = {"Python": 3, "AWS": 2}
+    # All of Python's mentions are in this theme; a quarter of AWS's.
+    corpus = {"Python": 4, "AWS": 8}
+    assert skill_demand_raw([("Python", 4), ("AWS", 2)], frequency, corpus) == pytest.approx(
+        math.log1p(3 * 1.0 + 2 * 0.25)
     )
-    assert skill_demand_raw([], {}) == 0.0
-    assert skill_demand_raw(["Unknown"], {"Python": 3}) == 0.0
+    assert skill_demand_raw([], {}, {}) == 0.0
+    assert skill_demand_raw([("Unknown", 2)], frequency, corpus) == 0.0
+
+
+def test_a_skill_common_to_every_theme_adds_little() -> None:
+    frequency = {"Agile": 20, "Kubernetes": 5}
+    corpus = {"Agile": 100, "Kubernetes": 10}
+    generic = skill_demand_raw([("Agile", 10)], frequency, corpus)  # 10% of Agile mentions
+    specific = skill_demand_raw([("Kubernetes", 10)], frequency, corpus)  # all of them
+
+    assert specific > generic
+
+
+def test_skill_scaling_leaves_themes_without_skills_at_zero() -> None:
+    # Without the exclusion the zero would set the minimum and push 2.0 and 3.0 up.
+    assert scale_skill_demand([0.0, 2.0, 3.0, 4.0]) == pytest.approx([0.0, 0.0, 0.5, 1.0])
+    assert scale_skill_demand([0.0, 2.0]) == pytest.approx([0.0, 1.0])
+    assert scale_skill_demand([0.0, 0.0]) == [0.0, 0.0]
+
+
+def test_theme_strength_scaling_uses_the_square_root() -> None:
+    # One dominant theme (0.64) no longer squashes the others: sqrt gives 0.2, 0.4, 0.8.
+    assert scale_theme_strength([0.04, 0.16, 0.64]) == pytest.approx([0.0, 1 / 3, 1.0])
+    assert min_max([0.04, 0.16, 0.64]) == pytest.approx([0.0, 0.2, 1.0])
 
 
 def test_theme_strength() -> None:

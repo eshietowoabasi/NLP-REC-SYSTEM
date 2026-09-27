@@ -30,8 +30,9 @@ from app.services.recommendations.scoring import (
     ScoreWeights,
     composite_score,
     document_weights,
-    min_max,
     rank,
+    scale_skill_demand,
+    scale_theme_strength,
     skill_demand_raw,
     theme_strength_raw,
 )
@@ -198,6 +199,7 @@ def run_analysis(
     mentions = extract_mentions(skill_nlp, texts)
     skill_stats = aggregate_skills(mentions, document_ids, categories)
     document_frequency = {name: s.document_frequency for name, s in skill_stats.items()}
+    corpus_mentions = {name: s.mentions for name, s in skill_stats.items()}
     entities = {
         "skills": [s.as_dict() for s in ranked_skills(skill_stats)],
         "passages_with_skills": sum(1 for m in mentions if m),
@@ -264,7 +266,11 @@ def run_analysis(
                 size=len(members),
                 mean_probability=mean_probability,
                 evidence=[(corpus[i].id, relevance) for i, relevance in evidence_idx],
-                ner_raw=skill_demand_raw([name for name, _, _ in top_skills], document_frequency),
+                ner_raw=skill_demand_raw(
+                    [(name, count) for name, _, count in top_skills],
+                    document_frequency,
+                    corpus_mentions,
+                ),
                 topic_raw=theme_strength_raw(
                     float(weights[members].sum()), total, mean_probability
                 ),
@@ -294,8 +300,8 @@ def run_analysis(
     stage("scoring")
     for candidate, ner, topic_score in zip(
         candidates,
-        min_max([c.ner_raw for c in candidates]),
-        min_max([c.topic_raw for c in candidates]),
+        scale_skill_demand([c.ner_raw for c in candidates]),
+        scale_theme_strength([c.topic_raw for c in candidates]),
         strict=True,
     ):
         candidate.ner_score = ner

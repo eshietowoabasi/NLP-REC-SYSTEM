@@ -527,8 +527,9 @@ or CERT; skills are ordered by document frequency, then mentions.
 (`[{ "passage_id", "document_id", "document_title", "text" }]`). Every theme is listed, not only
 the recommended ones.
 
-Sessions run from Phase 6 also report each topic's `skill_demand_raw` (log1p of summed
-document frequencies of its top skills) and `skill_demand` (min-max scaled).
+Sessions run from Phase 6 also report each topic's `skill_demand_raw` (log1p of the summed
+document frequencies of its top skills, each weighted by the share of the skill's mentions in
+the topic) and `skill_demand` (min-max over the topics that have skills; 0 without skills).
 
 ### `GET /api/sessions/{id}/similarity`
 

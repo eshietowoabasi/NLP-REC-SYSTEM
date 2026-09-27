@@ -301,11 +301,17 @@ function ScoreCard({ recommendation }: { recommendation: RecommendationDetail })
         <dl className="grid gap-3 border-t pt-4 text-xs text-muted-foreground sm:grid-cols-3">
           <div>
             <dt className="font-medium text-foreground">Skill demand</dt>
-            <dd>How many documents mention the theme&apos;s top skills.</dd>
+            <dd>
+              How many documents ask for the skills that characterise this theme (skills common to
+              every theme count less).
+            </dd>
           </div>
           <div>
             <dt className="font-medium text-foreground">Theme strength</dt>
-            <dd>Share of passages in the theme × how confidently they belong to it.</dd>
+            <dd>
+              How much of the corpus the theme covers (each document counts equally) × how
+              confidently its passages belong to it.
+            </dd>
           </div>
           <div>
             <dt className="font-medium text-foreground">Novelty</dt>
