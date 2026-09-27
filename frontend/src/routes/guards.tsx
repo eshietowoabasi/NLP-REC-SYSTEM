@@ -31,7 +31,7 @@ export function RequireAuth() {
     return (
       <FullPageMessage>
         <Alert variant="destructive" className="max-w-md">
-          <AlertTitle>Cannot reach NLP-RS</AlertTitle>
+          <AlertTitle>Cannot reach SkillBridge</AlertTitle>
           <AlertDescription className="space-y-3">
             <p>{error.message}</p>
             <Button variant="outline" size="sm" onClick={() => void refetch()}>

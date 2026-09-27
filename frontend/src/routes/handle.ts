@@ -1,4 +1,4 @@
-export const APP_NAME = 'NLP-RS'
+export const APP_NAME = 'SkillBridge'
 
 /** Data attached to a route via `handle`; read by the top bar. */
 export interface RouteHandle {

@@ -23,7 +23,7 @@ describe('AppShell', () => {
     expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('data-active', 'true')
     expect(await screen.findByText('API connected')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Account menu' })).toHaveTextContent('Test Admin')
-    await waitFor(() => expect(document.title).toBe('Dashboard · NLP-RS'))
+    await waitFor(() => expect(document.title).toBe('Dashboard · SkillBridge'))
   })
 
   it('shows the Administration section to admins only', async () => {

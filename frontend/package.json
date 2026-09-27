@@ -16,14 +16,13 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@fontsource-variable/geist": "5.3.0",
+    "@fontsource-variable/plus-jakarta-sans": "5.3.0",
     "@hookform/resolvers": "5.9.1",
     "@tanstack/react-query": "5.103.2",
     "axios": "1.20.0",
     "class-variance-authority": "0.7.1",
     "cn": "0.4.0",
     "lucide-react": "1.48.0",
-    "next-themes": "0.4.6",
     "radix-ui": "1.6.7",
     "react": "19.3.0",
     "react-dom": "19.3.0",

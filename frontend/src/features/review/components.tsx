@@ -154,9 +154,9 @@ export function ScoreMeter({
 }
 
 const PART_COLOURS = {
-  ner: 'bg-viz-skill',
-  topic: 'bg-viz-theme',
-  novelty: 'bg-viz-novelty',
+  ner: 'bg-viz-series',
+  topic: 'bg-viz-series/70',
+  novelty: 'bg-viz-series/45',
 } as const
 
 /**
