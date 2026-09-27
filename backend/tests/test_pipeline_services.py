@@ -268,6 +268,19 @@ def test_theme_strength() -> None:
     assert theme_strength_raw(5, 0, 1.0) == 0.0
 
 
+def test_every_document_weighs_the_same_in_theme_strength() -> None:
+    from app.services.recommendations.scoring import document_weights
+
+    # A 4-passage document and two 1-passage documents.
+    weights = document_weights([7, 7, 7, 7, 8, 9])
+
+    assert weights == pytest.approx([0.25, 0.25, 0.25, 0.25, 1.0, 1.0])
+    # A theme holding the whole long document is as strong as one holding a single advert.
+    long_doc = theme_strength_raw(sum(weights[:4]), sum(weights), 1.0)
+    one_advert = theme_strength_raw(weights[4], sum(weights), 1.0)
+    assert long_doc == pytest.approx(one_advert) == pytest.approx(1 / 3)
+
+
 def test_composite_score_is_the_weighted_sum() -> None:
     weights = ScoreWeights(0.40, 0.35, 0.25)
 

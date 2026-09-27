@@ -66,11 +66,29 @@ def skill_demand_raw(top_skills: Sequence[str], document_frequency: dict[str, in
     return math.log1p(sum(document_frequency.get(skill, 0) for skill in top_skills))
 
 
-def theme_strength_raw(topic_size: int, total_non_outlier: int, mean_probability: float) -> float:
-    """Share of the modelled passages in this topic, weighted by how confidently they belong."""
+def theme_strength_raw(
+    topic_size: float, total_non_outlier: float, mean_probability: float
+) -> float:
+    """Share of the modelled passages in this topic, weighted by how confidently they belong.
+
+    Sizes are document-weighted passage counts (see :func:`document_weights`), so a long
+    document cannot dominate by its number of passages alone.
+    """
     if total_non_outlier <= 0:
         return 0.0
     return (topic_size / total_non_outlier) * mean_probability
+
+
+def document_weights(document_ids: Sequence[int]) -> list[float]:
+    """Weight of each passage = 1 / (number of passages in its document).
+
+    Every document then contributes a total weight of 1, however long it is: a 116-passage
+    policy PDF counts as much as a 6-passage job advert.
+    """
+    counts: dict[int, int] = {}
+    for document_id in document_ids:
+        counts[document_id] = counts.get(document_id, 0) + 1
+    return [1.0 / counts[document_id] for document_id in document_ids]
 
 
 def composite_score(ner: float, topic: float, novelty: float, weights: ScoreWeights) -> float:

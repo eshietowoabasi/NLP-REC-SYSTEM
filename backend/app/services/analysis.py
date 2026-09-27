@@ -29,6 +29,7 @@ from app.services.ner.skills import (
 from app.services.recommendations.scoring import (
     ScoreWeights,
     composite_score,
+    document_weights,
     min_max,
     rank,
     skill_demand_raw,
@@ -199,7 +200,9 @@ def run_analysis(
 
     stage("themes")
     model = fit_topics(normalised, embeddings, parameters.min_topic_size, parameters.random_state)
-    total = model.non_outlier_count
+    # Theme strength counts documents equally: each passage weighs 1 / passages in its document.
+    weights = np.asarray(document_weights(document_ids))
+    total = float(weights[model.assignments != -1].sum())
 
     candidates: list[Candidate] = []
     centres: list[NDArray[np.float32]] = []  # one topic centre per candidate, for overlap
@@ -240,7 +243,9 @@ def run_analysis(
                 mean_probability=mean_probability,
                 evidence=[(corpus[i].id, relevance) for i, relevance in evidence_idx],
                 ner_raw=skill_demand_raw([name for name, _, _ in top_skills], document_frequency),
-                topic_raw=theme_strength_raw(len(members), total, mean_probability),
+                topic_raw=theme_strength_raw(
+                    float(weights[members].sum()), total, mean_probability
+                ),
             )
         )
 
