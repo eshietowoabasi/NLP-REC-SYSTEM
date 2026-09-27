@@ -17,6 +17,7 @@ from app.models import (
     AuditLog,
     Document,
     NLPResult,
+    NucCourse,
     Passage,
     Recommendation,
     RecommendationEvidence,
@@ -26,7 +27,7 @@ from app.models import (
 from app.services import analysis as analysis_service
 from app.services.exceptions import AnalysisError
 from tests.conftest import ApiClient
-from tests.corpus import NUC_CORE_TEXT, THEMES, corpus, document_text
+from tests.corpus import NUC_CORE_TEXT, THEMES, core_with_courses, corpus, document_text
 
 
 def upload_text(client: ApiClient, name: str, text: str, category: str = "job_market") -> int:
@@ -223,7 +224,37 @@ def test_full_pipeline_run_produces_ranked_recommendations(
     assert results["tfidf"]["overall"]
     assert set(results["tfidf"]["by_category"]) == {"job_market", "institutional", "academic"}
     assert results["similarity"]["threshold"] == 0.80
+    # The synthetic core has no course headers, so themes are compared with its passages.
+    assert results["similarity"]["basis"] == "passage"
+    assert all(rec.closest_nuc_course_id is None for rec in recommendations)
     assert len(results["topics"]["topics"]) == detail["topic_count"]
+
+
+def test_themes_are_compared_with_whole_nuc_courses(
+    planner: ApiClient, admin: ApiClient, corpus_ids: list[int]
+) -> None:
+    upload_core(admin, core_with_courses())
+    core_document = admin.get("/api/nuc-core").get_json()["data"]["active"]["document"]["id"]
+    courses = db.session.scalars(
+        select(NucCourse).where(NucCourse.document_id == core_document).order_by(NucCourse.code)
+    ).all()
+    assert [(c.code, c.title, c.units) for c in courses] == [
+        ("CSC 101", "Introduction to Computer Science", 3),
+        ("CSC 309", "Computer Security Fundamentals", 2),
+        ("CSC 402", "Numerical Methods", 3),
+    ]
+    assert all(c.embedding is not None and c.embedding_model for c in courses)
+
+    session_id = create(planner, corpus_ids, run=True).get_json()["data"]["id"]
+
+    similarity = planner.get(f"/api/sessions/{session_id}/similarity").get_json()["data"]
+    assert similarity["basis"] == "course"
+    most_similar = max(similarity["candidates"], key=lambda c: c["max_similarity"])
+    assert most_similar["closest_nuc_course"]["code"] == "CSC 309"
+    assert most_similar["closest_nuc_course"]["units"] == 2
+    assert most_similar["overlap_status"] == "Potential Duplicate"
+    listed = planner.get(f"/api/sessions/{session_id}/recommendations").get_json()["data"]
+    assert all(r["closest_nuc_course"]["code"].startswith("CSC") for r in listed["items"])
 
 
 def test_max_recommendations_limits_the_stored_list(

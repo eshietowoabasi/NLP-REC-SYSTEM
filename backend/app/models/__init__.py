@@ -2,7 +2,7 @@
 
 from app.models.audit import AuditLog
 from app.models.configuration import Setting, SkillPattern, StopWord
-from app.models.document import Document, NucCoreVersion, Passage
+from app.models.document import Document, NucCoreVersion, NucCourse, Passage
 from app.models.enums import (
     DocumentStatus,
     FileType,
@@ -32,6 +32,7 @@ __all__ = [
     "NLPResult",
     "NLPResultType",
     "NucCoreVersion",
+    "NucCourse",
     "OverlapStatus",
     "Passage",
     "PlannerDecision",

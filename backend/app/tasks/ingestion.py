@@ -14,8 +14,17 @@ import time
 from sqlalchemy import delete, select, update
 
 from app.extensions import db
-from app.models import Document, DocumentStatus, NucCoreVersion, Passage, SourceCategory, StopWord
-from app.services.embeddings.encoder import get_encoder
+from app.models import (
+    Document,
+    DocumentStatus,
+    NucCoreVersion,
+    NucCourse,
+    Passage,
+    SourceCategory,
+    StopWord,
+)
+from app.services.embeddings.encoder import Encoder, get_encoder
+from app.services.ingestion.courses import embed_courses, extract_courses
 from app.services.ingestion.parsers import ParseError
 from app.services.ingestion.passages import PassageConfig
 from app.services.ingestion.pipeline import process_document
@@ -55,6 +64,31 @@ def activate_nuc_core_version(document: Document) -> None:
     )
     db.session.flush()
     version.is_active = True
+
+
+def store_courses(document: Document, pages: list[str], paged: bool, encoder: Encoder) -> int:
+    """Replace the stored courses of NUC core ``document`` with those found in ``pages``.
+
+    Returns the number of courses. A core with no recognisable course headers stores none, and
+    sessions then compare themes with its passages instead.
+    """
+    courses = extract_courses(pages, page_numbers=paged)
+    vectors = embed_courses(courses, encoder)
+    db.session.execute(delete(NucCourse).where(NucCourse.document_id == document.id))
+    db.session.add_all(
+        NucCourse(
+            document_id=document.id,
+            code=course.code,
+            title=course.title,
+            units=course.units,
+            page_number=course.page_number,
+            text=course.text,
+            embedding=vector.tolist(),
+            embedding_model=encoder.model_name,
+        )
+        for course, vector in zip(courses, vectors, strict=True)
+    )
+    return len(courses)
 
 
 def _fail(document_id: int, message: str) -> None:
@@ -110,6 +144,7 @@ def ingest_document(document_id: int) -> None:
         document.parsed_at = utcnow()
         document.processing_status = DocumentStatus.READY
         if document.source_category == SourceCategory.NUC_CORE:
+            store_courses(document, output.pages, output.page_count is not None, encoder)
             activate_nuc_core_version(document)
         db.session.commit()
         logger.info(

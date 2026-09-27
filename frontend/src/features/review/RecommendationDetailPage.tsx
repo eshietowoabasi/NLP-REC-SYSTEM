@@ -20,6 +20,7 @@ import { CATEGORY_LABELS } from '@/features/documents/labels'
 import { ApiError } from '@/lib/api'
 import { formatDateTime } from '@/lib/format'
 import { applyServerErrors } from '@/lib/forms'
+import { cn } from '@/lib/utils'
 import { NotFoundPage } from '@/routes/NotFoundPage'
 import type { Evidence, PlannerDecision, RecommendationDetail } from '@/types/api'
 
@@ -268,7 +269,10 @@ function ScoreCard({ recommendation }: { recommendation: RecommendationDetail })
           </div>
           <div>
             <dt className="font-medium text-foreground">Novelty</dt>
-            <dd>1 − the highest similarity to any NUC core passage.</dd>
+            <dd>
+              1 − the highest similarity to any NUC core{' '}
+              {recommendation.closest_nuc_course ? 'course' : 'passage'}.
+            </dd>
           </div>
         </dl>
       </CardContent>
@@ -280,22 +284,57 @@ function ScoreCard({ recommendation }: { recommendation: RecommendationDetail })
 
 function OverlapCard({ recommendation }: { recommendation: RecommendationDetail }) {
   const nuc = recommendation.closest_nuc_passage
+  const course = recommendation.closest_nuc_course
   const threshold = recommendation.session.similarity_threshold
   const top = recommendation.evidence[0]
   const duplicate = recommendation.overlap_status === 'Potential Duplicate'
+  const verdict = duplicate
+    ? 'this theme may repeat content already in the NUC core.'
+    : 'no significant overlap with the NUC core.'
   return (
     <Card>
       <CardHeader>
         <CardTitle>Overlap with the NUC core</CardTitle>
         <CardDescription>
-          Highest similarity {formatScore(recommendation.max_similarity)} against a threshold of{' '}
-          {formatScore(threshold)}:{' '}
-          {duplicate
-            ? 'this theme may repeat content already in the NUC core.'
-            : 'no significant overlap with the NUC core.'}
+          {course ? (
+            <>
+              Compared with every NUC core course. Above a threshold of {formatScore(threshold)} a
+              theme is a potential duplicate: {verdict}
+            </>
+          ) : (
+            <>
+              Highest similarity {formatScore(recommendation.max_similarity)} against a threshold of{' '}
+              {formatScore(threshold)}: {verdict}
+            </>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4 md:grid-cols-2">
+        {course && (
+          <p
+            className={cn(
+              'rounded-md border p-3 text-sm md:col-span-2',
+              duplicate &&
+                'border-amber-300 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-950/40',
+            )}
+          >
+            <span className="font-medium">Closest NUC course:</span> {course.code} – {course.title}{' '}
+            <span className="tabular-nums">
+              (similarity {formatScore(recommendation.max_similarity)})
+            </span>
+            {(course.units != null || course.page_number != null) && (
+              <span className="text-muted-foreground">
+                {' · '}
+                {[
+                  course.units != null && `${course.units} units`,
+                  course.page_number != null && `p. ${course.page_number}`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
+            )}
+          </p>
+        )}
         <section aria-labelledby="overlap-theme" className="space-y-1.5 rounded-md border p-3">
           <h3 id="overlap-theme" className="text-sm font-semibold">
             Most representative passage
@@ -315,7 +354,7 @@ function OverlapCard({ recommendation }: { recommendation: RecommendationDetail 
         <section
           aria-labelledby="overlap-nuc"
           className={
-            duplicate
+            duplicate && !course
               ? 'space-y-1.5 rounded-md border border-amber-300 bg-amber-50/60 p-3 dark:border-amber-800 dark:bg-amber-950/40'
               : 'space-y-1.5 rounded-md border p-3'
           }

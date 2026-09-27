@@ -379,6 +379,7 @@ function OverlapTab({ sessionId }: { sessionId: number }) {
     )
   }
   const { threshold, candidates, nuc_core_version } = result.data
+  const byCourse = result.data.basis === 'course'
   const duplicates = candidates.filter((c) => c.overlap_status === 'Potential Duplicate').length
 
   return (
@@ -387,8 +388,8 @@ function OverlapTab({ sessionId }: { sessionId: number }) {
         <CardHeader>
           <CardTitle>Similarity to the NUC core</CardTitle>
           <CardDescription>
-            Highest cosine similarity between each theme and any passage of{' '}
-            {nuc_core_version?.version_label ?? 'the NUC core'}. Above {formatScore(threshold)} a
+            Highest cosine similarity between each theme and any {byCourse ? 'course' : 'passage'}{' '}
+            of {nuc_core_version?.version_label ?? 'the NUC core'}. Above {formatScore(threshold)} a
             theme is marked as a potential duplicate of existing core content ({duplicates} of{' '}
             {candidates.length}).
           </CardDescription>
@@ -428,6 +429,7 @@ function OverlapTab({ sessionId }: { sessionId: number }) {
               <TableHead className="text-right">Max similarity</TableHead>
               <TableHead className="text-right">Novelty</TableHead>
               <TableHead>Status</TableHead>
+              {byCourse && <TableHead className="min-w-48">Closest NUC course</TableHead>}
               <TableHead className="min-w-80">Closest NUC core passage</TableHead>
             </TableRow>
           </TableHeader>
@@ -449,6 +451,18 @@ function OverlapTab({ sessionId }: { sessionId: number }) {
                   <TableCell>
                     <OverlapBadge status={c.overlap_status} />
                   </TableCell>
+                  {byCourse && (
+                    <TableCell className="text-sm whitespace-normal">
+                      {c.closest_nuc_course ? (
+                        <>
+                          <span className="font-medium">{c.closest_nuc_course.code}</span> –{' '}
+                          {c.closest_nuc_course.title}
+                        </>
+                      ) : (
+                        '—'
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell className="text-sm whitespace-normal text-muted-foreground">
                     {c.closest_nuc_passage.page_number != null && (
                       <span className="font-medium text-foreground">

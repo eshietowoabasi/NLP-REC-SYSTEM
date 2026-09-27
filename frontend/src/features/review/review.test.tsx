@@ -62,6 +62,7 @@ const rec = (overrides: Partial<Recommendation> = {}): Recommendation => ({
   composite_score: 0.6,
   max_similarity: 0.7,
   overlap_status: 'No Significant Overlap',
+  closest_nuc_course: null,
   planner_decision: null,
   planner_notes: null,
   decided_at: null,
@@ -280,6 +281,30 @@ describe('RecommendationDetailPage', () => {
     expect(within(advert).getByText(/Page 2 · relevance 0.80/)).toBeInTheDocument()
     const policy = screen.getByRole('region', { name: 'Synthetic ICT policy' })
     expect(within(policy).getByText(/Passage 5 · relevance 0.88/)).toBeInTheDocument()
+  })
+
+  it('names the closest NUC course when themes were compared with courses', async () => {
+    reviewApi(plannerUser, {
+      'GET /recommendations/:id': ok(
+        detail({
+          max_similarity: 0.63,
+          closest_nuc_course: {
+            id: 7,
+            code: 'SEN 304',
+            title: 'Software Testing & Quality Assurance',
+            units: 2,
+            page_number: 219,
+          },
+        }),
+      ),
+    })
+    renderApp('/recommendations/31')
+
+    const label = await screen.findByText('Closest NUC course:')
+    expect(label.closest('p')).toHaveTextContent(
+      'Closest NUC course: SEN 304 – Software Testing & Quality Assurance (similarity 0.63) · 2 units · p. 219',
+    )
+    expect(screen.getByText(/Compared with every NUC core course/)).toBeInTheDocument()
   })
 
   it('edits the title and keeps the generated one for reference', async () => {
@@ -509,6 +534,7 @@ describe('EvidencePage', () => {
   }
   const similarity: SimilarityResults = {
     threshold: 0.8,
+    basis: 'course',
     nuc_core_version: { id: 1, version_label: 'Synthetic core v1' },
     candidates: [
       {
@@ -518,6 +544,13 @@ describe('EvidencePage', () => {
         novelty: 0.38,
         overlap_status: 'No Significant Overlap',
         closest_nuc_passage: { id: 900, text: 'Synthetic networks passage.', page_number: 3 },
+        closest_nuc_course: {
+          id: 1,
+          code: 'CSC 311',
+          title: 'Computer Networks',
+          units: 3,
+          page_number: 40,
+        },
       },
       {
         topic_id: 1,
@@ -526,6 +559,13 @@ describe('EvidencePage', () => {
         novelty: 0.13,
         overlap_status: 'Potential Duplicate',
         closest_nuc_passage: { id: 901, text: 'Synthetic OS passage.', page_number: 9 },
+        closest_nuc_course: {
+          id: 2,
+          code: 'CSC 301',
+          title: 'Operating Systems I',
+          units: 3,
+          page_number: 38,
+        },
       },
     ],
   }
@@ -546,6 +586,8 @@ describe('EvidencePage', () => {
     const overlap = await screen.findByRole('table', { name: 'Overlap with the NUC core' })
     const duplicateRow = within(overlap).getByText('Operating Systems').closest('tr')!
     expect(within(duplicateRow).getByText('Potential Duplicate')).toBeInTheDocument()
+    expect(within(duplicateRow).getByText('CSC 301')).toBeInTheDocument()
+    expect(within(duplicateRow).getByText(/Operating Systems I$/)).toBeInTheDocument()
     expect(duplicateRow.className).toContain('bg-amber')
     expect(within(overlap).getByText('Cloud Security').closest('tr')!.className).not.toContain(
       'bg-amber',

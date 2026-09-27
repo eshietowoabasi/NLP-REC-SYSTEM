@@ -518,11 +518,18 @@ or CERT; skills are ordered by document frequency, then mentions.
 (`[{ "passage_id", "document_id", "document_title", "text" }]`). Every theme is listed, not only
 the recommended ones.
 
+Sessions run from Phase 6 also report each topic's `skill_demand_raw` (log1p of summed
+document frequencies of its top skills) and `skill_demand` (min-max scaled).
+
 ### `GET /api/sessions/{id}/similarity`
 
-`{ "threshold", "nuc_core_version": { "id", "version_label" }, "candidates": [...] }`, ranked
-like the recommendations. Each candidate: `topic_id`, `title`, `max_similarity`, `novelty`,
-`overlap_status`, `closest_nuc_passage` (`{ "id", "text", "page_number" }`).
+`{ "threshold", "basis", "nuc_core_version": { "id", "version_label" }, "candidates": [...] }`,
+ranked like the recommendations. `basis` is `"course"` when themes were compared with whole NUC
+courses (the similarity is then the closest course's) or `"passage"` when the NUC core had no
+recognisable courses (and for sessions run before course-level overlap). Each candidate:
+`topic_id`, `title`, `max_similarity`, `novelty`, `overlap_status`, `closest_nuc_passage`
+(`{ "id", "text", "page_number" }`), `closest_nuc_course`
+(`{ "id", "code", "title", "units", "page_number" }` or null).
 
 ## Recommendations
 
@@ -538,6 +545,7 @@ like the recommendations. Each candidate: `topic_id`, `title`, `max_similarity`,
 | `ner_score`, `topic_score`, `novelty_score` | 0–1, normalised across the session's themes |
 | `composite_score` | Weighted sum with the session's weights |
 | `max_similarity`, `overlap_status` | `"Potential Duplicate"` or `"No Significant Overlap"` |
+| `closest_nuc_course` | `{ "id", "code", "title", "units", "page_number" }` — the NUC course the theme is closest to (the similarity above is to this course); null when the session compared themes with NUC passages |
 | `planner_decision` | `accepted`, `rejected`, `flagged` or null |
 | `planner_notes`, `decided_at`, `decided_by` (`{ "id", "full_name" }`) | Null while undecided |
 | `has_mapping` | Whether the recommendation is mapped to a course |

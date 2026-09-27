@@ -33,6 +33,7 @@ from app.schemas.review import (
     DocumentRef,
     EvidenceOut,
     MappingOut,
+    NucCourseRef,
     NucPassageOut,
     RecommendationEdit,
     RecommendationListQuery,
@@ -64,6 +65,9 @@ def recommendation_json(rec: Recommendation) -> dict[str, Any]:
         composite_score=rec.composite_score,
         max_similarity=rec.max_similarity,
         overlap_status=rec.overlap_status,
+        closest_nuc_course=(
+            NucCourseRef.model_validate(rec.closest_nuc_course) if rec.closest_nuc_course else None
+        ),
         planner_decision=rec.planner_decision,
         planner_notes=rec.planner_notes,
         decided_at=rec.decided_at,
@@ -94,7 +98,11 @@ def list_recommendations(session_id: int) -> tuple[Response, int]:
         db.session.scalars(
             select(Recommendation)
             .where(Recommendation.session_id == session_id)
-            .options(selectinload(Recommendation.mapping), selectinload(Recommendation.decided_by))
+            .options(
+                selectinload(Recommendation.mapping),
+                selectinload(Recommendation.decided_by),
+                selectinload(Recommendation.closest_nuc_course),
+            )
             .order_by(Recommendation.rank)
         )
     )

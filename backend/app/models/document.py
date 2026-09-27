@@ -109,3 +109,27 @@ class Passage(db.Model):
     )
 
     document: Mapped[Document] = relationship(back_populates="passages")
+
+
+class NucCourse(db.Model):
+    """One course of the NUC core curriculum (e.g. "SEN 304: Software Testing & QA").
+
+    Extracted from the NUC core document at ingestion: the course header (code, title, units)
+    and its content up to the next course. ``embedding`` is the normalised mean of the SBERT
+    embeddings of the course text's chunks; themes are compared with whole courses.
+    """
+
+    __tablename__ = "nuc_courses"
+    __table_args__ = (sa.UniqueConstraint("document_id", "code"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(
+        sa.ForeignKey("documents.id", ondelete="CASCADE"), index=True
+    )
+    code: Mapped[str] = mapped_column(sa.String(16))
+    title: Mapped[str] = mapped_column(sa.String(255))
+    units: Mapped[int | None]
+    page_number: Mapped[int | None]
+    text: Mapped[str] = mapped_column(sa.Text)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector())
+    embedding_model: Mapped[str | None] = mapped_column(sa.String(128))

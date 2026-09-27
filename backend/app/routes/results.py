@@ -19,6 +19,7 @@ from app.models import (
     NLPResult,
     NLPResultType,
     NucCoreVersion,
+    NucCourse,
     Passage,
     SessionStatus,
     SourceCategory,
@@ -116,9 +117,27 @@ def similarity(session_id: int) -> tuple[Response, int]:
         if session.nuc_core_version_id
         else None
     )
+    course_ids = {
+        c["closest_nuc_course"]["id"]
+        for c in data.get("candidates", [])
+        if c.get("closest_nuc_course")
+    }
+    courses = {
+        row.id: row
+        for row in db.session.execute(
+            select(NucCourse.id, NucCourse.units, NucCourse.page_number).where(
+                NucCourse.id.in_(course_ids)
+            )
+        ).all()
+    }
     for candidate in data.get("candidates", []):
         closest = candidate.get("closest_nuc_passage") or {}
         closest["page_number"] = pages.get(closest.get("id"))
+        course = candidate.get("closest_nuc_course")
+        if course and course["id"] in courses:
+            course["units"] = courses[course["id"]].units
+            course["page_number"] = courses[course["id"]].page_number
+    data.setdefault("basis", "passage")  # sessions run before course-level overlap
     data["nuc_core_version"] = (
         {"id": version.id, "version_label": version.version_label} if version else None
     )

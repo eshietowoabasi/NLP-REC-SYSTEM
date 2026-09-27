@@ -346,6 +346,15 @@ export interface TopicResults {
 
 export type OverlapStatus = 'Potential Duplicate' | 'No Significant Overlap'
 
+/** A course of the NUC core (course-level overlap). */
+export interface NucCourse {
+  id: number
+  code: string
+  title: string
+  units: number | null
+  page_number: number | null
+}
+
 export interface SimilarityCandidate {
   topic_id: number
   title: string
@@ -353,11 +362,15 @@ export interface SimilarityCandidate {
   novelty: number
   overlap_status: OverlapStatus
   closest_nuc_passage: { id: number; text: string; page_number: number | null }
+  /** Null when the session compared themes with NUC passages. */
+  closest_nuc_course: NucCourse | null
 }
 
 /** GET /api/sessions/{id}/similarity */
 export interface SimilarityResults {
   threshold: number
+  /** "course": themes compared with whole NUC courses; "passage": with NUC passages. */
+  basis: 'course' | 'passage'
   candidates: SimilarityCandidate[]
   nuc_core_version: { id: number; version_label: string } | null
 }
@@ -390,6 +403,7 @@ export interface Recommendation {
   composite_score: number
   max_similarity: number
   overlap_status: OverlapStatus
+  closest_nuc_course: NucCourse | null
   planner_decision: PlannerDecision | null
   planner_notes: string | null
   decided_at: string | null

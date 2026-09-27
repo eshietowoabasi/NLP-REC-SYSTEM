@@ -80,6 +80,16 @@ class CorePassage:
 
 
 @dataclass(frozen=True)
+class CoreCourse:
+    """A course of the active NUC core (e.g. "SEN 304"), embedded as a whole."""
+
+    id: int
+    code: str
+    title: str
+    embedding: NDArray[np.float32]
+
+
+@dataclass(frozen=True)
 class AnalysisParameters:
     weights: ScoreWeights
     similarity_threshold: float = 0.80
@@ -121,6 +131,7 @@ class Candidate:
     composite_score: float = 0.0
     max_similarity: float = 0.0
     closest_nuc_passage_id: int | None = None
+    closest_nuc_course_id: int | None = None
     overlap_status: OverlapStatus = OverlapStatus.NO_SIGNIFICANT_OVERLAP
     rank: int | None = None
 
@@ -146,11 +157,16 @@ def run_analysis(
     skill_nlp: Language,
     canonical_names: dict[str, str],
     on_stage: StageCallback | None = None,
+    courses: list[CoreCourse] | None = None,
 ) -> AnalysisOutput:
     """Run the keyword, skill, theme, overlap and scoring stages.
 
     ``on_stage(name)`` is called as each stage starts (for progress reporting).
     ``canonical_names`` maps lowercase terms to canonical skill names, for titles.
+    ``courses`` are the NUC core's courses: when given, each theme is compared with whole
+    courses (similarity, novelty and duplicate status come from the closest course); without
+    them, it is compared with individual NUC core passages. The closest passage is always
+    recorded, for side-by-side evidence.
     Raises AnalysisError when the data cannot produce recommendations.
     """
     if not corpus:
@@ -192,7 +208,13 @@ def run_analysis(
     stage("embeddings")
     embeddings = np.vstack([p.embedding for p in corpus]).astype(np.float32)
     core_embeddings = np.vstack([p.embedding for p in core]).astype(np.float32)
-    if embeddings.shape[1] != core_embeddings.shape[1]:
+    courses = courses or []
+    course_embeddings = (
+        np.vstack([c.embedding for c in courses]).astype(np.float32) if courses else None
+    )
+    if embeddings.shape[1] != core_embeddings.shape[1] or (
+        course_embeddings is not None and course_embeddings.shape[1] != embeddings.shape[1]
+    ):
         raise AnalysisError(
             "The documents and the NUC core were embedded with different models. "
             "Re-upload the NUC core so both use the current embedding model."
@@ -250,15 +272,24 @@ def run_analysis(
         )
 
     stage("overlap")
-    for candidate, overlap in zip(
-        candidates,
-        compare_to_core(np.vstack(centres), core_embeddings, parameters.similarity_threshold),
-        strict=True,
+    centre_matrix = np.vstack(centres)
+    threshold = parameters.similarity_threshold
+    passage_overlaps = compare_to_core(centre_matrix, core_embeddings, threshold)
+    course_overlaps = (
+        compare_to_core(centre_matrix, course_embeddings, threshold)
+        if course_embeddings is not None
+        else [None] * len(candidates)
+    )
+    for candidate, by_passage, by_course in zip(
+        candidates, passage_overlaps, course_overlaps, strict=True
     ):
+        overlap = by_course or by_passage
         candidate.max_similarity = overlap.max_similarity
         candidate.novelty_score = overlap.novelty
-        candidate.closest_nuc_passage_id = core[overlap.closest_index].id
         candidate.overlap_status = overlap.status
+        candidate.closest_nuc_passage_id = core[by_passage.closest_index].id
+        if by_course is not None:
+            candidate.closest_nuc_course_id = courses[by_course.closest_index].id
 
     stage("scoring")
     for candidate, ner, topic_score in zip(
@@ -280,6 +311,7 @@ def run_analysis(
     timings.pop("done", None)
 
     core_by_id = {p.id: p for p in core}
+    course_by_id = {c.id: c for c in courses}
     passage_by_id = {p.id: p for p in corpus}
     return AnalysisOutput(
         keywords=keywords,
@@ -298,6 +330,8 @@ def run_analysis(
                     "mean_probability": round(c.mean_probability, 6),
                     "strength_raw": round(c.topic_raw, 6),
                     "strength": round(c.topic_score, 6),
+                    "skill_demand_raw": round(c.ner_raw, 6),
+                    "skill_demand": round(c.ner_score, 6),
                     "samples": [
                         {
                             "passage_id": pid,
@@ -312,6 +346,8 @@ def run_analysis(
         },
         similarity={
             "threshold": parameters.similarity_threshold,
+            # "course": themes compared with whole NUC courses; "passage": with passages.
+            "basis": "course" if courses else "passage",
             "candidates": [
                 {
                     "topic_id": c.topic_id,
@@ -327,6 +363,15 @@ def run_analysis(
                             else ""
                         ),
                     },
+                    "closest_nuc_course": (
+                        {
+                            "id": course.id,
+                            "code": course.code,
+                            "title": course.title,
+                        }
+                        if (course := course_by_id.get(c.closest_nuc_course_id or -1))
+                        else None
+                    ),
                 }
                 for c in ranked
             ],

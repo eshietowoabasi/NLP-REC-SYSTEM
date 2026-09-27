@@ -305,23 +305,35 @@ def overlap(data: ReportData) -> list[Block]:
     )
     candidates = data.similarity.get("candidates", [])
     duplicates = sum(c["overlap_status"] == "Potential Duplicate" for c in candidates)
+    by_course = data.similarity.get("basis") == "course"
+    compared_with = "every course" if by_course else "every passage"
     return [
         Paragraph(
-            "Each theme was compared with every passage of the NUC core reference "
+            f"Each theme was compared with {compared_with} of the NUC core reference "
             f"({data.nuc_core_version or 'unknown version'}) by cosine similarity of sentence "
             f"embeddings. Themes with a highest similarity above {fmt_score(threshold)} are "
             f"flagged as potential duplicates of existing core content: {duplicates} of "
             f"{len(candidates)}."
         ),
         Table(
-            columns=["Theme", "Max similarity", "Novelty", "Status", "Closest NUC core passage"],
+            columns=[
+                "Theme",
+                "Max similarity",
+                "Novelty",
+                "Status",
+                "Closest NUC course" if by_course else "Closest NUC core passage",
+            ],
             rows=[
                 [
                     c["title"],
                     fmt_score(c["max_similarity"]),
                     fmt_score(c["novelty"]),
                     c["overlap_status"],
-                    excerpt(c.get("closest_nuc_passage", {}).get("text", ""), 220),
+                    (
+                        f"{course['code']} – {course['title']}"
+                        if by_course and (course := c.get("closest_nuc_course"))
+                        else excerpt(c.get("closest_nuc_passage", {}).get("text", ""), 220)
+                    ),
                 ]
                 for c in candidates
             ],

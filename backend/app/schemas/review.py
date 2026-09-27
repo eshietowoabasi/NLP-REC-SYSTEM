@@ -22,6 +22,16 @@ from app.schemas.documents import UserRef
 # --------------------------------------------------------------------- recommendations
 
 
+class NucCourseRef(ResponseModel):
+    """The NUC core course a theme is closest to (course-level overlap)."""
+
+    id: int
+    code: str
+    title: str
+    units: int | None
+    page_number: int | None
+
+
 class RecommendationOut(ResponseModel):
     id: int
     session_id: int
@@ -38,6 +48,8 @@ class RecommendationOut(ResponseModel):
     composite_score: float
     max_similarity: float
     overlap_status: OverlapStatus
+    # Null when the session compared themes with NUC passages (core without courses).
+    closest_nuc_course: NucCourseRef | None
     planner_decision: PlannerDecision | None
     planner_notes: str | None
     decided_at: datetime | None

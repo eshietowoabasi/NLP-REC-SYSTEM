@@ -36,3 +36,36 @@ def register_cli(app: Flask) -> None:
         click.echo(f"Settings added: {summary['settings']}")
         click.echo(f"Skill patterns added: {summary['skill_patterns']}")
         click.echo(f"Stop words added: {summary['stop_words']}")
+
+    @app.cli.command("extract-courses")
+    def extract_courses_command() -> None:
+        """(Re)build the course list of every NUC core document (course-level overlap).
+
+        New NUC core uploads get their courses at ingestion; this backfills documents ingested
+        before course extraction existed. Passages are left untouched.
+        """
+        from sqlalchemy import select
+
+        from app.extensions import db
+        from app.models import Document, DocumentStatus, SourceCategory
+        from app.services.embeddings.encoder import get_encoder
+        from app.services.ingestion.cleaning import clean_pages
+        from app.services.ingestion.parsers import parse_file
+        from app.services.storage import get_storage
+        from app.settings import get_setting
+        from app.tasks.ingestion import store_courses
+
+        encoder = get_encoder(get_setting("sbert_model"))
+        documents = db.session.scalars(
+            select(Document).where(
+                Document.source_category == SourceCategory.NUC_CORE,
+                Document.processing_status == DocumentStatus.READY,
+            )
+        ).all()
+        for document in documents:
+            parsed = parse_file(document.file_type, get_storage().read(document.stored_filename))
+            count = store_courses(
+                document, clean_pages(parsed.pages), parsed.page_count is not None, encoder
+            )
+            click.echo(f"{document.title}: {count} courses")
+        db.session.commit()

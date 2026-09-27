@@ -21,6 +21,7 @@ from app.models import (
     DocumentSession,
     NLPResult,
     NLPResultType,
+    NucCourse,
     Passage,
     Recommendation,
     RecommendationEvidence,
@@ -32,6 +33,7 @@ from app.services.analysis import (
     STAGE_PROGRESS,
     AnalysisOutput,
     AnalysisParameters,
+    CoreCourse,
     CorePassage,
     CorpusPassage,
     run_analysis,
@@ -166,6 +168,27 @@ def load_core(document_id: int) -> list[CorePassage]:
     ]
 
 
+def load_courses(document_id: int) -> list[CoreCourse]:
+    """The NUC core's courses, if they were embedded with the same model as its passages.
+
+    Courses from another model (or none at all) make the session fall back to comparing
+    themes with NUC core passages.
+    """
+    passage_model = db.session.scalar(
+        select(Passage.embedding_model).where(Passage.document_id == document_id).limit(1)
+    )
+    courses = db.session.scalars(
+        select(NucCourse)
+        .where(NucCourse.document_id == document_id, NucCourse.embedding_model == passage_model)
+        .order_by(NucCourse.id)
+    )
+    return [
+        CoreCourse(id=c.id, code=c.code, title=c.title, embedding=_vector(c.embedding))
+        for c in courses
+        if c.embedding is not None
+    ]
+
+
 def load_skill_patterns() -> list[SkillPatternSpec]:
     """The active skill patterns."""
     patterns = db.session.scalars(select(SkillPattern).where(SkillPattern.is_active.is_(True)))
@@ -220,6 +243,7 @@ def save_results(session: AnalysisSession, output: AnalysisOutput) -> None:
             composite_score=candidate.composite_score,
             max_similarity=candidate.max_similarity,
             closest_nuc_passage_id=candidate.closest_nuc_passage_id,
+            closest_nuc_course_id=candidate.closest_nuc_course_id,
             overlap_status=candidate.overlap_status,
         )
         recommendation.evidence = [
@@ -259,13 +283,20 @@ def run_session(session_id: int) -> None:
         check_embedding_models(session, core_document_id)
         corpus = load_corpus(session)
         core = load_core(core_document_id)
+        courses = load_courses(core_document_id)
         specs = load_skill_patterns()
         model_name = config.get("spacy_model", "en_core_web_sm")
         skill_nlp = build_skill_pipeline(model_name, specs)
         canonical = canonical_lookup(specs, get_nlp(model_name))
 
         output = run_analysis(
-            corpus, core, parameters, skill_nlp, canonical, on_stage=progress.stage
+            corpus,
+            core,
+            parameters,
+            skill_nlp,
+            canonical,
+            on_stage=progress.stage,
+            courses=courses,
         )
 
         save_results(session, output)
