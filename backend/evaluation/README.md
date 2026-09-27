@@ -20,18 +20,20 @@ functions are in `metrics.py` and unit-tested in `tests/test_evaluation.py` (syn
 | Speed: synthetic 20 × 3,000 words, and the real session | `benchmark_pipeline.py`, `benchmark_session.py` | no |
 | Usability: System Usability Scale (SUS) | `sus_eval.py` + `sus/questionnaire.md` | yes: participants |
 
-Session 10 is the final real-corpus run ("Real corpus (final): specificity scoring, course
-overlap, exclusions": 56 documents = CCMAS 2023 core, NDEPS policy, 55 job adverts; 417 extracts,
-31 themes).
+Session 13 is the final real-corpus run ("Real corpus: plain-language topics (merged, named)":
+56 documents = CCMAS 2023 core, NDEPS policy, 55 job adverts; 417 extracts, 28 topics after
+merging near-duplicates). **For annotators and usability participants:** give them
+[ANNOTATOR_GUIDE.md](ANNOTATOR_GUIDE.md) (one page, plain language) and use
+[sus/SESSION_CHECKLIST.md](sus/SESSION_CHECKLIST.md) to run the sessions.
 
 ## 1. Skill extraction (NER)
 
 ```bash
-python -m evaluation.ner_eval template --session 10          # 60 extracts, stratified by category
+python -m evaluation.ner_eval template --session 13          # 60 extracts, stratified by category
 python -m evaluation.ner_eval score results/ner_gold_session10_<stamp>.csv
 ```
 
-The template (already generated: `results/ner_gold_session10_20260927T183202Z.csv`, with the
+The template (already generated: `results/ner_gold_session13_20260927T222504Z.csv`, with the
 skill list `…_skills.csv`) has one row per extract with the extractor's `predicted_skills`.
 
 **Annotation guidelines**
@@ -56,30 +58,33 @@ between A and B (Landis & Koch: 0.61–0.80 substantial, above 0.80 almost perfe
 ## 2. Topic quality: BERTopic vs LDA
 
 ```bash
-python -m evaluation.topic_coherence --session 10 [--lda-runs 3]
+python -m evaluation.topic_coherence --session 13 [--lda-runs 3]
 ```
 
 Both models are scored on the same tokenised extracts (lemmas, stop words removed). BERTopic's
 words are the stored c-TF-IDF keywords; LDA (Gensim, evaluation only) gets the same number of
 topics, 20 passes, three seeds. C_v uses Gensim's CoherenceModel (Röder et al., 2015).
 
-**Result on session 10 (27 Sep 2026)**: 417 extracts, 2,997 distinct tokens, 31 topics, top 10
+**Result on session 13 (27 Sep 2026)**: 417 extracts, 2,997 distinct tokens, 28 topics, top 10
 words.
 
 | Model | C_v (higher is better) | UMass (closer to 0 is better) |
 |---|---|---|
-| BERTopic (NLP-RS) | **0.726** | **−2.857** |
-| LDA baseline (3 seeds) | 0.521 ± 0.041 | −3.282 |
+| BERTopic (NLP-RS) | **0.723** | **−2.927** |
+| LDA baseline (3 seeds) | 0.488 ± 0.012 | −3.454 |
+
+(Before near-duplicate topics were merged, session 10 with 31 topics: BERTopic 0.726, LDA
+0.521 ± 0.041.)
 
 ## 3. NUC overlap (duplicate detection)
 
 ```bash
-python -m evaluation.overlap_eval template --session 10      # 3 closest + 2 random courses per theme
+python -m evaluation.overlap_eval template --session 13      # 3 closest + 2 random courses per topic
 python -m evaluation.overlap_eval score results/overlap_pairs_session10_<stamp>.csv
 ```
 
-The template (already generated: `results/overlap_pairs_session10_20260927T183630Z.csv`) has
-155 theme–course pairs (31 themes × the 3 most similar NUC courses + 2 random ones, shuffled),
+The template (already generated: `results/overlap_pairs_session13_20260927T222805Z.csv`) has
+140 topic–course pairs (28 topics × the 3 most similar NUC courses + 2 random ones, shuffled),
 each with the theme's keywords and a representative extract, the course, and the cosine
 similarity. Only the 86 courses the session compares are used (general studies, SIWES, project
 and seminar courses excluded).
@@ -94,7 +99,7 @@ recall and F1 at the current 0.80 threshold, and a sweep of thresholds 0.40–0.
 giving the highest F1 (and Youden's J). If the calibrated threshold differs clearly from 0.80,
 change it in Settings and record the change in `docs/DECISIONS.md`.
 
-Current similarities on session 10 range from 0.45 to 0.74 for the closest course (no theme is
+Current similarities on session 13 range from 0.45 to 0.73 for the closest course (no topic is
 above 0.80), so the labels will show whether 0.80 is too strict for course-level comparison.
 
 ## 4. Speed
@@ -116,14 +121,14 @@ warm. Laptop: Intel Core (Family 6 Model 142), Windows 11, Python 3.13, CPU only
 ## 5. Usability (SUS)
 
 ```bash
-python -m evaluation.sus_eval template --session 10 [--participants 8]
+python -m evaluation.sus_eval template --session 13 [--participants 8]
 python -m evaluation.sus_eval score results/sus_responses_session10_<stamp>.csv
 ```
 
 Kit: `sus/questionnaire.md` (the standard ten SUS items, printable), a task sheet generated from
-session 10 (`results/sus_tasks_session10_20260927T183231Z.md`: find the session, explain a
-score, decide on three topics, design a course, download the report) and a response sheet
-(`results/sus_responses_…csv`).
+session 13 (`results/sus_tasks_session13_20260927T222534Z.md`: find the session, explain a
+score, decide on three topics, design a course, download the report), a response sheet
+(`results/sus_responses_…csv`) and the observer's checklist `sus/SESSION_CHECKLIST.md`.
 
 **Procedure**: 5–8 participants (lecturers, HOD, curriculum officers); a two-minute
 introduction, then the tasks without help (the observer records completion as 1/0 and the total

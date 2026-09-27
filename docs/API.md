@@ -317,6 +317,17 @@ Access: any. The Document object plus `passage_count`, `preview` (the first 5 pa
 `sessions` (analysis sessions using the document: `id`, `session_name`, `status`, `created_at`)
 and `is_nuc_core`.
 
+Every Document object also has `source`, `source_url`, `published_on` (ISO date) and `label`,
+the readable reference used wherever the document is quoted: "Senior QA Engineer – Hydrogen,
+job advert (MyJobMag, Sep 2026)".
+
+### `PATCH /api/documents/{id}`
+
+Access: admin, planner. Any of `{ "title", "source", "source_url", "published_on" }` (`null`
+clears source, link or date; the title cannot be empty; the link must start with http:// or
+https://). Returns the Document object. Audited as `document.updated`. The collector's manifest
+can set these for many documents at once: `flask --app wsgi import-manifest <manifest.csv>`.
+
 ### `GET /api/documents/{id}/passages`
 
 Access: any. The document's passages in order, paginated (`per_page` up to 100, default 50):
@@ -527,7 +538,11 @@ or CERT; skills are ordered by document frequency, then mentions.
 (`[{ "passage_id", "document_id", "document_title", "text" }]`). Every theme is listed, not only
 the recommended ones.
 
-Sessions run from Phase 6 also report each topic's `skill_demand_raw` (log1p of the summed
+Each topic also has `keyword_title` (the title made from its keywords), `name_similarity` (to
+the closest course-style name; `title` is that name when it is at least 0.50) and keywords with
+a `label` as written in the documents; `merged_topics` lists near-duplicate topics that were
+merged (groups of original topic ids); samples have `document_label`. Sessions run from Phase 6
+also report each topic's `skill_demand_raw` (log1p of the summed
 document frequencies of its top skills, each weighted by the share of the skill's mentions in
 the topic) and `skill_demand` (min-max over the topics that have skills; 0 without skills).
 
@@ -765,6 +780,7 @@ Access: admin. Any subset of the settings; only the keys sent change.
 | `min_topic_size` | 2–100 |
 | `evidence_per_recommendation` | 1–20 |
 | `max_documents_per_session` | 1–200 |
+| `topic_name_catalogue` | list of course-style names (2–120 characters, at most 400, duplicates dropped) |
 | `nuc_course_exclusions` | `{ "code_prefixes": [2–4 letters], "title_keywords": [2–80 chars] }`, at most 30 each; duplicates dropped, prefixes upper-cased |
 | `credit_unit_allowance` | 1–300, or `null` to clear |
 

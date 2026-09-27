@@ -89,3 +89,59 @@ Digital.
 
 The final real-corpus run after this change (with the same exclusions) is reported with the
 evaluation results.
+
+## Merging near-duplicate topics (Phase 6, later)
+
+Session 10 showed the same topic twice: #5 "Security, Vulnerability and Threat Intelligence"
+and #6 "Threat Intelligence, Vulnerability and Security". Topics whose centres (the mean
+embedding of their extracts) are more similar than **0.83** are now merged after clustering
+(average linkage, repeated until no pair is above the threshold); BERTopic then recomputes the
+merged topic's words. Recorded in [DECISIONS.md](DECISIONS.md).
+
+**Choosing the threshold.** On session 10 the most similar topic pairs were:
+
+| Similarity | Pair | Merge at 0.83? |
+|---|---|---|
+| 0.847 | Digital Economy, Infrastructure and Regulation / Indigenous Digital, Pillar and Promote (policy) | yes |
+| 0.842 | Threat Intelligence, Vulnerability and Security / Security, Vulnerability and Threat Intelligence | yes |
+| 0.841 | Digital Economy, Ministry Communications and Federal / Digital Economy, Infrastructure and Regulation (policy) | yes |
+| 0.813 | Government Interoperability… / Digital Economy, Infrastructure and Regulation (policy) | no |
+| 0.798 | ITIL, Server and Cloud / Computer Science, System and Linux | no |
+| 0.790 | Testing Tool, Communication and Agile / ITIL, Server and Cloud | no |
+
+The median pair similarity is 0.45 and the 95th percentile 0.72. A threshold of 0.85 (as first
+suggested) would have missed the security pair (0.842); 0.83 sits in the clear gap between
+0.841 and 0.813. It merged two groups: the security pair, and three digital-economy topics from
+the policy document (31 → 28 topics).
+
+**Top 20 before and after** (both with the new scoring, the course exclusions and, after, the
+course-style names and plain descriptions; scores out of 100):
+
+| # | Before (session 10, 31 topics) | Score | After (session 13, 28 topics) | Score |
+|---|---|---|---|---|
+| 1 | System, Networking and Technical | 82 | IT Support and Help Desk Operations | 79 |
+| 2 | Testing Tool, Communication and Agile Methodologies | 75 | Threat Intelligence and Vulnerability Management | 73 |
+| 3 | Data Analysis, Education Business and Impact | 67 | Testing Tools, Communication and Agile Methodologies | 72 |
+| 4 | React, Stack and .NET | 64 | Data Analysis, Education Business and Impact | 64 |
+| 5 | Security, Vulnerability and Threat Intelligence | 61 | Full-Stack Web Development | 61 |
+| 6 | Threat Intelligence, Vulnerability and Security | 61 | IT Service Management (ITIL) | 59 |
+| 7 | ITIL, Server and Cloud | 61 | Cloud Infrastructure and Services | 57 |
+| 8 | Openshift Kubernetes, AWS and Cluster | 60 | DevOps and Continuous Delivery | 56 |
+| 9 | DevOps, Infrastructure and Automation | 59 | Computer Science, System and Linux | 56 |
+| 10 | Computer Science, System and Linux | 58 | Data Engineering and Data Pipelines | 54 |
+| 11 | Data Engineering, Power BI and Apache | 56 | Mobile Application Development | 53 |
+| 12 | Product, Android and User | 55 | Agile Software Development | 53 |
+| 13 | Delivery, Product and Partner | 54 | Project, English and Problem | 52 |
+| 14 | Project, English and Problem | 54 | Cloud, Container and Security DevOps | 50 |
+| 15 | Cloud, Container and Security DevOps | 53 | Linux System Administration | 48 |
+| 16 | Unix, Distribute System and Linux | 50 | Data Engineering, Pl Pgsql and PostgreSQL | 46 |
+| 17 | Data Engineering, Pl Pgsql and PostgreSQL | 49 | Software Testing and Quality Assurance | 31 |
+| 18 | Test Case, Defect and Execute | 32 | Digital Marketing | 28 |
+| 19 | Information Security, Treaty and Protection | 29 | Digital Economy and Policy | 27 |
+| 20 | Emerge Technology, Inclusion and Digital | 29 | Cyber Law and Data Protection | 27 |
+
+The merged security topic (8 documents, 21 extracts) rises from #5/#6 to **#2 (73)**: combined,
+it covers more of the corpus (how often it comes up 75, was 49/53). Titles on the right are
+course-style names where one was close enough (25 of 28 topics; see DECISIONS.md), otherwise
+keyword titles. The other rankings barely change; with three fewer topics, the ones that were
+#21–#23 (marketing, policy) enter the list.

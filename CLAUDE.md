@@ -174,6 +174,11 @@ cosmetic.
   query client, utils), `types/api.ts`, `test/` (setup + render helpers).
 - Every data screen has loading, empty and error states. Accessible: labelled inputs,
   keyboard navigation, sufficient contrast. Responsive to tablet width.
+- Plain language (Phase 6, see docs/PLAIN_LANGUAGE.md): on screen and in reports say topic,
+  extract, employer demand, how often it comes up, how new it is, "Not in NUC core" / "May
+  already be in NUC core", "Discuss later", "Design course"; technical terms only in "Show
+  calculation", admin "(advanced)" settings and docs. Reference documents by their `label`
+  ("Title, job advert (MyJobMag, Sep 2026)"), never the file name.
 - Review workflow (Phase 6): decisions go through `DecisionControl` (review/DecisionControl.tsx);
   session pages show `SessionProgress` (Review → Design courses → Report); reports download in one
   click via `DownloadReportButton` / `generateAndDownload` (reports/download.ts). Scores are shown
