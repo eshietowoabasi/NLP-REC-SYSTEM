@@ -25,6 +25,7 @@ import type {
   SessionDetail,
 } from '@/types/api'
 
+import { SessionProgress } from './SessionProgress'
 import {
   contributionPoints,
   DECISION_ICONS,
@@ -331,7 +332,7 @@ export function SessionReviewHeader({
   const links = [
     { to: `/sessions/${sessionId}/evidence`, label: 'Evidence' },
     { to: `/sessions/${sessionId}/recommendations`, label: 'Recommendations' },
-    { to: `/sessions/${sessionId}/curriculum`, label: 'Proposed curriculum' },
+    { to: `/sessions/${sessionId}/curriculum`, label: 'Proposed courses' },
   ]
   return (
     <div className="space-y-3">
@@ -359,6 +360,7 @@ export function SessionReviewHeader({
           ))}
         </nav>
       </div>
+      <SessionProgress sessionId={sessionId} />
     </div>
   )
 }

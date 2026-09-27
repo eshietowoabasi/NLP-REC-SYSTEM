@@ -174,6 +174,10 @@ cosmetic.
   query client, utils), `types/api.ts`, `test/` (setup + render helpers).
 - Every data screen has loading, empty and error states. Accessible: labelled inputs,
   keyboard navigation, sufficient contrast. Responsive to tablet width.
+- Review workflow (Phase 6): decisions go through `DecisionControl` (review/DecisionControl.tsx);
+  session pages show `SessionProgress` (Review → Design courses → Report); reports download in one
+  click via `DownloadReportButton` / `generateAndDownload` (reports/download.ts). Scores are shown
+  out of 100 with the helpers in `review/labels.ts`; "flagged" is displayed as "Discuss later".
 - Charts (Recharts): colours from the `--viz-*` tokens in `index.css` (validated palette; one
   hue for magnitude, amber only for "Potential Duplicate" with icon + label), a table beside
   every chart, hover tooltips. Chart-heavy routes are lazy-loaded.

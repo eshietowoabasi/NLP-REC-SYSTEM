@@ -68,7 +68,7 @@ describe('DashboardPage', () => {
     const awaiting = screen.getByRole('link', { name: 'Awaiting review: 18. Analysis sessions' })
     expect(awaiting).toHaveAttribute('href', '/sessions')
     expect(awaiting).toHaveTextContent('of 30 recommendations · 7 accepted')
-    expect(screen.getByRole('link', { name: 'Courses mapped: 4. Reports' })).toHaveTextContent(
+    expect(screen.getByRole('link', { name: 'Courses designed: 4. Reports' })).toHaveTextContent(
       '2 reports generated',
     )
     const recent = screen.getByRole('table', { name: 'Recent sessions' })
@@ -105,9 +105,31 @@ describe('DashboardPage', () => {
     expect(awaiting).toHaveTextContent('11 undecided in “Synthetic 2026 review”')
     expect(
       screen.getByRole('link', {
-        name: 'Courses mapped: 4. Proposed curriculum of Synthetic pilot',
+        name: 'Courses designed: 4. Proposed courses of Synthetic pilot',
       }),
     ).toHaveAttribute('href', '/sessions/4/curriculum')
+  })
+
+  it('explains the three steps until the help is dismissed', async () => {
+    window.localStorage.removeItem('nlprs.howThisWorks.dismissed')
+    dashboardApi(plannerUser, summary())
+    const { user, unmount } = renderApp('/')
+
+    const help = await screen.findByRole('region', { name: 'How this works' })
+    expect(
+      within(help)
+        .getAllByRole('listitem')
+        .map((li) => li.firstChild?.textContent),
+    ).toEqual(['1. Review', '2. Design courses', '3. Report'])
+    await user.click(within(help).getByRole('button', { name: 'Hide “How this works”' }))
+    expect(screen.queryByRole('region', { name: 'How this works' })).not.toBeInTheDocument()
+    unmount()
+
+    dashboardApi(plannerUser, summary())
+    renderApp('/')
+    await screen.findByRole('table', { name: 'Recent sessions' })
+    expect(screen.queryByRole('region', { name: 'How this works' })).not.toBeInTheDocument()
+    window.localStorage.removeItem('nlprs.howThisWorks.dismissed')
   })
 
   it('guides a first run and warns about a missing NUC core', async () => {

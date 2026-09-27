@@ -412,6 +412,8 @@ export interface Recommendation {
   decided_at: string | null
   decided_by: UserRef | null
   has_mapping: boolean
+  /** The course designed for this (accepted) recommendation, if any. */
+  course: { course_code: string; course_title: string; credit_units: number } | null
 }
 
 export interface ReviewCounts {
@@ -422,6 +424,26 @@ export interface ReviewCounts {
   rejected: number
   flagged: number
   potential_duplicates: number
+  with_courses: number
+  accepted_with_courses: number
+}
+
+/** GET /api/sessions/{id}/progress: review → design courses → report. */
+export interface SessionProgress {
+  session_status: SessionStatus
+  total: number
+  reviewed: number
+  accepted: number
+  rejected: number
+  flagged: number
+  courses: number
+  accepted_with_courses: number
+  latest_report: {
+    id: number
+    status: ReportStatus
+    format: ReportFormat
+    created_at: string
+  } | null
 }
 
 /** GET /api/sessions/{id}/recommendations */
@@ -547,7 +569,8 @@ export interface Report {
 /** POST /api/sessions/{id}/reports */
 export interface CreateReportRequest {
   format: ReportFormat
-  sections: ReportSection[]
+  /** Omitted: every section. */
+  sections?: ReportSection[]
 }
 
 export interface ReportListParams {

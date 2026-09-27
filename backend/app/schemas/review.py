@@ -32,6 +32,14 @@ class NucCourseRef(ResponseModel):
     page_number: int | None
 
 
+class CourseRef(BaseModel):
+    """The course designed for an accepted recommendation (its curriculum mapping)."""
+
+    course_code: str
+    course_title: str
+    credit_units: int
+
+
 class RecommendationOut(ResponseModel):
     id: int
     session_id: int
@@ -55,6 +63,7 @@ class RecommendationOut(ResponseModel):
     decided_at: datetime | None
     decided_by: UserRef | None
     has_mapping: bool
+    course: CourseRef | None
 
 
 class RecommendationListQuery(BaseModel):

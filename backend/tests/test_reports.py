@@ -230,6 +230,13 @@ def test_proposed_courses_compare_units_with_the_allowance(allowance, expected) 
     assert blocks[-1] == BulletList(["Deploy apps"])
 
 
+def test_the_default_sections_are_every_report_section_in_order() -> None:
+    from app.schemas.reports import ALL_SECTIONS, ReportCreate
+
+    assert list(REPORT_SECTIONS) == ALL_SECTIONS
+    assert ReportCreate.model_validate({"format": "docx"}).sections == list(REPORT_SECTIONS)
+
+
 def test_empty_sections_say_so() -> None:
     data = report_data(keywords={}, entities={}, topics={}, mappings=[])
     doc = build_report(data, ["nlp_findings", "proposed_courses"])

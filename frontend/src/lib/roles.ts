@@ -10,11 +10,11 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 
 export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   admin: 'Everything, including users, settings, the NUC core reference and the audit log.',
-  planner: 'Upload documents, run analyses, decide on recommendations, map courses, reports.',
+  planner: 'Upload documents, run analyses, decide on recommendations, design courses, reports.',
   viewer: 'Read-only access to documents, analyses, recommendations and reports.',
 }
 
-/** Roles that can create and change data (uploads, sessions, decisions, mappings). */
+/** Roles that can create and change data (uploads, sessions, decisions, course designs). */
 export function canEdit(role: UserRole | undefined): boolean {
   return role === 'admin' || role === 'planner'
 }

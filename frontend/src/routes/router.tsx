@@ -116,7 +116,7 @@ export const routes: RouteObject[] = [
               () => import('@/features/review/CurriculumPage'),
               (m) => m.CurriculumPage,
             ),
-            handle: title('Proposed Curriculum'),
+            handle: title('Proposed courses'),
           },
           {
             path: 'recommendations/:recommendationId',
@@ -136,7 +136,7 @@ export const routes: RouteObject[] = [
                   () => import('@/features/review/MappingPage'),
                   (m) => m.MappingPage,
                 ),
-                handle: title('Curriculum Mapping'),
+                handle: title('Design course'),
               },
             ],
           },

@@ -19,6 +19,7 @@ from app.auth.decorators import EDITOR_ROLES, login_required, role_required
 from app.extensions import db
 from app.models import (
     AnalysisSession,
+    CurriculumMap,
     Document,
     NucCoreVersion,
     OverlapStatus,
@@ -26,9 +27,11 @@ from app.models import (
     PlannerDecision,
     Recommendation,
     RecommendationEvidence,
+    Report,
 )
 from app.schemas.documents import UserRef
 from app.schemas.review import (
+    CourseRef,
     DecisionIn,
     DocumentRef,
     EvidenceOut,
@@ -74,6 +77,15 @@ def recommendation_json(rec: Recommendation) -> dict[str, Any]:
         decided_at=rec.decided_at,
         decided_by=UserRef.model_validate(rec.decided_by) if rec.decided_by else None,
         has_mapping=rec.mapping is not None,
+        course=(
+            CourseRef(
+                course_code=rec.mapping.course_code,
+                course_title=rec.mapping.course_title,
+                credit_units=rec.mapping.credit_units,
+            )
+            if rec.mapping
+            else None
+        ),
     ).model_dump(mode="json")
 
 
@@ -130,7 +142,63 @@ def list_recommendations(session_id: int) -> tuple[Response, int]:
                 "potential_duplicates": sum(
                     r.overlap_status == OverlapStatus.POTENTIAL_DUPLICATE for r in all_recs
                 ),
+                # Courses designed, per decision (only accepted ones can have a course).
+                "with_courses": sum(r.mapping is not None for r in all_recs),
+                "accepted_with_courses": sum(
+                    r.mapping is not None and r.planner_decision == PlannerDecision.ACCEPTED
+                    for r in all_recs
+                ),
             },
+        }
+    )
+
+
+@bp.get("/sessions/<int:session_id>/progress")
+@login_required
+def session_progress(session_id: int) -> tuple[Response, int]:
+    """Where a session stands in the review workflow: review → design courses → report.
+
+    Counts cover every recommendation of the session; ``latest_report`` is the most recent
+    report of any status (null when none has been requested).
+    """
+    session = db.session.get(AnalysisSession, session_id)
+    if session is None:
+        raise ApiError("NOT_FOUND", "Analysis session not found.", 404)
+    rows = db.session.execute(
+        select(Recommendation.planner_decision, CurriculumMap.id)
+        .outerjoin(CurriculumMap, CurriculumMap.recommendation_id == Recommendation.id)
+        .where(Recommendation.session_id == session_id)
+    ).all()
+    decisions = Counter(d.value if d else "undecided" for d, _ in rows)
+    latest = db.session.scalar(
+        select(Report)
+        .where(Report.session_id == session_id)
+        .order_by(Report.created_at.desc(), Report.id.desc())
+        .limit(1)
+    )
+    return success(
+        {
+            "session_status": session.status.value,
+            "total": len(rows),
+            "reviewed": len(rows) - decisions["undecided"],
+            "accepted": decisions["accepted"],
+            "rejected": decisions["rejected"],
+            "flagged": decisions["flagged"],
+            "courses": sum(course_id is not None for _, course_id in rows),
+            "accepted_with_courses": sum(
+                course_id is not None and decision == PlannerDecision.ACCEPTED
+                for decision, course_id in rows
+            ),
+            "latest_report": (
+                {
+                    "id": latest.id,
+                    "status": latest.status.value,
+                    "format": latest.format.value,
+                    "created_at": latest.created_at.isoformat(),
+                }
+                if latest
+                else None
+            ),
         }
     )
 
@@ -284,19 +352,23 @@ def edit_recommendation(recommendation_id: int) -> tuple[Response, int]:
 @bp.patch("/recommendations/<int:recommendation_id>/decision")
 @role_required(*EDITOR_ROLES)
 def decide(recommendation_id: int) -> tuple[Response, int]:
-    """Accept, reject or flag a recommendation (``null`` clears the decision)."""
+    """Accept, reject or mark for later discussion (``null`` clears the decision).
+
+    Notes change only when ``notes`` is sent, so a one-click decision keeps existing notes.
+    """
     rec = get_recommendation_or_404(recommendation_id)
     data = parse_body(DecisionIn)
     if rec.mapping is not None and data.decision != PlannerDecision.ACCEPTED:
         raise ApiError(
             "CONFLICT",
-            "This recommendation is mapped to a course. Remove the course mapping before "
+            "A course has been designed for this recommendation. Remove the course before "
             "changing the decision.",
             409,
         )
     previous = rec.planner_decision.value if rec.planner_decision else None
     rec.planner_decision = data.decision
-    rec.planner_notes = data.notes or None
+    if "notes" in data.model_fields_set:
+        rec.planner_notes = data.notes or None
     rec.decided_by_id = current_user.id if data.decision else None
     rec.decided_at = utcnow() if data.decision else None
     record_audit(
@@ -307,7 +379,7 @@ def decide(recommendation_id: int) -> tuple[Response, int]:
             "from": previous,
             "to": data.decision.value if data.decision else None,
             "title": rec.topic_title,
-            "notes": bool(data.notes),
+            "notes": bool(rec.planner_notes),
         },
     )
     db.session.commit()

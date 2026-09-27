@@ -253,7 +253,7 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
                     {...register('similarity_threshold', { valueAsNumber: true })}
                   />
                   <FieldDescription>
-                    A theme more similar than this to any NUC core passage is flagged as a Potential
+                    A theme more similar than this to any NUC core course is marked as a Potential
                     Duplicate.
                   </FieldDescription>
                   <FieldError errors={[errors.similarity_threshold]} />

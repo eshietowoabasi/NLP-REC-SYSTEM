@@ -25,12 +25,12 @@ export const REPORT_SECTIONS: { id: ReportSection; label: string; hint: string }
   {
     id: 'decisions',
     label: 'Decisions',
-    hint: 'Accepted, rejected and flagged topics with notes',
+    hint: 'Accepted and rejected topics, and those to discuss later, with notes',
   },
   {
     id: 'proposed_courses',
     label: 'Proposed courses',
-    hint: 'Mapped courses, learning outcomes and credit units against the allowance',
+    hint: 'Designed courses, learning outcomes and credit units against the allowance',
   },
 ]
 

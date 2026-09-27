@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useAuth } from '@/features/auth/useAuth'
+import { DownloadReportButton } from '@/features/reports/DownloadReportButton'
 import type { ProposedCurriculum } from '@/types/api'
 
 import { useCurriculum } from './api'
@@ -31,13 +32,13 @@ import { formatOutOf100 } from './labels'
 export function CurriculumPage() {
   const sessionId = Number(useParams().sessionId)
   return (
-    <CompletedSessionGate sessionId={sessionId} title="Proposed curriculum">
+    <CompletedSessionGate sessionId={sessionId} title="Proposed courses">
       {(session) => (
         <div className="mx-auto max-w-6xl space-y-6">
           <SessionReviewHeader
             sessionId={session.id}
             sessionName={session.session_name}
-            title="Proposed curriculum"
+            title="Proposed courses"
           />
           <CurriculumView sessionId={session.id} />
         </div>
@@ -49,11 +50,11 @@ export function CurriculumPage() {
 function CurriculumView({ sessionId }: { sessionId: number }) {
   const curriculum = useCurriculum(sessionId)
   const { canEdit } = useAuth()
-  if (curriculum.isPending) return <LoadingBlock label="Loading the proposed curriculum" />
+  if (curriculum.isPending) return <LoadingBlock label="Loading the proposed courses" />
   if (curriculum.isError) {
     return (
       <ErrorPanel
-        title="Could not load the proposed curriculum"
+        title="Could not load the proposed courses"
         error={curriculum.error}
         onRetry={() => void curriculum.refetch()}
       />
@@ -63,7 +64,7 @@ function CurriculumView({ sessionId }: { sessionId: number }) {
   if (data.courses.length === 0) {
     return (
       <EmptyPanel icon={BookOpen} title="No courses yet">
-        Accept recommendations and map them to courses; they appear here with their credit units.{' '}
+        Accept recommendations and design their courses; they appear here with their credit units.{' '}
         <Link to={`/sessions/${sessionId}/recommendations`} className="underline">
           Review recommendations
         </Link>
@@ -74,7 +75,7 @@ function CurriculumView({ sessionId }: { sessionId: number }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          Courses mapped from accepted recommendations of this session.
+          Courses designed for accepted recommendations of this session.
         </p>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" asChild>
@@ -83,11 +84,14 @@ function CurriculumView({ sessionId }: { sessionId: number }) {
             </Link>
           </Button>
           {canEdit && (
-            <Button size="sm" asChild>
-              <Link to={`/reports?session=${sessionId}&generate=1`}>
-                <FilePlus aria-hidden="true" /> Generate report
-              </Link>
-            </Button>
+            <>
+              <Button variant="outline" size="sm" asChild>
+                <Link to={`/reports?session=${sessionId}&generate=1`}>
+                  <FilePlus aria-hidden="true" /> More options…
+                </Link>
+              </Button>
+              <DownloadReportButton sessionId={sessionId} size="sm" />
+            </>
           )}
         </div>
       </div>

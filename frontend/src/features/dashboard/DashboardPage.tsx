@@ -5,12 +5,14 @@ import {
   FileBarChart,
   FileText,
   FlaskConical,
+  Lightbulb,
   ListChecks,
   Plus,
   Upload,
+  X,
   type LucideIcon,
 } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -48,6 +50,8 @@ export function DashboardPage() {
           curriculum under the NUC CCMAS framework.
         </p>
       </section>
+
+      <HowThisWorks />
 
       {summary.isPending ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Loading summary">
@@ -156,10 +160,10 @@ function Overview({ data }: { data: DashboardSummary }) {
         />
         <StatTile
           icon={BookOpenCheck}
-          label="Courses mapped"
+          label="Courses designed"
           value={data.courses_mapped}
           to={curriculum ? `/sessions/${curriculum.id}/curriculum` : '/reports'}
-          linkHint={curriculum ? `Proposed curriculum of ${curriculum.session_name}` : 'Reports'}
+          linkHint={curriculum ? `Proposed courses of ${curriculum.session_name}` : 'Reports'}
           detail={
             curriculum ? (
               <>Latest in “{curriculum.session_name}”</>
@@ -269,6 +273,74 @@ function Overview({ data }: { data: DashboardSummary }) {
         </Card>
       </div>
     </div>
+  )
+}
+
+const HELP_DISMISSED_KEY = 'nlprs.howThisWorks.dismissed'
+
+function readDismissed(): boolean {
+  try {
+    return window.localStorage.getItem(HELP_DISMISSED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+const HOW_STEPS = [
+  {
+    title: 'Review',
+    text: 'Open a completed analysis session and read its ranked topics with their evidence. Accept, reject or mark each one to discuss later.',
+  },
+  {
+    title: 'Design courses',
+    text: 'For every accepted topic, click “Design course”. Give it a code, title, credit units and learning outcomes.',
+  },
+  {
+    title: 'Report',
+    text: 'When every accepted topic has a course, click “Download report”. You get a Word report with the evidence, decisions and proposed courses.',
+  },
+]
+
+/** A dismissible three-step introduction for first-time users (remembered in this browser). */
+function HowThisWorks() {
+  const [dismissed, setDismissed] = useState(readDismissed)
+  if (dismissed) return null
+  const dismiss = () => {
+    setDismissed(true)
+    try {
+      window.localStorage.setItem(HELP_DISMISSED_KEY, '1')
+    } catch {
+      // Private mode or blocked storage: it simply shows again next time.
+    }
+  }
+  return (
+    <section
+      aria-labelledby="how-this-works"
+      className="relative rounded-lg border bg-muted/40 p-4 pr-12"
+    >
+      <h3 id="how-this-works" className="flex items-center gap-2 font-semibold">
+        <Lightbulb className="size-4" aria-hidden="true" /> How this works
+      </h3>
+      <ol className="mt-3 grid gap-4 sm:grid-cols-3">
+        {HOW_STEPS.map((step, index) => (
+          <li key={step.title} className="space-y-1">
+            <p className="text-sm font-medium">
+              {index + 1}. {step.title}
+            </p>
+            <p className="text-sm text-muted-foreground">{step.text}</p>
+          </li>
+        ))}
+      </ol>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute top-2 right-2"
+        aria-label="Hide “How this works”"
+        onClick={dismiss}
+      >
+        <X aria-hidden="true" />
+      </Button>
+    </section>
   )
 }
 

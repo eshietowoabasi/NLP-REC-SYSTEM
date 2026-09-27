@@ -26,6 +26,7 @@ import { formatDateTime } from '@/lib/format'
 import { NotFoundPage } from '@/routes/NotFoundPage'
 import type { SessionDetail } from '@/types/api'
 import { formatPercent, formatWeight } from '@/features/review/labels'
+import { SessionProgress } from '@/features/review/SessionProgress'
 
 import { useRetrySession, useRunSession, useSession } from './api'
 import { DeleteSessionDialog } from './DeleteSessionDialog'
@@ -171,13 +172,14 @@ function SessionView({ session }: { session: SessionDetail }) {
               </Button>
               <Button size="sm" variant="outline" asChild>
                 <Link to={`/sessions/${session.id}/curriculum`}>
-                  <BookOpen aria-hidden="true" /> Proposed curriculum
+                  <BookOpen aria-hidden="true" /> Proposed courses
                 </Link>
               </Button>
             </div>
           </AlertDescription>
         </Alert>
       )}
+      {session.status === 'completed' && <SessionProgress sessionId={session.id} />}
 
       <Card>
         <CardHeader>

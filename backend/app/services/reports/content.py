@@ -29,7 +29,7 @@ CATEGORY_LABELS = {
     "policy": "Policy",
     "academic": "Academic",
 }
-DECISION_LABELS = {"accepted": "Accepted", "rejected": "Rejected", "flagged": "Flagged"}
+DECISION_LABELS = {"accepted": "Accepted", "rejected": "Rejected", "flagged": "Discuss later"}
 
 TOP_TERMS = 20
 TOP_SKILLS = 20
@@ -338,7 +338,7 @@ def overlap(data: ReportData) -> list[Block]:
             f"Each theme was compared with {compared_with} of the NUC core reference "
             f"({data.nuc_core_version or 'unknown version'}) by cosine similarity of sentence "
             f"embeddings. Themes more than {fmt_percent(threshold)} similar are "
-            f"flagged as potential duplicates of existing core content: {duplicates} of "
+            f"marked as potential duplicates of existing core content: {duplicates} of "
             f"{len(candidates)}."
         ),
         Table(
@@ -429,7 +429,7 @@ def decisions(data: ReportData) -> list[Block]:
             [
                 ("Accepted", str(counts["accepted"])),
                 ("Rejected", str(counts["rejected"])),
-                ("Flagged", str(counts["flagged"])),
+                ("Discuss later", str(counts["flagged"])),
                 ("Not yet reviewed", str(counts["undecided"])),
             ]
         )
@@ -461,7 +461,7 @@ def decisions(data: ReportData) -> list[Block]:
 def proposed_courses(data: ReportData) -> list[Block]:
     if not data.mappings:
         return [
-            Paragraph("No accepted recommendation has been mapped to a course yet.", muted=True)
+            Paragraph("No course has been designed for an accepted recommendation yet.", muted=True)
         ]
     total = sum(m.credit_units for m in data.mappings)
     if data.credit_unit_allowance is None:

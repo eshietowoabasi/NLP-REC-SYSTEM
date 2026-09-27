@@ -13,6 +13,7 @@ import type {
   RecommendationEditRequest,
   RecommendationList,
   RecommendationListParams,
+  SessionProgress,
   SimilarityResults,
   TopicResults,
 } from '@/types/api'
@@ -60,6 +61,20 @@ export function useRecommendation(id: number) {
   })
 }
 
+/** Where the session stands: review → design courses → report (refreshed after changes). */
+export function useSessionProgress(sessionId: number, enabled = true) {
+  return useQuery({
+    queryKey: [...reviewQueryKey, 'progress', sessionId],
+    queryFn: () => apiGet<SessionProgress>(`/sessions/${sessionId}/progress`),
+    enabled,
+    // A report being generated finishes in the background.
+    refetchInterval: (query) => {
+      const status = query.state.data?.latest_report?.status
+      return status === 'queued' || status === 'processing' ? 3000 : false
+    },
+  })
+}
+
 export function useCurriculum(sessionId: number) {
   return useQuery({
     queryKey: [...reviewQueryKey, 'curriculum', sessionId],
@@ -80,6 +95,9 @@ function useRecommendationSync() {
     )
     void queryClient.invalidateQueries({ queryKey: [...reviewQueryKey, 'recommendations'] })
     void queryClient.invalidateQueries({ queryKey: [...reviewQueryKey, 'curriculum'] })
+    void queryClient.invalidateQueries({ queryKey: [...reviewQueryKey, 'progress'] })
+    // The dashboard counts decisions and courses.
+    void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
   }
 }
 

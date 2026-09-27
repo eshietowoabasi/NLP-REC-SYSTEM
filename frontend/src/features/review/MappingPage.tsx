@@ -102,11 +102,11 @@ export function MappingPage() {
         </Link>
       </Button>
       <h2 className="text-2xl font-semibold tracking-tight">
-        {data.mapping ? 'Edit course mapping' : 'Map to a proposed course'}
+        {data.mapping ? 'Edit course' : 'Design course'}
       </h2>
       {data.planner_decision !== 'accepted' && !data.mapping ? (
-        <EmptyPanel icon={X} title="Only accepted recommendations can be mapped">
-          Accept this recommendation first, then map it to a course.{' '}
+        <EmptyPanel icon={X} title="Only accepted recommendations can have a course">
+          Accept this recommendation first, then design its course.{' '}
           <Link to={`/recommendations/${data.id}`} className="underline">
             Back to the recommendation
           </Link>
@@ -160,7 +160,7 @@ function MappingForm({ recommendation }: { recommendation: RecommendationDetail 
     }
     save.mutate(request, {
       onSuccess: (saved) => {
-        toast.success(`${saved.course_code} saved to the proposed curriculum.`)
+        toast.success(`${saved.course_code} saved to the proposed courses.`)
         back()
       },
       onError: (error) =>
@@ -180,7 +180,7 @@ function MappingForm({ recommendation }: { recommendation: RecommendationDetail 
     if (!mapping) return
     remove.mutate(mapping.id, {
       onSuccess: () => {
-        toast.success(`${mapping.course_code} removed from the proposed curriculum.`)
+        toast.success(`${mapping.course_code} removed from the proposed courses.`)
         back()
       },
       onError: (error) => toast.error(error.message),
@@ -190,7 +190,7 @@ function MappingForm({ recommendation }: { recommendation: RecommendationDetail 
   return (
     <Card className="self-start">
       <CardContent>
-        <form onSubmit={onSubmit} noValidate aria-label="Course mapping">
+        <form onSubmit={onSubmit} noValidate aria-label="Course design">
           <FieldGroup>
             {formError && (
               <Alert variant="destructive" role="alert">
@@ -315,7 +315,7 @@ function MappingForm({ recommendation }: { recommendation: RecommendationDetail 
               <div className="flex gap-2">
                 <Button type="submit" disabled={save.isPending}>
                   {save.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
-                  {mapping ? 'Save changes' : 'Add to curriculum'}
+                  {mapping ? 'Save changes' : 'Save course'}
                 </Button>
                 <Button type="button" variant="outline" onClick={back}>
                   Cancel
@@ -328,7 +328,7 @@ function MappingForm({ recommendation }: { recommendation: RecommendationDetail 
                   className="text-destructive"
                   onClick={() => setConfirmDelete(true)}
                 >
-                  <Trash2 aria-hidden="true" /> Remove mapping
+                  <Trash2 aria-hidden="true" /> Remove course
                 </Button>
               )}
             </div>
@@ -341,7 +341,7 @@ function MappingForm({ recommendation }: { recommendation: RecommendationDetail 
           <AlertDialogHeader>
             <AlertDialogTitle>Remove {mapping?.course_code}?</AlertDialogTitle>
             <AlertDialogDescription>
-              The course leaves the proposed curriculum. The recommendation stays accepted.
+              The course leaves the proposed courses. The recommendation stays accepted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -49,6 +49,7 @@ import { formatBytes, formatDateTime } from '@/lib/format'
 import type { Report, ReportFormat, ReportStatus } from '@/types/api'
 
 import { downloadUrl, useDeleteReport, useReports } from './api'
+import { DownloadReportButton } from './DownloadReportButton'
 import { GenerateReportDialog } from './GenerateReportDialog'
 import { FORMAT_LABELS, REPORT_SECTIONS, REPORT_STATUS_LABELS } from './labels'
 
@@ -90,7 +91,13 @@ export function ReportsPage() {
   const sessionFilter = Number(searchParams.get('session')) || undefined
   const [format, setFormat] = useState<'all' | ReportFormat>('all')
   const [page, setPage] = useState(1)
+  // ?generate=1 (from "More options…" on a session's proposed courses) opens the full form.
   const [generating, setGenerating] = useState(canEdit && searchParams.get('generate') === '1')
+  const [showOptions, setShowOptions] = useState(searchParams.get('generate') === '1')
+  const openGenerate = (options: boolean) => {
+    setShowOptions(options)
+    setGenerating(true)
+  }
   const [deleting, setDeleting] = useState<Report | null>(null)
   const reports = useReports({
     page,
@@ -128,9 +135,18 @@ export function ReportsPage() {
           </p>
         </div>
         {canEdit && (
-          <Button onClick={() => setGenerating(true)}>
-            <Plus aria-hidden="true" /> Generate report
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => openGenerate(true)}>
+              <Plus aria-hidden="true" /> More options…
+            </Button>
+            {sessionFilter ? (
+              <DownloadReportButton sessionId={sessionFilter} />
+            ) : (
+              <Button onClick={() => openGenerate(false)}>
+                <Download aria-hidden="true" /> Download report
+              </Button>
+            )}
+          </div>
         )}
       </div>
 
@@ -187,9 +203,14 @@ export function ReportsPage() {
             Generate a report once a session has completed and its recommendations have been
             reviewed.
           </p>
-          {canEdit && (
-            <Button onClick={() => setGenerating(true)}>Generate the first report</Button>
-          )}
+          {canEdit &&
+            (sessionFilter ? (
+              <DownloadReportButton sessionId={sessionFilter} />
+            ) : (
+              <Button onClick={() => openGenerate(false)}>
+                <Download aria-hidden="true" /> Download the first report
+              </Button>
+            ))}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border">
@@ -290,6 +311,7 @@ export function ReportsPage() {
         open={generating}
         onOpenChange={setGenerating}
         sessionId={sessionFilter}
+        showOptions={showOptions}
       />
 
       <AlertDialog open={deleting !== null} onOpenChange={(open) => !open && setDeleting(null)}>

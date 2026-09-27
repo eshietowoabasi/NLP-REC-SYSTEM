@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { healthyStatus, page, plannerUser, viewerUser } from '@/test/fixtures'
 import { fail, mockApi, ok } from '@/test/server'
@@ -86,30 +86,55 @@ describe('ReportsPage', () => {
     expect(within(rows[2]).queryByRole('button', { name: /Delete/ })).not.toBeInTheDocument()
   })
 
-  it('generates a report with the chosen format and sections', async () => {
+  it('downloads a Word report with every section in one click for a session', async () => {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
     const server = reportsApi(plannerUser, {
-      'POST /sessions/:id/reports': ok(report({ id: 10, status: 'queued' }), 202),
+      'POST /sessions/:id/reports': ok(report({ id: 10, format: 'docx', status: 'queued' }), 202),
+      'GET /reports/:id': ok(report({ id: 10, format: 'docx' })),
+    })
+    const { user } = renderApp('/reports?session=5')
+
+    await user.click(await screen.findByRole('button', { name: 'Download report' }))
+
+    await waitFor(() => expect(click).toHaveBeenCalled())
+    expect(server.calls('POST', '/sessions/5/reports')[0].body).toEqual({ format: 'docx' })
+    expect(server.calls('GET', '/reports/10')).toHaveLength(1)
+    click.mockRestore()
+  })
+
+  it('keeps the format and section choices under "More options"', async () => {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    const server = reportsApi(plannerUser, {
+      'POST /sessions/:id/reports': ok(report({ id: 10 }), 202),
     })
     const { user } = renderApp('/reports')
 
-    await user.click(await screen.findByRole('button', { name: /Generate report/ }))
-    const dialog = await screen.findByRole('dialog')
-    await user.click(within(dialog).getByRole('button', { name: 'Generate' }))
+    await user.click(await screen.findByRole('button', { name: 'Download report' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Download report' })
+    await user.click(within(dialog).getByRole('button', { name: 'Download report' }))
     expect(await within(dialog).findByText('Choose a completed session.')).toBeInTheDocument()
 
     await user.click(within(dialog).getByRole('combobox', { name: 'Session' }))
     await user.click(await screen.findByRole('option', { name: 'Synthetic 2026 review' }))
-    await user.click(within(dialog).getByRole('radio', { name: 'Word (DOCX)' }))
+    expect(within(dialog).getByRole('radio', { name: 'Word (DOCX)' })).not.toBeVisible()
+    await user.click(within(dialog).getByText('More options'))
+    expect(within(dialog).getByRole('radio', { name: 'Word (DOCX)' })).toHaveAttribute(
+      'data-state',
+      'on',
+    )
+    await user.click(within(dialog).getByRole('radio', { name: 'PDF' }))
     await user.click(within(dialog).getByRole('checkbox', { name: 'NLP findings' }))
     await user.click(within(dialog).getByRole('checkbox', { name: 'Overlap results' }))
-    await user.click(within(dialog).getByRole('button', { name: 'Generate' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Download report' }))
 
     await waitFor(() => expect(server.calls('POST', '/sessions/5/reports')).toHaveLength(1))
     expect(server.calls('POST', '/sessions/5/reports')[0].body).toEqual({
-      format: 'docx',
+      format: 'pdf',
       sections: ['corpus_summary', 'recommendations', 'decisions', 'proposed_courses'],
     })
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(click).toHaveBeenCalled())
+    click.mockRestore()
   })
 
   it('requires at least one section', async () => {
@@ -127,7 +152,7 @@ describe('ReportsPage', () => {
     ]) {
       await user.click(within(dialog).getByRole('checkbox', { name }))
     }
-    await user.click(within(dialog).getByRole('button', { name: 'Generate' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Download report' }))
 
     expect(await within(dialog).findByText('Choose at least one section.')).toBeInTheDocument()
     expect(server.calls('POST', '/sessions/5/reports')).toHaveLength(0)
@@ -166,7 +191,8 @@ describe('ReportsPage', () => {
 
     await screen.findAllByText('All sections')
     expect(screen.getAllByRole('link', { name: /Download/ })).toHaveLength(1)
-    expect(screen.queryByRole('button', { name: /Generate report/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Download report/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /More options/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Delete report/ })).not.toBeInTheDocument()
   })
 

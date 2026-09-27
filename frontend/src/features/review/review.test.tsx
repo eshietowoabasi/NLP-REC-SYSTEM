@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { healthyStatus, plannerUser, viewerUser } from '@/test/fixtures'
 import { fail, mockApi, ok, type MockRequest } from '@/test/server'
@@ -12,7 +12,9 @@ import type {
   Recommendation,
   RecommendationDetail,
   RecommendationList,
+  Report,
   SessionDetail,
+  SessionProgress,
   SimilarityResults,
   User,
 } from '@/types/api'
@@ -68,6 +70,7 @@ const rec = (overrides: Partial<Recommendation> = {}): Recommendation => ({
   decided_at: null,
   decided_by: null,
   has_mapping: false,
+  course: null,
   ...overrides,
 })
 
@@ -91,8 +94,23 @@ const list: RecommendationList = {
     rejected: 0,
     flagged: 1,
     potential_duplicates: 1,
+    with_courses: 0,
+    accepted_with_courses: 0,
   },
 }
+
+const progress = (overrides: Partial<SessionProgress> = {}): SessionProgress => ({
+  session_status: 'completed',
+  total: 3,
+  reviewed: 2,
+  accepted: 1,
+  rejected: 0,
+  flagged: 1,
+  courses: 0,
+  accepted_with_courses: 0,
+  latest_report: null,
+  ...overrides,
+})
 
 const detail = (overrides: Partial<RecommendationDetail> = {}): RecommendationDetail => ({
   ...rec(),
@@ -159,6 +177,7 @@ function reviewApi(user: User, extra: Parameters<typeof mockApi>[0] = {}) {
     'GET /sessions/:id': ok(session),
     'GET /sessions/:id/recommendations': ok(list),
     'GET /recommendations/:id': ok(detail()),
+    'GET /sessions/:id/progress': ok(progress()),
     ...extra,
   })
 }
@@ -178,9 +197,20 @@ describe('RecommendationsPage', () => {
       within(items[0]).getByRole('link', { name: 'Cloud Security and Kubernetes' }),
     ).toHaveAttribute('href', '/recommendations/31')
     expect(within(items[0]).getByText('New')).toBeInTheDocument()
+    // Decided: a clear status, no decision buttons, and the next step for accepted topics.
     expect(within(items[0]).getByText('Accepted')).toBeInTheDocument()
+    expect(within(items[0]).queryByRole('button', { name: 'Accept' })).not.toBeInTheDocument()
+    expect(within(items[0]).getByRole('link', { name: /Design course/ })).toHaveAttribute(
+      'href',
+      '/recommendations/31/mapping',
+    )
+    expect(within(items[2]).getByText('Discuss later')).toBeInTheDocument()
+    // Undecided: Accept / Reject / Discuss later.
     expect(within(items[1]).getByText('Potential Duplicate')).toBeInTheDocument()
-    expect(within(items[1]).getByText('Undecided')).toBeInTheDocument()
+    const buttons = within(items[1])
+      .getAllByRole('button')
+      .map((b) => b.textContent)
+    expect(buttons).toEqual(['Accept', 'Reject', 'Discuss later'])
     // The score out of 100 and its three weighted parts, readable without the colours; the
     // contributed points add up to the total (36 + 17 + 7 = 60).
     expect(
@@ -197,6 +227,75 @@ describe('RecommendationsPage', () => {
     )
     expect(screen.getByText('2 of 3')).toBeInTheDocument()
     expect(screen.getByText(/1 potential duplicate of NUC core content/)).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /Accepted/ })).toHaveTextContent(
+      'Accepted1 · 0 with courses',
+    )
+  })
+
+  it('shows the three workflow steps with live counts and links', async () => {
+    reviewApi(plannerUser)
+    renderApp('/sessions/5/recommendations')
+
+    const steps = within(await screen.findByRole('navigation', { name: 'Session progress' }))
+    const review = steps.getByRole('link', { name: 'Step 1: Review, 2 of 3 reviewed' })
+    expect(review).toHaveAttribute('href', '/sessions/5/recommendations?decision=undecided')
+    expect(review).toHaveAttribute('aria-current', 'step')
+    expect(
+      steps.getByRole('link', { name: 'Step 2: Design courses, 0 courses designed · 1 accepted' }),
+    ).toBeInTheDocument()
+    expect(steps.getByRole('link', { name: /Step 3: Report/ })).toHaveAttribute(
+      'href',
+      '/reports?session=5',
+    )
+    expect(steps.getByText('report not generated')).toBeInTheDocument()
+    expect(screen.queryByText('All reviewed.')).not.toBeInTheDocument()
+  })
+
+  it('suggests designing the accepted courses once everything is reviewed', async () => {
+    reviewApi(plannerUser, {
+      'GET /sessions/:id/progress': ok(
+        progress({ reviewed: 3, accepted: 2, courses: 1, accepted_with_courses: 1 }),
+      ),
+    })
+    renderApp('/sessions/5/recommendations')
+
+    expect(await screen.findByText('All reviewed.')).toBeInTheDocument()
+    expect(screen.getByText(/You accepted 2 \(1 already designed\)/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Design their courses/ })).toHaveAttribute(
+      'href',
+      '/sessions/5/recommendations?decision=accepted',
+    )
+  })
+
+  it('downloads the report in one click when every accepted topic has a course', async () => {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    const ready: Report = {
+      id: 77,
+      session: { id: 5, session_name: 'Synthetic 2026 review' },
+      format: 'docx',
+      sections: [],
+      status: 'completed',
+      error_message: null,
+      file_size: 2048,
+      created_by: { id: 2, full_name: 'Test Planner' },
+      created_at: '2026-09-27T10:00:00Z',
+      completed_at: '2026-09-27T10:00:05Z',
+    }
+    const server = reviewApi(plannerUser, {
+      'GET /sessions/:id/progress': ok(
+        progress({ reviewed: 3, accepted: 1, courses: 1, accepted_with_courses: 1 }),
+      ),
+      'POST /sessions/:id/reports': ok(ready, 201),
+    })
+    const { user } = renderApp('/sessions/5/recommendations')
+
+    expect(await screen.findByText('Ready.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /Download your report/ }))
+
+    await waitFor(() => expect(click).toHaveBeenCalled())
+    expect(server.calls('POST', '/sessions/5/reports')[0].body).toEqual({ format: 'docx' })
+    expect(await screen.findByText('Report ready. The download has started.')).toBeInTheDocument()
+    click.mockRestore()
   })
 
   it('filters by decision and hides duplicates through the API', async () => {
@@ -232,7 +331,7 @@ describe('RecommendationsPage', () => {
     )
   })
 
-  it('accepts in one click, and clicking the current decision clears it', async () => {
+  it('accepts in one click, then offers to design the course', async () => {
     const server = reviewApi(plannerUser, {
       'PATCH /recommendations/:id/decision': (request, params) =>
         ok(
@@ -245,23 +344,74 @@ describe('RecommendationsPage', () => {
       name: 'Decision for Operating Systems Internals',
     })
     await user.click(within(second).getByRole('button', { name: 'Accept' }))
-    const first = screen.getByRole('group', { name: 'Decision for Cloud Security and Kubernetes' })
-    expect(within(first).getByRole('button', { name: 'Accept' })).toHaveAttribute(
+
+    expect(await screen.findByText('Accepted. Next: design this course')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Design course' })).toBeInTheDocument()
+    expect(server.calls('PATCH', '/recommendations/32/decision')[0].body).toEqual({
+      decision: 'accepted',
+    })
+  })
+
+  it('changes or clears a decision through "Change decision"', async () => {
+    const server = reviewApi(plannerUser, {
+      'PATCH /recommendations/:id/decision': (request, params) =>
+        ok(
+          rec({ id: Number(params.id), planner_decision: decisionBody(request).decision as never }),
+        ),
+    })
+    const { user } = renderApp('/sessions/5/recommendations')
+
+    const items = within(
+      await screen.findByRole('list', { name: 'Ranked recommendations' }),
+    ).getAllByRole('listitem')
+    await user.click(within(items[0]).getByRole('button', { name: 'Change decision' }))
+    const group = within(items[0]).getByRole('group', {
+      name: 'Decision for Cloud Security and Kubernetes',
+    })
+    expect(within(group).getByRole('button', { name: 'Accept' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
-    await user.click(within(first).getByRole('button', { name: 'Accept' }))
+    await user.click(within(group).getByRole('button', { name: 'Accept' }))
 
     await waitFor(() =>
       expect(server.calls('PATCH', '/recommendations/31/decision')).toHaveLength(1),
     )
-    expect(server.calls('PATCH', '/recommendations/32/decision')[0].body).toEqual({
-      decision: 'accepted',
-      notes: null,
-    })
     expect(
       decisionBody(server.calls('PATCH', '/recommendations/31/decision')[0]).decision,
     ).toBeNull()
+  })
+
+  it('shows the designed course instead of the Design course button', async () => {
+    reviewApi(plannerUser, {
+      'GET /sessions/:id/recommendations': ok({
+        ...list,
+        items: [
+          rec({
+            planner_decision: 'accepted',
+            has_mapping: true,
+            course: {
+              course_code: 'CSC 419',
+              course_title: 'Cloud Security Engineering',
+              credit_units: 3,
+            },
+          }),
+        ],
+      }),
+    })
+    renderApp('/sessions/5/recommendations')
+
+    const item = within(await screen.findByRole('list', { name: 'Ranked recommendations' }))
+    expect(item.getByText(/Course:/).closest('p')).toHaveTextContent(
+      /Course: CSC 419 – Cloud Security Engineering\s*·\s*Edit/,
+    )
+    expect(item.getByRole('link', { name: 'Edit course CSC 419' })).toHaveAttribute(
+      'href',
+      '/recommendations/31/mapping',
+    )
+    expect(item.queryByRole('link', { name: /Design course/ })).not.toBeInTheDocument()
+    // A designed course locks the decision (remove the course first).
+    expect(item.queryByRole('button', { name: 'Change decision' })).not.toBeInTheDocument()
   })
 
   it('does not let viewers decide', async () => {
@@ -366,44 +516,62 @@ describe('RecommendationDetailPage', () => {
     })
   })
 
-  it('saves a decision with notes, then offers mapping to a course', async () => {
+  it('decides in one click, then offers to design the course and saves notes', async () => {
     const server = reviewApi(plannerUser, {
-      'PATCH /recommendations/:id/decision': ok(
-        rec({ planner_decision: 'accepted', planner_notes: 'Strong demand.' }),
-      ),
+      'PATCH /recommendations/:id/decision': (request) =>
+        ok(
+          rec({
+            planner_decision: decisionBody(request).decision as never,
+            planner_notes: (request.body as { notes?: string }).notes ?? null,
+          }),
+        ),
     })
     const { user } = renderApp('/recommendations/31')
 
-    expect(
-      await screen.findByText('Accept the recommendation to map it to a proposed course.'),
-    ).toBeInTheDocument()
-    const save = screen.getByRole('button', { name: 'Save decision' })
-    expect(save).toBeDisabled()
-    await user.click(screen.getByRole('radio', { name: 'Accept' }))
-    await user.type(screen.getByLabelText('Notes'), 'Strong demand.')
-    await user.click(save)
-
-    expect(await screen.findByRole('link', { name: /Map to course/ })).toHaveAttribute(
+    await user.click(await screen.findByRole('button', { name: 'Accept' }))
+    expect(await screen.findByRole('link', { name: /Design course/ })).toHaveAttribute(
       'href',
       '/recommendations/31/mapping',
     )
+    expect(screen.queryByRole('button', { name: 'Accept' })).not.toBeInTheDocument()
     expect(server.calls('PATCH', '/recommendations/31/decision')[0].body).toEqual({
+      decision: 'accepted',
+    })
+
+    const save = screen.getByRole('button', { name: 'Save notes' })
+    expect(save).toBeDisabled()
+    await user.type(screen.getByLabelText('Notes'), 'Strong demand.')
+    await user.click(save)
+    await waitFor(() =>
+      expect(server.calls('PATCH', '/recommendations/31/decision')).toHaveLength(2),
+    )
+    expect(server.calls('PATCH', '/recommendations/31/decision')[1].body).toEqual({
       decision: 'accepted',
       notes: 'Strong demand.',
     })
   })
 
-  it('locks the decision while the recommendation is mapped', async () => {
+  it('shows the designed course and locks the decision', async () => {
     reviewApi(plannerUser, {
       'GET /recommendations/:id': ok(
-        detail({ planner_decision: 'accepted', has_mapping: true, mapping }),
+        detail({
+          planner_decision: 'accepted',
+          has_mapping: true,
+          mapping,
+          course: {
+            course_code: 'CSC 419',
+            course_title: 'Cloud Security Engineering',
+            credit_units: 3,
+          },
+        }),
       ),
     })
     renderApp('/recommendations/31')
 
-    expect(await screen.findByText(/CSC 419/)).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: 'Reject' })).toBeDisabled()
-    expect(screen.getByRole('link', { name: 'Edit course mapping' })).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'Edit course CSC 419' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Change decision' })).not.toBeInTheDocument()
+    expect(screen.getByText(/remove the course first/)).toBeInTheDocument()
+    expect(screen.getByText(/3 credit units · 1 learning outcome/)).toBeInTheDocument()
   })
 
   it('shows 404 for an unknown recommendation', async () => {
@@ -434,7 +602,7 @@ describe('MappingPage', () => {
       'true',
     )
     await user.type(screen.getByLabelText('Course code'), 'Cloud1')
-    await user.click(screen.getByRole('button', { name: 'Add to curriculum' }))
+    await user.click(screen.getByRole('button', { name: 'Save course' }))
     expect(await screen.findByText(/Use a course code like/)).toBeInTheDocument()
     expect(screen.getByText('Add at least one learning outcome.')).toBeInTheDocument()
 
@@ -446,7 +614,7 @@ describe('MappingPage', () => {
     await user.type(screen.getByLabelText('Learning outcome 1'), 'Secure cloud workloads')
     await user.click(screen.getByRole('button', { name: /Add outcome/ }))
     await user.type(screen.getByLabelText('Learning outcome 2'), 'Operate clusters')
-    await user.click(screen.getByRole('button', { name: 'Add to curriculum' }))
+    await user.click(screen.getByRole('button', { name: 'Save course' }))
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/recommendations/31'))
     expect(server.calls('POST', '/recommendations/31/mapping')[0].body).toEqual({
@@ -469,7 +637,7 @@ describe('MappingPage', () => {
 
     await user.type(await screen.findByLabelText('Course code'), 'CSC 419')
     await user.type(screen.getByLabelText('Learning outcome 1'), 'Secure cloud workloads')
-    await user.click(screen.getByRole('button', { name: 'Add to curriculum' }))
+    await user.click(screen.getByRole('button', { name: 'Save course' }))
 
     expect(await screen.findByText('CSC 419 is already used in this session.')).toBeInTheDocument()
     expect(screen.getByLabelText('Course code')).toHaveAttribute('aria-invalid', 'true')
@@ -484,7 +652,7 @@ describe('MappingPage', () => {
 
     expect(await screen.findByLabelText('Course code')).toHaveValue('CSC 419')
     expect(screen.getByLabelText('Learning outcome 1')).toHaveValue('Secure cloud workloads')
-    await user.click(screen.getByRole('button', { name: /Remove mapping/ }))
+    await user.click(screen.getByRole('button', { name: /Remove course/ }))
     await user.click(await screen.findByRole('button', { name: 'Remove' }))
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/recommendations/31'))
@@ -496,7 +664,7 @@ describe('MappingPage', () => {
     renderApp('/recommendations/31/mapping')
 
     expect(
-      await screen.findByText('Only accepted recommendations can be mapped'),
+      await screen.findByText('Only accepted recommendations can have a course'),
     ).toBeInTheDocument()
     expect(screen.queryByLabelText('Course code')).not.toBeInTheDocument()
   })

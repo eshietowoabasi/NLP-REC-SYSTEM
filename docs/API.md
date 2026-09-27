@@ -559,7 +559,8 @@ course exclusions also report `courses_compared` and `courses_excluded`. Each ca
 | `closest_nuc_course` | `{ "id", "code", "title", "units", "page_number" }` — the NUC course the theme is closest to (the similarity above is to this course); null when the session compared themes with NUC passages |
 | `planner_decision` | `accepted`, `rejected`, `flagged` or null |
 | `planner_notes`, `decided_at`, `decided_by` (`{ "id", "full_name" }`) | Null while undecided |
-| `has_mapping` | Whether the recommendation is mapped to a course |
+| `has_mapping` | Whether a course has been designed for the recommendation |
+| `course` | `{ "course_code", "course_title", "credit_units" }` of the designed course, or null |
 
 ### `GET /api/sessions/{id}/recommendations`
 
@@ -567,8 +568,16 @@ Access: any. Every recommendation of the session in rank order (not paginated: a
 `max_recommendations`, ≤ 100). Filters: `decision` = `all` (default), `undecided`, `accepted`,
 `rejected`, `flagged`; `hide_duplicates=true`. Response:
 `{ "items": [...], "counts": { "total", "reviewed", "undecided", "accepted", "rejected",
-"flagged", "potential_duplicates" } }`; the counts always cover the whole session. **404** if
-the session is unknown.
+"flagged", "potential_duplicates", "with_courses", "accepted_with_courses" } }`; the counts
+always cover the whole session. `flagged` is shown to users as "Discuss later". **404** if the
+session is unknown.
+
+### `GET /api/sessions/{id}/progress`
+
+Access: any. Where the session stands in the review workflow (Review → Design courses →
+Report): `{ "session_status", "total", "reviewed", "accepted", "rejected", "flagged",
+"courses", "accepted_with_courses", "latest_report": { "id", "status", "format",
+"created_at" } | null }`. **404** if the session is unknown.
 
 ### `GET /api/sessions/{id}/recommendations/export`
 
@@ -599,9 +608,11 @@ description 1–5,000 characters). `auto_title` is kept. Audited as `recommendat
 ### `PATCH /api/recommendations/{id}/decision`
 
 Access: admin, planner. `{ "decision": "accepted" | "rejected" | "flagged" | null, "notes"? }`
-(notes ≤ 2,000 characters). `null` clears the decision. Records who decided and when; audited
-as `recommendation.decided`. **409** when the recommendation is mapped to a course and the new
-decision is not `accepted` (remove the mapping first).
+(notes ≤ 2,000 characters). `null` clears the decision; `flagged` means "Discuss later". The
+notes change only when `notes` is sent (a one-click decision keeps them; `""` clears them).
+Records who decided and when; audited as `recommendation.decided`. **409** when a course has
+been designed for the recommendation and the new decision is not `accepted` (remove the course
+first).
 
 ## Curriculum mapping
 
@@ -675,8 +686,8 @@ Sections: `corpus_summary`, `nlp_findings`, `overlap`, `recommendations`, `decis
 
 ### `POST /api/sessions/{id}/reports`
 
-Access: admin, planner. `{ "format": "pdf" | "docx", "sections": [...] }` (at least one
-section, each once). **202** with the queued report; poll `GET /api/reports/{id}`. Audited as
+Access: admin, planner. `{ "format": "pdf" | "docx", "sections"?: [...] }` (at least one
+section, each once; omitted = every section, as the one-click "Download report" sends). **202** with the queued report; poll `GET /api/reports/{id}`. Audited as
 `report.generated`. **404** unknown session; **409** `RESULTS_NOT_READY` if the session has not
 completed.
 

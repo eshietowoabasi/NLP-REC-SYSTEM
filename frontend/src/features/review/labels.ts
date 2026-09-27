@@ -1,23 +1,27 @@
-import { Check, Flag, X } from 'lucide-react'
+import { Check, MessageCircleMore, X } from 'lucide-react'
 
 import type { PlannerDecision, SkillLabel } from '@/types/api'
 
 export const DECISION_LABELS: Record<PlannerDecision, string> = {
   accepted: 'Accepted',
   rejected: 'Rejected',
-  flagged: 'Flagged',
+  flagged: 'Discuss later',
 }
 
 /** Imperative forms used on buttons. */
 export const DECISION_ACTIONS: Record<PlannerDecision, string> = {
   accepted: 'Accept',
   rejected: 'Reject',
-  flagged: 'Flag',
+  flagged: 'Discuss later',
 }
 
-export const DECISION_ICONS = { accepted: Check, rejected: X, flagged: Flag } as const
+export const DECISION_ICONS = { accepted: Check, rejected: X, flagged: MessageCircleMore } as const
 
 export const DECISIONS: readonly PlannerDecision[] = ['accepted', 'rejected', 'flagged']
+
+/** The course design form of an accepted recommendation. */
+export const designCoursePath = (recommendationId: number) =>
+  `/recommendations/${recommendationId}/mapping`
 
 export const SKILL_LABELS: Record<SkillLabel, string> = {
   SKILL: 'Skill',

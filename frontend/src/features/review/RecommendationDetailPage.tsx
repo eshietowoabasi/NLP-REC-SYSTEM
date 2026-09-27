@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, BookOpenCheck, Loader2, Pencil } from 'lucide-react'
+import { ArrowLeft, Loader2, Pencil } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useParams } from 'react-router'
@@ -14,7 +14,6 @@ import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useAuth } from '@/features/auth/useAuth'
 import { CATEGORY_LABELS } from '@/features/documents/labels'
 import { ApiError } from '@/lib/api'
@@ -22,7 +21,7 @@ import { formatDateTime } from '@/lib/format'
 import { applyServerErrors } from '@/lib/forms'
 import { cn } from '@/lib/utils'
 import { NotFoundPage } from '@/routes/NotFoundPage'
-import type { Evidence, PlannerDecision, RecommendationDetail } from '@/types/api'
+import type { Evidence, RecommendationDetail } from '@/types/api'
 
 import { useDecide, useEditRecommendation, useRecommendation } from './api'
 import {
@@ -32,10 +31,8 @@ import {
   OverlapBadge,
   ScoreContribution,
 } from './components'
+import { DecisionControl } from './DecisionControl'
 import {
-  DECISION_ACTIONS,
-  DECISION_ICONS,
-  DECISIONS,
   contributionPoints,
   formatDecimal,
   formatPercent,
@@ -541,18 +538,15 @@ function TermsCard({ recommendation }: { recommendation: RecommendationDetail })
 function DecisionCard({ recommendation }: { recommendation: RecommendationDetail }) {
   const { canEdit } = useAuth()
   const decide = useDecide()
-  const [decision, setDecision] = useState<PlannerDecision | null>(recommendation.planner_decision)
-  const [notes, setNotes] = useState(recommendation.planner_notes ?? '')
-  const mapped = recommendation.mapping !== null
-  const changed =
-    decision !== recommendation.planner_decision ||
-    notes.trim() !== (recommendation.planner_notes ?? '')
+  const saved = recommendation.planner_notes ?? ''
+  const [notes, setNotes] = useState(saved)
+  const mapping = recommendation.mapping
 
-  const save = () =>
+  const saveNotes = () =>
     decide.mutate(
-      { id: recommendation.id, decision, notes: notes.trim() || null },
+      { id: recommendation.id, decision: recommendation.planner_decision, notes: notes.trim() },
       {
-        onSuccess: () => toast.success('Decision saved.'),
+        onSuccess: () => toast.success('Notes saved.'),
         onError: (error) => toast.error(error.message),
       },
     )
@@ -568,105 +562,48 @@ function DecisionCard({ recommendation }: { recommendation: RecommendationDetail
         )}
       </CardHeader>
       <CardContent className="space-y-4">
-        {canEdit ? (
-          <>
-            <ToggleGroup
-              type="single"
-              variant="outline"
-              value={decision ?? ''}
-              onValueChange={(value) => setDecision((value || null) as PlannerDecision | null)}
-              aria-label="Decision"
-              className="w-full"
-              disabled={mapped}
+        <DecisionControl recommendation={recommendation} layout="panel" />
+        {mapping && (
+          <p className="text-xs text-muted-foreground">
+            {mapping.credit_units} credit unit{mapping.credit_units === 1 ? '' : 's'} ·{' '}
+            {mapping.learning_outcomes.length} learning outcome
+            {mapping.learning_outcomes.length === 1 ? '' : 's'} ·{' '}
+            <Link
+              to={`/sessions/${recommendation.session_id}/curriculum`}
+              className="underline-offset-4 hover:underline"
             >
-              {DECISIONS.map((value) => {
-                const Icon = DECISION_ICONS[value]
-                return (
-                  <ToggleGroupItem key={value} value={value} className="flex-1">
-                    <Icon aria-hidden="true" /> {DECISION_ACTIONS[value]}
-                  </ToggleGroupItem>
-                )
-              })}
-            </ToggleGroup>
-            {mapped && (
-              <p className="text-xs text-muted-foreground">
-                Mapped to a course: remove the mapping to change the decision.
-              </p>
-            )}
-            <div className="grid gap-1.5">
-              <Label htmlFor="decision-notes">Notes</Label>
-              <Textarea
-                id="decision-notes"
-                rows={4}
-                maxLength={2000}
-                placeholder="Reasons, conditions or follow-up (optional)"
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-              />
-            </div>
-            <Button onClick={save} disabled={!changed || decide.isPending} className="w-full">
-              {decide.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
-              Save decision
-            </Button>
-          </>
-        ) : (
-          <div className="space-y-2 text-sm">
-            <DecisionBadge decision={recommendation.planner_decision} />
-            {recommendation.planner_notes && <p>{recommendation.planner_notes}</p>}
-          </div>
+              View the proposed courses
+            </Link>
+          </p>
         )}
-
-        <MappingSummary recommendation={recommendation} />
+        {canEdit ? (
+          <div className="grid gap-1.5 border-t pt-4">
+            <Label htmlFor="decision-notes">Notes</Label>
+            <Textarea
+              id="decision-notes"
+              rows={4}
+              maxLength={2000}
+              placeholder="Reasons, conditions or follow-up (optional)"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="justify-self-start"
+              onClick={saveNotes}
+              disabled={notes.trim() === saved || decide.isPending}
+            >
+              {decide.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+              Save notes
+            </Button>
+          </div>
+        ) : (
+          recommendation.planner_notes && (
+            <p className="border-t pt-4 text-sm">{recommendation.planner_notes}</p>
+          )
+        )}
       </CardContent>
     </Card>
-  )
-}
-
-function MappingSummary({ recommendation }: { recommendation: RecommendationDetail }) {
-  const { canEdit } = useAuth()
-  const mapping = recommendation.mapping
-  const mappingPath = `/recommendations/${recommendation.id}/mapping`
-
-  if (mapping) {
-    return (
-      <div className="space-y-2 rounded-md border p-3 text-sm">
-        <p className="flex items-center gap-1.5 font-medium">
-          <BookOpenCheck className="size-4" aria-hidden="true" /> {mapping.course_code}:{' '}
-          {mapping.course_title}
-        </p>
-        <p className="text-muted-foreground">
-          {mapping.credit_units} credit unit{mapping.credit_units === 1 ? '' : 's'} ·{' '}
-          {mapping.learning_outcomes.length} learning outcome
-          {mapping.learning_outcomes.length === 1 ? '' : 's'}
-        </p>
-        {canEdit ? (
-          <Button variant="outline" size="sm" asChild>
-            <Link to={mappingPath}>Edit course mapping</Link>
-          </Button>
-        ) : (
-          <Link
-            to={`/sessions/${recommendation.session_id}/curriculum`}
-            className="text-sm underline-offset-4 hover:underline"
-          >
-            View the proposed curriculum
-          </Link>
-        )}
-      </div>
-    )
-  }
-  if (!canEdit) return null
-  if (recommendation.planner_decision !== 'accepted') {
-    return (
-      <p className="text-xs text-muted-foreground">
-        Accept the recommendation to map it to a proposed course.
-      </p>
-    )
-  }
-  return (
-    <Button asChild variant="secondary" className="w-full">
-      <Link to={mappingPath}>
-        <BookOpenCheck aria-hidden="true" /> Map to course
-      </Link>
-    </Button>
   )
 }
