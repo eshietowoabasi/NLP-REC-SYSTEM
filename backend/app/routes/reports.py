@@ -140,7 +140,7 @@ def download_report(report_id: int) -> Response:
     if not path.exists():
         raise ApiError("NOT_FOUND", "The report file is missing; generate it again.", 404)
     return send_file(
-        path,
+        path.resolve(),  # absolute: send_file resolves relative paths against the app package
         mimetype=MIME_TYPES[ReportFormat(report.format)],
         as_attachment=True,
         download_name=download_name(report),

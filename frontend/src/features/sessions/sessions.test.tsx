@@ -258,3 +258,36 @@ describe('SessionDetailPage', () => {
     expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument()
   })
 })
+
+describe('NewSessionPage uploads', () => {
+  async function toDocumentsStep(user: ReturnType<typeof renderApp>['user']) {
+    await user.type(await screen.findByLabelText('Session name'), 'Synthetic review')
+    await user.click(screen.getByRole('button', { name: /Next/ }))
+    await screen.findByRole('list', { name: 'Ready documents' })
+  }
+
+  it('lets a planner upload documents from the documents step', async () => {
+    sessionsApi(plannerUser)
+    const { user } = renderApp('/sessions/new')
+    await toDocumentsStep(user)
+
+    await user.click(screen.getByRole('button', { name: 'Upload documents' }))
+    expect(await screen.findByRole('dialog', { name: 'Upload documents' })).toBeInTheDocument()
+  })
+
+  it('tells the planner which uploads are still being processed', async () => {
+    sessionsApi(plannerUser, {
+      'GET /documents': ok({
+        ...page([
+          ...readyDocuments,
+          makeDocument({ id: 14, title: 'Synthetic new advert', processing_status: 'parsing' }),
+        ]),
+        category_counts: { job_market: 3, institutional: 0, policy: 1, academic: 0 },
+      }),
+    })
+    const { user } = renderApp('/sessions/new')
+    await toDocumentsStep(user)
+
+    expect(await screen.findByText(/1 document is still being processed/)).toBeInTheDocument()
+  })
+})

@@ -1,6 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, Loader2, Play, Search } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Loader2,
+  Play,
+  Search,
+  Upload,
+} from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Controller,
   useForm,
@@ -23,7 +32,15 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { FilterChip } from '@/components/shared/FilterChip'
 import { PageHeader } from '@/components/shared/PageHeader'
-import { CATEGORY_LABELS, documentMeta, UPLOAD_CATEGORIES } from '@/features/documents/labels'
+import { useAuth } from '@/features/auth/useAuth'
+import { useDocuments } from '@/features/documents/api'
+import {
+  CATEGORY_LABELS,
+  documentMeta,
+  IN_PROGRESS,
+  UPLOAD_CATEGORIES,
+} from '@/features/documents/labels'
+import { UploadDialog } from '@/features/documents/UploadDialog'
 import { ApiError } from '@/lib/api'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -467,7 +484,38 @@ function DocumentPicker({
   maxDocuments: number
   error?: string
 }) {
-  const documents = useReadyDocuments()
+  const { canEdit } = useAuth()
+  const [uploadOpen, setUploadOpen] = useState(false)
+  // Newest library documents: shows uploads that are still being processed.
+  const library = useDocuments({ per_page: 100 })
+  const processing = (library.data?.items ?? []).filter((d) =>
+    IN_PROGRESS.includes(d.processing_status),
+  )
+  const documents = useReadyDocuments(processing.length > 0 ? 3000 : false)
+  // Polling stops when the last upload is ready, possibly just before the ready list would
+  // have picked it up, so fetch the list once more at that moment.
+  const wasProcessing = useRef(false)
+  const refetchReady = documents.refetch
+  useEffect(() => {
+    if (wasProcessing.current && processing.length === 0) void refetchReady()
+    wasProcessing.current = processing.length > 0
+  }, [processing.length, refetchReady])
+  // Documents uploaded from this page are ticked automatically as soon as they are ready.
+  const knownIds = useRef<Set<number> | null>(null)
+  const openUpload = () => {
+    knownIds.current = new Set((documents.data ?? []).map((d) => d.id))
+    setUploadOpen(true)
+  }
+  useEffect(() => {
+    const known = knownIds.current
+    if (!documents.data || known === null) return
+    const fresh = documents.data.filter((d) => !known.has(d.id)).map((d) => d.id)
+    if (fresh.length === 0) return
+    fresh.forEach((id) => known.add(id))
+    const room = Math.max(0, maxDocuments - selected.length)
+    const added = fresh.filter((id) => !selected.includes(id)).slice(0, room)
+    if (added.length > 0) onChange([...selected, ...added])
+  }, [documents.data, selected, onChange, maxDocuments])
   const [category, setCategory] = useState<UploadCategory | null>(null)
   const [search, setSearch] = useState('')
   const chosen = new Set(selected)
@@ -492,8 +540,8 @@ function DocumentPicker({
       <CardHeader>
         <CardTitle>Select documents</CardTitle>
         <CardDescription>
-          Only documents that finished processing are listed. The NUC core is always used as the
-          comparison baseline and is not selected here.
+          Choose the documents to analyse, or upload new ones. Only documents that have finished
+          processing can be selected. The NUC core is always used as the comparison baseline.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -557,7 +605,25 @@ function DocumentPicker({
           >
             Clear
           </Button>
+          {canEdit && (
+            <Button type="button" size="sm" onClick={openUpload}>
+              <Upload aria-hidden="true" />
+              Upload documents
+            </Button>
+          )}
         </div>
+
+        {processing.length > 0 && (
+          <p
+            role="status"
+            className="flex items-center gap-2 rounded-2xl bg-sand px-4 py-2.5 text-sm text-body-soft"
+          >
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            {processing.length === 1
+              ? '1 document is still being processed. It will appear below when it is ready.'
+              : `${processing.length} documents are still being processed. They will appear below when they are ready.`}
+          </p>
+        )}
 
         {documents.isPending ? (
           <Skeleton className="h-48 w-full" />
@@ -565,11 +631,23 @@ function DocumentPicker({
           <p className="text-sm text-destructive">{documents.error.message}</p>
         ) : documents.data.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-input-line p-6 text-center text-sm text-body-soft">
-            No ready documents.{' '}
-            <Link to="/documents" className="underline">
-              Upload documents
-            </Link>{' '}
-            first.
+            No ready documents yet.{' '}
+            {canEdit ? (
+              <>
+                <button type="button" className="font-bold underline" onClick={openUpload}>
+                  Upload documents
+                </button>{' '}
+                to get started.
+              </>
+            ) : (
+              <>
+                See the{' '}
+                <Link to="/documents" className="underline">
+                  Documents
+                </Link>{' '}
+                page.
+              </>
+            )}
           </p>
         ) : (
           <ul
@@ -608,6 +686,7 @@ function DocumentPicker({
         )}
         {error && <p className="text-sm text-destructive">{error}</p>}
       </CardContent>
+      <UploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />
     </Card>
   )
 }

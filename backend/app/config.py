@@ -29,6 +29,17 @@ def _env(name: str, default: str | None = None) -> str | None:
     return value if value not in (None, "") else default
 
 
+def _absolute_dir(value: str) -> str:
+    """Resolve a directory setting to an absolute path.
+
+    A relative value (such as ``./storage`` in .env) is taken relative to the backend folder,
+    so the API, the worker and Flask's ``send_file`` (which resolves relative paths against
+    the app package, not the working directory) all use the same folder.
+    """
+    path = Path(value)
+    return str((path if path.is_absolute() else BACKEND_DIR / path).resolve())
+
+
 class BaseConfig:
     """Settings shared by every environment."""
 
@@ -52,7 +63,9 @@ class BaseConfig:
     # Run background jobs synchronously instead of through Redis (tests only).
     TASKS_EAGER = False
 
-    STORAGE_DIR: str = _env("STORAGE_DIR", str(BACKEND_DIR / "storage")) or ""
+    STORAGE_DIR: str = _absolute_dir(
+        _env("STORAGE_DIR", str(BACKEND_DIR / "storage")) or str(BACKEND_DIR / "storage")
+    )
 
     # Upper bound for a whole multipart request. The per-file limit (25 MB) is enforced
     # separately during upload validation.
