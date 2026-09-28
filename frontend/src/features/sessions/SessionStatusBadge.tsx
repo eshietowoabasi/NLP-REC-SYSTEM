@@ -5,12 +5,12 @@ import type { SessionStage, SessionStatus } from '@/types/api'
 
 import { PIPELINE_STAGES, STATUS_LABELS } from './stages'
 
-const STYLES: Record<SessionStatus, string> = {
-  pending: 'text-muted-foreground',
-  processing: 'text-sky-700 dark:text-sky-400',
-  completed: 'text-emerald-700 dark:text-emerald-400',
-  failed: 'text-destructive',
-}
+const VARIANTS = {
+  pending: 'neutral',
+  processing: 'info',
+  completed: 'success',
+  failed: 'destructive',
+} as const satisfies Record<SessionStatus, string>
 
 const ICONS = {
   pending: Circle,
@@ -33,10 +33,10 @@ export function SessionStatusBadge({
       ? (PIPELINE_STAGES.find((s) => s.id === stage)?.label ?? 'Queued')
       : null
   return (
-    <Badge variant="outline" className={STYLES[status]}>
+    <Badge variant={VARIANTS[status]}>
       <Icon aria-hidden="true" className={status === 'processing' ? 'animate-spin' : undefined} />
       {STATUS_LABELS[status]}
-      {stageLabel && <span className="text-muted-foreground">· {stageLabel}</span>}
+      {stageLabel && <span className="font-semibold opacity-80">· {stageLabel}</span>}
     </Badge>
   )
 }

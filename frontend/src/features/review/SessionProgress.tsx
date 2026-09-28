@@ -73,7 +73,7 @@ export function SessionProgress({ sessionId }: { sessionId: number }) {
   return (
     <div className="space-y-3">
       <nav aria-label="Session progress">
-        <ol className="grid gap-2 sm:grid-cols-3">
+        <ol className="grid gap-3 sm:grid-cols-3">
           {list.map((step, index) => (
             <li key={step.label}>
               <Link
@@ -81,23 +81,31 @@ export function SessionProgress({ sessionId }: { sessionId: number }) {
                 aria-label={`Step ${index + 1}: ${step.label}, ${step.detail}${step.done ? ' (done)' : ''}`}
                 aria-current={index === current ? 'step' : undefined}
                 className={cn(
-                  'flex h-full items-start gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-                  index === current && 'border-primary/60 bg-primary/5',
+                  'flex h-full items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 transition-colors hover:border-input-line focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none',
+                  index === current && 'border-2 border-primary px-[15px] py-[11px]',
                 )}
               >
                 <span
                   className={cn(
-                    'flex size-7 shrink-0 items-center justify-center rounded-full border text-sm font-semibold',
-                    step.done && 'border-emerald-600 bg-emerald-600 text-white',
-                    index === current && 'border-primary text-primary',
+                    'flex size-8 shrink-0 items-center justify-center rounded-full bg-divider text-sm font-extrabold text-ink',
+                    step.done && 'bg-green-tint text-green',
+                    index === current && 'bg-primary text-primary-foreground',
                   )}
                   aria-hidden="true"
                 >
-                  {step.done ? <Check className="size-4" /> : index + 1}
+                  {step.done ? <Check className="size-4" strokeWidth={2.6} /> : index + 1}
                 </span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">{step.label}</span>
-                  <span className="block text-xs text-muted-foreground">{step.detail}</span>
+                <span className="flex min-w-0 flex-1 flex-col gap-1">
+                  <span className="block text-sm font-extrabold text-ink">{step.label}</span>
+                  {index === 0 && p.total > 0 && (
+                    <span className="block h-1.5 rounded-full bg-divider" aria-hidden="true">
+                      <span
+                        className="block h-1.5 rounded-full bg-primary"
+                        style={{ width: `${Math.round((p.reviewed / p.total) * 100)}%` }}
+                      />
+                    </span>
+                  )}
+                  <span className="block text-xs text-body-soft">{step.detail}</span>
                 </span>
               </Link>
             </li>
@@ -106,7 +114,7 @@ export function SessionProgress({ sessionId }: { sessionId: number }) {
       </nav>
 
       {allReviewed && coursesMissing > 0 && (
-        <Alert>
+        <Alert variant="success">
           <PartyPopper aria-hidden="true" />
           <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
             <span>
@@ -124,7 +132,7 @@ export function SessionProgress({ sessionId }: { sessionId: number }) {
         </Alert>
       )}
       {allReviewed && coursesMissing === 0 && (
-        <Alert>
+        <Alert variant="success">
           <Check aria-hidden="true" />
           <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
             <span>

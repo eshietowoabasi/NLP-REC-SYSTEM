@@ -12,12 +12,12 @@ import { useDecide } from './api'
 import { DECISION_ACTIONS, DECISION_ICONS, DECISIONS, designCoursePath } from './labels'
 
 const STATUS: Record<PlannerDecision, { text: string; icon: typeof Check; className: string }> = {
-  accepted: { text: 'Accepted', icon: Check, className: 'text-emerald-700 dark:text-emerald-400' },
-  rejected: { text: 'Rejected', icon: X, className: 'text-destructive' },
+  accepted: { text: 'Accepted', icon: Check, className: 'bg-green-tint text-green-ink' },
+  rejected: { text: 'Rejected', icon: X, className: 'bg-red-tint text-red' },
   flagged: {
     text: 'Discuss later',
     icon: DECISION_ICONS.flagged,
-    className: 'text-amber-700 dark:text-amber-400',
+    className: 'bg-amber-tint text-amber-ink',
   },
 }
 
@@ -25,15 +25,20 @@ const STATUS: Record<PlannerDecision, { text: string; icon: typeof Check; classN
 export function DecisionStatus({ decision }: { decision: PlannerDecision | null }) {
   if (!decision) {
     return (
-      <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+      <p className="inline-flex items-center gap-1.5 rounded-full bg-divider px-3 py-1.5 text-[13px] font-bold text-muted-ink">
         <CircleDashed className="size-4" aria-hidden="true" /> Not reviewed yet
       </p>
     )
   }
   const { text, icon: Icon, className } = STATUS[decision]
   return (
-    <p className={cn('flex items-center gap-1.5 text-sm font-semibold', className)}>
-      <Icon className="size-4" aria-hidden="true" /> {text}
+    <p
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-extrabold',
+        className,
+      )}
+    >
+      <Icon className="size-4" strokeWidth={2.6} aria-hidden="true" /> {text}
     </p>
   )
 }
@@ -91,36 +96,34 @@ export function DecisionControl({
           <div
             role="group"
             aria-label={`Decision for ${recommendation.topic_title}`}
-            className={cn('flex flex-wrap gap-2', panel && 'grid grid-cols-1 sm:grid-cols-3')}
+            className={cn('flex flex-wrap gap-2.5', panel && 'grid grid-cols-1 gap-2')}
           >
-            {DECISIONS.map((decision) => {
-              const Icon = DECISION_ICONS[decision]
-              return (
-                <Button
-                  key={decision}
-                  size="sm"
-                  variant="outline"
-                  aria-pressed={current === decision}
-                  className={cn(current === decision && 'border-foreground/40 bg-muted')}
-                  disabled={decide.isPending}
-                  onClick={() => choose(decision)}
-                >
-                  {pending === decision ? (
-                    <Loader2 className="animate-spin" aria-hidden="true" />
-                  ) : (
-                    <Icon aria-hidden="true" />
-                  )}
-                  {DECISION_ACTIONS[decision]}
-                </Button>
-              )
-            })}
+            {DECISIONS.map((decision) => (
+              <Button
+                key={decision}
+                size={panel ? 'default' : 'sm'}
+                variant={decision === 'accepted' ? 'default' : 'outline'}
+                aria-pressed={current === decision}
+                className={cn(
+                  current === decision &&
+                    decision !== 'accepted' &&
+                    'border-ink bg-sand-deep hover:bg-sand-deep',
+                  current === decision && decision === 'accepted' && 'ring-3 ring-primary/25',
+                )}
+                disabled={decide.isPending}
+                onClick={() => choose(decision)}
+              >
+                {pending === decision && <Loader2 className="animate-spin" aria-hidden="true" />}
+                {DECISION_ACTIONS[decision]}
+              </Button>
+            ))}
           </div>
           {changing && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-ink">
               Choose a new decision, click the current one again to clear it, or{' '}
               <button
                 type="button"
-                className="underline underline-offset-2 hover:text-foreground"
+                className="cursor-pointer font-bold text-primary hover:underline"
                 onClick={() => setChanging(false)}
               >
                 keep “{current ? STATUS[current].text : 'Not reviewed yet'}”
@@ -130,12 +133,12 @@ export function DecisionControl({
           )}
         </div>
       ) : (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <DecisionStatus decision={current} />
           {canEdit && current !== null && !course && (
             <button
               type="button"
-              className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              className="h-10 cursor-pointer text-[13px] font-semibold text-muted-ink underline underline-offset-2 hover:text-ink"
               onClick={() => setChanging(true)}
             >
               Change decision
@@ -147,23 +150,20 @@ export function DecisionControl({
       {current === 'accepted' && !changing && (
         <div>
           {course ? (
-            <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm">
-              <BookOpenCheck
-                className="size-4 text-emerald-700 dark:text-emerald-400"
-                aria-hidden="true"
-              />
+            <p className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-[10px] border border-input-line bg-white px-3.5 py-2 text-sm">
+              <BookOpenCheck className="size-4 text-green" aria-hidden="true" />
               <span>
-                <span className="font-medium">Course:</span> {course.course_code} –{' '}
+                <span className="font-bold">Course:</span> {course.course_code} –{' '}
                 {course.course_title}
               </span>
               {canEdit && (
                 <>
-                  <span aria-hidden="true" className="text-muted-foreground">
+                  <span aria-hidden="true" className="text-faint">
                     ·
                   </span>
                   <Link
                     to={designPath}
-                    className="font-medium underline-offset-4 hover:underline"
+                    className="font-bold text-primary hover:underline"
                     aria-label={`Edit course ${course.course_code}`}
                   >
                     Edit
@@ -173,7 +173,7 @@ export function DecisionControl({
             </p>
           ) : (
             canEdit && (
-              <Button asChild className={cn(panel && 'w-full')}>
+              <Button asChild size={panel ? 'default' : 'sm'} className={cn(panel && 'w-full')}>
                 <Link to={designPath}>
                   Design course <ArrowRight aria-hidden="true" />
                 </Link>
@@ -183,7 +183,7 @@ export function DecisionControl({
         </div>
       )}
       {panel && canEdit && course && current === 'accepted' && !changing && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-ink">
           To change the decision, remove the course first (Edit → Remove course).
         </p>
       )}

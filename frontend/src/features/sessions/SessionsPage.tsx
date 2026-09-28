@@ -4,6 +4,8 @@ import { Link } from 'react-router'
 
 import { PaginationControls } from '@/components/shared/PaginationControls'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { EmptyState } from '@/components/shared/EmptyState'
+import { PageHeader } from '@/components/shared/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -18,6 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
   TableBody,
+  TableCard,
   TableCell,
   TableHead,
   TableHeader,
@@ -55,22 +58,20 @@ export function SessionsPage() {
   const empty = !filtersActive && sessions.data?.pagination.total === 0
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold">Analysis sessions</h2>
-          <p className="text-sm text-muted-foreground">
-            Each session analyses a set of documents and proposes ranked course topics.
-          </p>
-        </div>
-        {canEdit && (
-          <Button asChild>
-            <Link to="/sessions/new">
-              <Plus aria-hidden="true" /> New session
-            </Link>
-          </Button>
-        )}
-      </div>
+    <div className="mx-auto max-w-6xl space-y-[18px]">
+      <PageHeader
+        title="Analyses"
+        description="Each session analyses a set of documents and proposes ranked course topics."
+        actions={
+          canEdit && (
+            <Button asChild>
+              <Link to="/sessions/new">
+                <Plus aria-hidden="true" /> New analysis
+              </Link>
+            </Button>
+          )
+        }
+      />
 
       <div className="flex flex-wrap items-end gap-3" role="search">
         <div className="grid min-w-56 flex-1 gap-1.5">
@@ -127,22 +128,23 @@ export function SessionsPage() {
           </AlertDescription>
         </Alert>
       ) : empty ? (
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-14 text-center">
-          <FlaskConical className="size-10 text-muted-foreground" aria-hidden="true" />
-          <h3 className="text-lg font-semibold">No analysis sessions yet</h3>
-          <p className="max-w-md text-sm text-muted-foreground">
-            A session takes documents from the library, finds the topics they talk about and ranks
-            candidate course topics against the NUC core.
-          </p>
-          {canEdit && (
-            <Button asChild>
-              <Link to="/sessions/new">Create the first session</Link>
-            </Button>
-          )}
-        </div>
+        <EmptyState
+          icon={FlaskConical}
+          title="No analysis sessions yet"
+          action={
+            canEdit && (
+              <Button asChild>
+                <Link to="/sessions/new">Create the first session</Link>
+              </Button>
+            )
+          }
+        >
+          A session takes documents from the library, finds the topics they talk about and ranks
+          candidate course topics against the NUC core.
+        </EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <Table>
+        <TableCard>
+          <Table aria-label="Analyses">
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
@@ -169,7 +171,7 @@ export function SessionsPage() {
                 ))
               ) : sessions.data.items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="py-10 text-center text-muted-ink">
                     No sessions match these filters.
                   </TableCell>
                 </TableRow>
@@ -179,7 +181,7 @@ export function SessionsPage() {
                     <TableCell className="max-w-72">
                       <Link
                         to={`/sessions/${session.id}`}
-                        className="block truncate font-medium hover:underline"
+                        className="block truncate font-bold text-ink hover:text-primary"
                       >
                         {session.session_name}
                       </Link>
@@ -215,7 +217,7 @@ export function SessionsPage() {
               )}
             </TableBody>
           </Table>
-        </div>
+        </TableCard>
       )}
 
       {sessions.data && sessions.data.pagination.pages > 1 && (

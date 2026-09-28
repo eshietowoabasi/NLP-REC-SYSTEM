@@ -148,7 +148,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
             if (!uploading) addFiles(event.dataTransfer.files)
           }}
           className={cn(
-            'flex flex-col items-center gap-2 rounded-lg border-2 border-dashed p-6 text-center transition-colors',
+            'flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-input-line bg-sand p-7 text-center transition-colors',
             dragging ? 'border-primary bg-primary/5' : 'border-border',
           )}
         >
@@ -308,9 +308,7 @@ function FileRow({ row, disabled, onCategory, onRemove }: FileRowProps) {
         <p
           className={cn(
             'mt-2 flex items-start gap-1.5 text-xs',
-            row.status === 'accepted'
-              ? 'text-emerald-700 dark:text-emerald-400'
-              : 'text-destructive',
+            row.status === 'accepted' ? 'text-green' : 'text-destructive',
           )}
         >
           {row.status === 'accepted' ? (

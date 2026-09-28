@@ -98,7 +98,7 @@ describe('SessionsPage', () => {
     expect(within(row).getByText('Completed')).toBeInTheDocument()
     expect(screen.getByText('· Topics')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Delete Running one' })).toBeDisabled()
-    expect(screen.getByRole('link', { name: /New session/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /New analysis/ })).toBeInTheDocument()
   })
 
   it('hides create and delete from viewers', async () => {
@@ -106,7 +106,7 @@ describe('SessionsPage', () => {
     renderApp('/sessions')
 
     await screen.findByRole('link', { name: 'Synthetic 2026 review' })
-    expect(screen.queryByRole('link', { name: /New session/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /New analysis/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Delete/ })).not.toBeInTheDocument()
   })
 })

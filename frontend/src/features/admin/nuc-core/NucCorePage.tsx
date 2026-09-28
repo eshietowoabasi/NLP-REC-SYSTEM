@@ -34,10 +34,10 @@ import { useNucCore, useNucCoreCourses, useNucCoreVersions, useUploadNucCore } f
 
 export function NucCorePage() {
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold">NUC core reference</h2>
-        <p className="max-w-prose text-sm text-muted-foreground">
+    <div className="mx-auto max-w-6xl space-y-4">
+      <div className="space-y-1">
+        <h2 className="page-title">NUC core curriculum</h2>
+        <p className="max-w-3xl page-lead">
           The part of the curriculum fixed by the NUC (CCMAS, 70%). Every suggested topic is
           compared with it, to spot topics that may already be in the NUC core. Only one version is
           used at a time; a new upload takes over once it has been read.
@@ -71,10 +71,12 @@ function CurrentVersion() {
       {active ? (
         <Card>
           <CardHeader>
-            <CardTitle className="flex flex-wrap items-center gap-2">
-              <BookMarked className="size-5" aria-hidden="true" />
+            <CardTitle className="flex flex-wrap items-center gap-3 text-[17px]">
+              <span className="flex size-[52px] items-center justify-center rounded-[14px] bg-teal-tint">
+                <BookMarked className="size-6 text-teal" strokeWidth={1.8} aria-hidden="true" />
+              </span>
               {active.version_label}
-              <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">
+              <Badge variant="success">
                 <CheckCircle2 aria-hidden="true" /> Active
               </Badge>
             </CardTitle>
@@ -84,17 +86,17 @@ function CurrentVersion() {
           </CardHeader>
           <CardContent className="flex flex-wrap items-center justify-between gap-4 text-sm">
             <dl className="flex flex-wrap gap-x-8 gap-y-2">
-              <div>
-                <dt className="text-muted-foreground">File</dt>
-                <dd className="font-medium">{active.document.original_filename}</dd>
+              <div className="flex flex-col">
+                <dd className="order-first text-[22px] font-extrabold text-ink tabular-nums">
+                  {formatNumber(active.document.page_count)}
+                </dd>
+                <dt className="text-xs text-muted-ink">pages</dt>
               </div>
-              <div>
-                <dt className="text-muted-foreground">Pages</dt>
-                <dd className="font-medium">{formatNumber(active.document.page_count)}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Words</dt>
-                <dd className="font-medium">{formatNumber(active.document.word_count)}</dd>
+              <div className="flex flex-col">
+                <dd className="order-first text-[22px] font-extrabold text-ink tabular-nums">
+                  {formatNumber(active.document.word_count)}
+                </dd>
+                <dt className="text-xs text-muted-ink">words</dt>
               </div>
             </dl>
             <Button variant="outline" asChild>
@@ -103,7 +105,7 @@ function CurrentVersion() {
           </CardContent>
         </Card>
       ) : (
-        <Alert>
+        <Alert variant="warning">
           <AlertTriangle aria-hidden="true" />
           <AlertTitle>No active NUC core reference</AlertTitle>
           <AlertDescription>
@@ -141,7 +143,25 @@ function CoursesCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Courses</CardTitle>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <CardTitle>Courses</CardTitle>
+          {items.length > 0 && (
+            <dl className="flex gap-7">
+              {[
+                ['courses', items.length, 'text-ink'],
+                ['compared', items.length - excluded, 'text-teal'],
+                ['excluded', excluded, 'text-faint'],
+              ].map(([label, value, colour]) => (
+                <div key={label} className="flex flex-col">
+                  <dd className={`order-first text-[22px] font-extrabold tabular-nums ${colour}`}>
+                    {value}
+                  </dd>
+                  <dt className="text-xs text-muted-ink">{label}</dt>
+                </div>
+              ))}
+            </dl>
+          )}
+        </div>
         <CardDescription>
           {items.length === 0
             ? 'No course headers (e.g. “SEN 304: Software Testing (2 Units)”) were found, so topics are compared with short extracts of the NUC core instead.'
@@ -158,9 +178,9 @@ function CoursesCard() {
             />
             <Label htmlFor="excluded-only">Show only excluded courses</Label>
           </div>
-          <div className="max-h-96 overflow-y-auto rounded-md border">
+          <div className="max-h-[28rem] overflow-y-auto rounded-2xl border border-line">
             <Table aria-label="NUC core courses">
-              <TableHeader className="sticky top-0 bg-background">
+              <TableHeader className="sticky top-0 z-[1]">
                 <TableRow>
                   <TableHead>Code</TableHead>
                   <TableHead>Title</TableHead>
@@ -173,9 +193,11 @@ function CoursesCard() {
                 {shown.map((course) => (
                   <TableRow
                     key={course.id}
-                    className={course.excluded ? 'text-muted-foreground' : undefined}
+                    className={course.excluded ? 'text-muted-ink' : undefined}
                   >
-                    <TableCell className="font-medium whitespace-nowrap">{course.code}</TableCell>
+                    <TableCell className="font-extrabold whitespace-nowrap">
+                      {course.code}
+                    </TableCell>
                     <TableCell className="whitespace-normal">{course.title}</TableCell>
                     <TableCell className="text-right tabular-nums">{course.units ?? '—'}</TableCell>
                     <TableCell className="text-right tabular-nums">
@@ -183,9 +205,9 @@ function CoursesCard() {
                     </TableCell>
                     <TableCell>
                       {course.excluded ? (
-                        <Badge variant="outline">Excluded from comparison</Badge>
+                        <Badge variant="neutral">Excluded from comparison</Badge>
                       ) : (
-                        <span className="text-sm">Compared</span>
+                        <Badge variant="info">Compared</Badge>
                       )}
                     </TableCell>
                   </TableRow>
@@ -214,7 +236,7 @@ function LatestUploadNotice({ version }: { version: NucCoreVersion }) {
   }
   if (status === 'uploaded' || status === 'parsing') {
     return (
-      <Alert>
+      <Alert variant="info">
         <Loader2 className="animate-spin" aria-hidden="true" />
         <AlertTitle>Processing “{version.version_label}”</AlertTitle>
         <AlertDescription>

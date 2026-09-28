@@ -100,7 +100,7 @@ export function AuditLogPage() {
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
-          <h2 className="text-2xl font-semibold tracking-tight">Audit log</h2>
+          <h2 className="page-title">Activity log</h2>
           <p className="text-sm text-muted-foreground">
             Sign-ins, uploads, sessions, decisions, mappings, reports and every administrative
             change. Times are shown in your local time zone; date filters use UTC days.
@@ -206,12 +206,12 @@ export function AuditLogPage() {
           </AlertDescription>
         </Alert>
       ) : logs.isSuccess && logs.data.items.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-12 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-[20px] border border-dashed border-input-line bg-white px-6 py-12 text-center">
           <ScrollText className="size-8 text-muted-foreground" aria-hidden="true" />
           <p className="font-medium">No entries match these filters</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="overflow-hidden rounded-[20px] border border-line bg-white">
           <Table aria-label="Audit log">
             <TableHeader>
               <TableRow>
@@ -259,7 +259,7 @@ function AuditRow({ entry }: { entry: AuditLogEntry }) {
         {entry.user?.full_name ?? <span className="text-muted-foreground">Anonymous</span>}
       </TableCell>
       <TableCell className="whitespace-nowrap">
-        <code className="rounded bg-muted px-1 py-0.5 text-xs" title={entry.action_type}>
+        <code className="rounded-md bg-sand-deep px-1.5 py-0.5 text-xs" title={entry.action_type}>
           {entry.action_type}
         </code>
       </TableCell>
@@ -274,7 +274,7 @@ function AuditRow({ entry }: { entry: AuditLogEntry }) {
             <summary className="line-clamp-2 cursor-pointer [overflow-wrap:anywhere]">
               {summary}
             </summary>
-            <pre className="mt-1 overflow-x-auto rounded bg-muted p-2 text-[11px] text-foreground">
+            <pre className="mt-1 overflow-x-auto rounded-lg bg-sand p-2.5 text-[11px] text-ink">
               {JSON.stringify(entry.detail, null, 2)}
             </pre>
           </details>

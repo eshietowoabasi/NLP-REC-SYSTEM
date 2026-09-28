@@ -65,7 +65,7 @@ describe('DashboardPage', () => {
     )
     expect(screen.getByText('10 ready · 1 processing · 1 failed')).toBeInTheDocument()
     // Every card is a link; without a session to review they fall back to the lists.
-    const awaiting = screen.getByRole('link', { name: 'Awaiting review: 18. Analysis sessions' })
+    const awaiting = screen.getByRole('link', { name: 'Awaiting review: 18. Analyses' })
     expect(awaiting).toHaveAttribute('href', '/sessions')
     expect(awaiting).toHaveTextContent('of 30 recommendations · 7 accepted')
     expect(screen.getByRole('link', { name: 'Courses designed: 4. Reports' })).toHaveTextContent(
@@ -152,14 +152,54 @@ describe('DashboardPage', () => {
     )
   })
 
-  it('hides the create actions from viewers', async () => {
-    dashboardApi(viewerUser, summary())
+  it('shows viewers a read-only summary instead of the next steps', async () => {
+    dashboardApi(
+      viewerUser,
+      summary({
+        recommendations: {
+          total: 30,
+          pending_review: 18,
+          accepted: 7,
+          rejected: 3,
+          flagged: 2,
+          review_session: { id: 5, session_name: 'Synthetic 2026 review', undecided: 11 },
+        },
+      }),
+    )
     renderApp('/')
 
     await screen.findByRole('table', { name: 'Recent sessions' })
     expect(screen.queryByRole('link', { name: /New analysis session/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /Upload documents/ })).not.toBeInTheDocument()
-    // The sidebar item and the quick action.
-    expect(screen.getAllByRole('link', { name: 'Reports' })).toHaveLength(2)
+    expect(screen.queryByRole('link', { name: /Continue reviewing/ })).not.toBeInTheDocument()
+    const readOnly = screen.getByRole('region', { name: 'Summary' })
+    expect(within(readOnly).getByRole('link', { name: 'Synthetic 2026 review' })).toHaveAttribute(
+      'href',
+      '/sessions/5',
+    )
+    expect(within(readOnly).getByText('Accepted topics').nextSibling).toHaveTextContent('7')
+    expect(within(readOnly).getByText('Proposed courses').nextSibling).toHaveTextContent('4')
+  })
+
+  it('offers editors the next step: continue reviewing', async () => {
+    dashboardApi(
+      plannerUser,
+      summary({
+        recommendations: {
+          total: 30,
+          pending_review: 18,
+          accepted: 7,
+          rejected: 3,
+          flagged: 2,
+          review_session: { id: 5, session_name: 'Synthetic 2026 review', undecided: 11 },
+        },
+      }),
+    )
+    renderApp('/')
+
+    expect(await screen.findByRole('link', { name: /Continue reviewing/ })).toHaveAttribute(
+      'href',
+      '/sessions/5/recommendations?decision=undecided',
+    )
   })
 })

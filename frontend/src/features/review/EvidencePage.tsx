@@ -12,9 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { DocumentRef } from '@/components/shared/DocumentRef'
 import {
   Table,
   TableBody,
+  TableCard,
   TableCell,
   TableHead,
   TableHeader,
@@ -24,7 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CATEGORY_LABELS, UPLOAD_CATEGORIES } from '@/features/documents/labels'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import type { SkillLabel, UploadCategory } from '@/types/api'
+import type { SessionDetail, SkillLabel, UploadCategory } from '@/types/api'
 
 import { useSessionResult } from './api'
 import {
@@ -55,21 +57,28 @@ export function EvidencePage() {
   return (
     <CompletedSessionGate sessionId={sessionId} title="Evidence">
       {(session) => (
-        <div className="mx-auto max-w-6xl space-y-6">
+        <div className="mx-auto max-w-6xl space-y-5">
           <SessionReviewHeader
             sessionId={session.id}
             sessionName={session.session_name}
             title="Evidence"
           />
-          <p className="text-sm text-muted-foreground">
-            What the analysis found in the {session.document_count} selected document
-            {session.document_count === 1 ? '' : 's'}: the words that stand out, the skills
-            employers ask for, the topics found, and how each topic compares with the NUC core.
-          </p>
+          <div className="grid items-start gap-[18px] xl:grid-cols-[minmax(0,1fr)_300px]">
+            <p className="self-center page-lead">
+              What the analysis found in the {session.document_count} selected document
+              {session.document_count === 1 ? '' : 's'}: the words that stand out, the skills
+              employers ask for, the topics found, and how each topic compares with the NUC core.
+            </p>
+            <SessionRead session={session} />
+          </div>
           <Tabs defaultValue="keywords" className="gap-4">
-            <TabsList>
+            <TabsList className="gap-2 bg-transparent p-0">
               {TABS.map((tab) => (
-                <TabsTrigger key={tab.value} value={tab.value}>
+                <TabsTrigger
+                  key={tab.value}
+                  value={tab.value}
+                  className="h-[38px] rounded-full border border-input-line bg-white px-4 text-[13px] font-bold text-ink data-active:border-ink data-active:bg-ink data-active:text-white"
+                >
                   {tab.label}
                 </TabsTrigger>
               ))}
@@ -90,6 +99,39 @@ export function EvidencePage() {
         </div>
       )}
     </CompletedSessionGate>
+  )
+}
+
+/** "This analysis read": the selected documents per category and the topics found. */
+function SessionRead({ session }: { session: SessionDetail }) {
+  const counts = new Map<string, number>()
+  for (const document of session.documents) {
+    const label = CATEGORY_LABELS[document.source_category]
+    counts.set(label, (counts.get(label) ?? 0) + 1)
+  }
+  return (
+    <section
+      aria-labelledby="session-read"
+      className="flex flex-col gap-2.5 rounded-[20px] border border-line bg-white px-[22px] py-5"
+    >
+      <h3 id="session-read" className="text-[15px] font-extrabold text-ink">
+        This analysis read
+      </h3>
+      <dl className="flex flex-col gap-2 text-sm">
+        {[...counts.entries()].map(([label, count]) => (
+          <div key={label} className="flex justify-between">
+            <dt className="text-body-soft">{label}</dt>
+            <dd className="font-bold text-ink tabular-nums">{count}</dd>
+          </div>
+        ))}
+        {session.topic_count != null && (
+          <div className="flex justify-between">
+            <dt className="text-body-soft">Topics found</dt>
+            <dd className="font-bold text-ink tabular-nums">{session.topic_count}</dd>
+          </div>
+        )}
+      </dl>
+    </section>
   )
 }
 
@@ -150,7 +192,7 @@ function KeywordsTab({ sessionId }: { sessionId: number }) {
                 data={terms.slice(0, CHART_ROWS).map((t) => ({
                   label: t.term,
                   value: t.score,
-                  detail: `in ${t.passage_count} passages`,
+                  detail: `in ${t.passage_count} extracts`,
                 }))}
               />
             </CardContent>
@@ -159,7 +201,7 @@ function KeywordsTab({ sessionId }: { sessionId: number }) {
             <CardHeader>
               <CardTitle>Keyword table</CardTitle>
             </CardHeader>
-            <CardContent className="max-h-[32rem] overflow-y-auto">
+            <CardContent className="max-h-[32rem] overflow-y-auto px-0! sm:px-0!">
               <Table aria-label="Keywords">
                 <TableHeader>
                   <TableRow>
@@ -171,7 +213,7 @@ function KeywordsTab({ sessionId }: { sessionId: number }) {
                 <TableBody>
                   {terms.slice(0, TABLE_ROWS).map((t) => (
                     <TableRow key={t.term}>
-                      <TableCell className="font-medium">{t.term}</TableCell>
+                      <TableCell className="font-bold">{t.term}</TableCell>
                       <TableCell className="text-right tabular-nums">
                         {t.score.toFixed(3)}
                       </TableCell>
@@ -229,7 +271,7 @@ function SkillsTab({ sessionId }: { sessionId: number }) {
           </Select>
         </div>
         <p className="text-sm text-muted-foreground">
-          {formatNumber(data.passages_with_skills)} of {formatNumber(data.passage_count)} passages
+          {formatNumber(data.passages_with_skills)} of {formatNumber(data.passage_count)} extracts
           mention at least one recognised skill.
         </p>
       </div>
@@ -262,7 +304,7 @@ function SkillsTab({ sessionId }: { sessionId: number }) {
             <CardHeader>
               <CardTitle>Skill table</CardTitle>
             </CardHeader>
-            <CardContent className="max-h-[32rem] overflow-y-auto">
+            <CardContent className="max-h-[32rem] overflow-y-auto px-0! sm:px-0!">
               <Table aria-label="Skills">
                 <TableHeader>
                   <TableRow>
@@ -275,7 +317,7 @@ function SkillsTab({ sessionId }: { sessionId: number }) {
                 <TableBody>
                   {skills.slice(0, TABLE_ROWS).map((s) => (
                     <TableRow key={s.name}>
-                      <TableCell className="font-medium">{s.name}</TableCell>
+                      <TableCell className="font-bold">{s.name}</TableCell>
                       <TableCell>{SKILL_LABELS[s.label]}</TableCell>
                       <TableCell className="text-right tabular-nums">
                         {s.document_frequency}
@@ -311,7 +353,7 @@ function ThemesTab({ sessionId }: { sessionId: number }) {
   const data = result.data
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-body-soft">
         {data.topic_count} topic{data.topic_count === 1 ? '' : 's'} found in{' '}
         {formatNumber(data.modelled_passages)} extracts. {formatNumber(data.outlier_passages)}{' '}
         extracts did not fit any topic and were left out.
@@ -331,25 +373,33 @@ function ThemesTab({ sessionId }: { sessionId: number }) {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1.5">
                     {topic.keywords.slice(0, 10).map((k) => (
-                      <Badge key={k.term} variant="secondary">
-                        {k.term}
+                      <Badge key={k.term} variant="secondary" className="font-semibold">
+                        {k.label ?? k.term}
                       </Badge>
                     ))}
                   </div>
                   <ScoreMeter label="Comes up" value={topic.strength} />
                   <details className="text-sm">
-                    <summary className="cursor-pointer font-medium">
+                    <summary className="cursor-pointer font-bold text-primary">
                       Example extracts ({topic.samples.length})
                     </summary>
                     <ul className="mt-2 space-y-2">
                       {topic.samples.map((sample) => (
-                        <li key={sample.passage_id} className="rounded-md bg-muted/60 p-2">
-                          <p className="text-xs font-medium text-muted-foreground">
-                            {sample.document_label ?? sample.document_title}
-                          </p>
-                          <p>{sample.text}</p>
+                        <li
+                          key={sample.passage_id}
+                          className="space-y-1.5 rounded-[14px] bg-sand px-3.5 py-3"
+                        >
+                          <DocumentRef
+                            document={{
+                              id: sample.document_id,
+                              title: sample.document_title,
+                              label: sample.document_label,
+                            }}
+                            titleClassName="text-xs"
+                          />
+                          <p className="leading-relaxed">{sample.text}</p>
                         </li>
                       ))}
                     </ul>
@@ -387,7 +437,7 @@ function OverlapTab({ sessionId }: { sessionId: number }) {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Similarity to the NUC core</CardTitle>
+          <CardTitle>How similar each topic is to the NUC core</CardTitle>
           <CardDescription>
             How similar each topic is, by meaning, to the closest {byCourse ? 'course' : 'extract'}{' '}
             of {nuc_core_version?.version_label ?? 'the NUC core'}. Above {formatPercent(threshold)}{' '}
@@ -407,19 +457,19 @@ function OverlapTab({ sessionId }: { sessionId: number }) {
           <ul className="flex flex-wrap gap-4 text-xs text-muted-foreground" aria-label="Legend">
             <li className="flex items-center gap-1.5">
               <span className="size-2.5 rounded-sm bg-viz-series" aria-hidden="true" />
-              At or below the threshold (not in NUC core)
+              {formatPercent(threshold)} similar or less (not in NUC core)
             </li>
             <li className="flex items-center gap-1.5">
               <span className="size-2.5 rounded-sm bg-viz-warning" aria-hidden="true" />
               <AlertTriangle className="size-3.5" aria-hidden="true" />
-              Above the threshold (may already be in NUC core)
+              More than {formatPercent(threshold)} similar (may already be in NUC core)
             </li>
           </ul>
           <RankedBarChart
             label="How similar each topic is to the NUC core"
             domain={[0, 1]}
             format={formatPercent}
-            threshold={{ value: threshold, label: `threshold ${formatPercent(threshold)}` }}
+            threshold={{ value: threshold, label: `${formatPercent(threshold)} line` }}
             data={candidates.map((c) => ({
               label: c.title,
               value: c.max_similarity,
@@ -430,12 +480,12 @@ function OverlapTab({ sessionId }: { sessionId: number }) {
         </CardContent>
       </Card>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <TableCard>
         <Table aria-label="Overlap with the NUC core">
           <TableHeader>
             <TableRow>
               <TableHead>Topic</TableHead>
-              <TableHead className="text-right">Similarity</TableHead>
+              <TableHead className="text-right">How similar</TableHead>
               <TableHead className="text-right">How new</TableHead>
               <TableHead>Status</TableHead>
               {byCourse && <TableHead className="min-w-48">Closest NUC course</TableHead>}
@@ -448,9 +498,9 @@ function OverlapTab({ sessionId }: { sessionId: number }) {
               return (
                 <TableRow
                   key={c.topic_id}
-                  className={cn(duplicate && 'bg-amber-50/70 dark:bg-amber-950/40')}
+                  className={cn(duplicate && 'bg-amber-tint hover:bg-amber-tint')}
                 >
-                  <TableCell className="font-medium">{c.title}</TableCell>
+                  <TableCell className="font-bold">{c.title}</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatPercent(c.max_similarity)}
                   </TableCell>
@@ -464,7 +514,7 @@ function OverlapTab({ sessionId }: { sessionId: number }) {
                     <TableCell className="text-sm whitespace-normal">
                       {c.closest_nuc_course ? (
                         <>
-                          <span className="font-medium">{c.closest_nuc_course.code}</span> –{' '}
+                          <span className="font-bold">{c.closest_nuc_course.code}</span> –{' '}
                           {c.closest_nuc_course.title}
                         </>
                       ) : (
@@ -472,9 +522,9 @@ function OverlapTab({ sessionId }: { sessionId: number }) {
                       )}
                     </TableCell>
                   )}
-                  <TableCell className="text-sm whitespace-normal text-muted-foreground">
+                  <TableCell className="text-sm whitespace-normal text-muted-ink">
                     {c.closest_nuc_passage.page_number != null && (
-                      <span className="font-medium text-foreground">
+                      <span className="font-bold text-ink">
                         p. {c.closest_nuc_passage.page_number}:{' '}
                       </span>
                     )}
@@ -485,7 +535,7 @@ function OverlapTab({ sessionId }: { sessionId: number }) {
             })}
           </TableBody>
         </Table>
-      </div>
+      </TableCard>
     </div>
   )
 }

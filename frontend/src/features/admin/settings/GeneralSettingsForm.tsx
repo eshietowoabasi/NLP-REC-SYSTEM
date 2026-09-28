@@ -1,11 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { AlertTriangle, Loader2 } from 'lucide-react'
+import { AlertTriangle, ChevronRight, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -13,7 +14,6 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { formatDateTime } from '@/lib/format'
 import { applyServerErrors } from '@/lib/forms'
-import { cn } from '@/lib/utils'
 import type { SettingItem, SettingKey, SettingValues, SettingsUpdate } from '@/types/api'
 import { formatWeight } from '@/features/review/labels'
 
@@ -148,7 +148,26 @@ const FIELDS = [
   'spacy_model',
 ] as const
 
-export function GeneralSettingsForm({ settings }: { settings: SettingItem[] }) {
+/** The parts of the settings form, one per Settings tab. */
+export type SettingsSection = 'scoring' | 'exclusions' | 'names'
+
+const FORM_LABELS: Record<SettingsSection, string> = {
+  scoring: 'Scoring settings',
+  exclusions: 'NUC courses to leave out',
+  names: 'Course-style topic names',
+}
+
+/**
+ * One tab of the general settings. Every tab edits the same settings object and saves only
+ * the values that changed, so the tabs never overwrite each other.
+ */
+export function GeneralSettingsForm({
+  settings,
+  section = 'scoring',
+}: {
+  settings: SettingItem[]
+  section?: SettingsSection
+}) {
   const byKey = Object.fromEntries(settings.map((s) => [s.key, s])) as ByKey
   const update = useUpdateSettings()
   const [formError, setFormError] = useState<string | null>(null)
@@ -203,317 +222,378 @@ export function GeneralSettingsForm({ settings }: { settings: SettingItem[] }) {
     ...register(name, { valueAsNumber: true }),
   })
 
+  const actions = (
+    <div className="flex justify-end gap-2.5">
+      <Button
+        type="button"
+        variant="outline"
+        disabled={!isDirty}
+        onClick={() => reset(toForm(byKey))}
+      >
+        Discard changes
+      </Button>
+      <Button type="submit" disabled={update.isPending || !isDirty}>
+        {update.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+        Save settings
+      </Button>
+    </div>
+  )
+
   return (
-    <form onSubmit={onSubmit} noValidate className="space-y-6" aria-label="General settings">
+    <form
+      onSubmit={onSubmit}
+      noValidate
+      className="space-y-[18px]"
+      aria-label={FORM_LABELS[section]}
+    >
       {formError && (
         <Alert variant="destructive" role="alert">
           <AlertDescription>{formError}</AlertDescription>
         </Alert>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Scoring defaults</CardTitle>
-          <CardDescription>
-            Pre-filled in the New Session form; planners can change them per session.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <FieldGroup>
-            <fieldset className="space-y-3" aria-describedby="weights-sum">
-              <legend className="text-sm font-medium">Composite score weights</legend>
+      {section === 'scoring' && (
+        <>
+          <div className="grid items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_380px]">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <CardTitle className="text-[17px]">
+                    What matters most when ranking topics?
+                  </CardTitle>
+                  <Badge variant={sumOk ? 'success' : 'destructive'} id="weights-sum" role="status">
+                    Total: {Math.round(sum * 100)}%{' '}
+                    {sumOk ? '✓' : '— the weights must add up to 100% (1.00)'}
+                  </Badge>
+                </div>
+                <CardDescription>
+                  Pre-filled in the New Session form; planners can change them per session.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <fieldset className="space-y-4" aria-describedby="weights-sum">
+                  <legend className="sr-only">Composite score weights</legend>
+                  {(
+                    [
+                      ['ner', 'Employer demand', 'How many documents ask for the topic’s skills.'],
+                      [
+                        'topic',
+                        'How often it comes up',
+                        'How much of the evidence is about this topic.',
+                      ],
+                      [
+                        'novelty',
+                        'How new it is (vs NUC core)',
+                        'How different it is from what the NUC core already teaches.',
+                      ],
+                    ] as const
+                  ).map(([key, label, help]) => (
+                    <Field
+                      key={key}
+                      data-invalid={!!errors.score_weights?.[key]}
+                      className="grid grid-cols-[1fr_7rem] items-center gap-x-4 gap-y-1"
+                    >
+                      <FieldLabel htmlFor={`weight-${key}`} className="text-sm">
+                        {label}
+                      </FieldLabel>
+                      <Input
+                        id={`weight-${key}`}
+                        min={0}
+                        max={1}
+                        className="row-span-2 text-right tabular-nums"
+                        aria-invalid={!!errors.score_weights?.[key]}
+                        {...number(`score_weights.${key}`, '0.01')}
+                      />
+                      <FieldDescription>
+                        {help}{' '}
+                        <strong className="text-ink">
+                          {Number.isFinite(weights[key]) ? formatWeight(weights[key]) : '—'}
+                        </strong>
+                      </FieldDescription>
+                      <FieldError errors={[errors.score_weights?.[key]]} className="col-span-2" />
+                    </Field>
+                  ))}
+                  <FieldError errors={[errors.score_weights?.root ?? errors.score_weights]} />
+                </fieldset>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-[17px]">Other settings</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <FieldGroup className="gap-5">
+                  <Field data-invalid={!!errors.similarity_threshold}>
+                    <FieldLabel htmlFor="similarity_threshold">
+                      “May already be in NUC core” above
+                    </FieldLabel>
+                    <Input
+                      id="similarity_threshold"
+                      className="w-28"
+                      aria-invalid={!!errors.similarity_threshold}
+                      {...number('similarity_threshold', '0.01')}
+                    />
+                    {hint(
+                      'similarity_threshold',
+                      'A topic more similar than this to a NUC core course is marked “May already be in NUC core”. Default 0.80 (80% similar).',
+                    )}
+                    <FieldError errors={[errors.similarity_threshold]} />
+                  </Field>
+                  <Field data-invalid={!!errors.max_recommendations}>
+                    <FieldLabel htmlFor="max_recommendations">Maximum recommendations</FieldLabel>
+                    <Input
+                      id="max_recommendations"
+                      className="w-28"
+                      aria-invalid={!!errors.max_recommendations}
+                      {...number('max_recommendations')}
+                    />
+                    {hint('max_recommendations', 'Recommendations kept per session (1–100).')}
+                    <FieldError errors={[errors.max_recommendations]} />
+                  </Field>
+                  <Field data-invalid={!!errors.credit_unit_allowance}>
+                    <FieldLabel htmlFor="credit_unit_allowance">
+                      30% credit-unit allowance
+                    </FieldLabel>
+                    <Input
+                      id="credit_unit_allowance"
+                      inputMode="numeric"
+                      placeholder="Not set"
+                      className="w-28"
+                      aria-invalid={!!errors.credit_unit_allowance}
+                      {...register('credit_unit_allowance')}
+                    />
+                    {hint(
+                      'credit_unit_allowance',
+                      'Credit units available for the institution-designed 30%. Leave empty until the department confirms the figure.',
+                    )}
+                    <FieldError errors={[errors.credit_unit_allowance]} />
+                  </Field>
+                </FieldGroup>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Analysis and curriculum</CardTitle>
+              <CardDescription>Apply to sessions created after saving.</CardDescription>
+            </CardHeader>
+            <CardContent>
               <div className="grid gap-4 sm:grid-cols-3">
+                <Field data-invalid={!!errors.min_topic_size}>
+                  <FieldLabel htmlFor="min_topic_size">Smallest topic</FieldLabel>
+                  <Input
+                    id="min_topic_size"
+                    aria-invalid={!!errors.min_topic_size}
+                    {...number('min_topic_size')}
+                  />
+                  {hint('min_topic_size', 'How many extracts it takes to form a topic. Default 5.')}
+                  <FieldError errors={[errors.min_topic_size]} />
+                </Field>
+                <Field data-invalid={!!errors.evidence_per_recommendation}>
+                  <FieldLabel htmlFor="evidence_per_recommendation">
+                    Example extracts per recommendation
+                  </FieldLabel>
+                  <Input
+                    id="evidence_per_recommendation"
+                    aria-invalid={!!errors.evidence_per_recommendation}
+                    {...number('evidence_per_recommendation')}
+                  />
+                  {hint('evidence_per_recommendation', 'Default 8.')}
+                  <FieldError errors={[errors.evidence_per_recommendation]} />
+                </Field>
+                <Field data-invalid={!!errors.max_documents_per_session}>
+                  <FieldLabel htmlFor="max_documents_per_session">
+                    Maximum documents per session
+                  </FieldLabel>
+                  <Input
+                    id="max_documents_per_session"
+                    aria-invalid={!!errors.max_documents_per_session}
+                    {...number('max_documents_per_session')}
+                  />
+                  {hint('max_documents_per_session', 'Default 50.')}
+                  <FieldError errors={[errors.max_documents_per_session]} />
+                </Field>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Document processing</CardTitle>
+              <CardDescription>
+                Applied when documents are parsed, so they affect documents uploaded after saving.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2">
                 {(
                   [
-                    ['ner', 'Employer demand'],
-                    ['topic', 'How often it comes up'],
-                    ['novelty', 'How new it is (vs NUC core)'],
+                    ['passage_sentences', 'Sentences per extract', 'Default 3 to 5.'],
+                    ['passage_words', 'Words per extract', 'Default 100 to 200.'],
                   ] as const
-                ).map(([key, label]) => (
-                  <Field key={key} data-invalid={!!errors.score_weights?.[key]}>
-                    <FieldLabel htmlFor={`weight-${key}`}>{label}</FieldLabel>
-                    <Input
-                      id={`weight-${key}`}
-                      min={0}
-                      max={1}
-                      aria-invalid={!!errors.score_weights?.[key]}
-                      {...number(`score_weights.${key}`, '0.01')}
+                ).map(([key, label, text]) => (
+                  <fieldset key={key} className="space-y-2">
+                    <legend className="text-[13px] font-bold text-ink">{label}</legend>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        aria-label={`${label}: minimum`}
+                        className="w-24"
+                        aria-invalid={!!errors[key]?.min}
+                        {...number(`${key}.min`)}
+                      />
+                      <span className="text-sm text-muted-ink">to</span>
+                      <Input
+                        aria-label={`${label}: maximum`}
+                        className="w-24"
+                        aria-invalid={!!errors[key]?.max}
+                        {...number(`${key}.max`)}
+                      />
+                    </div>
+                    {hint(key, text)}
+                    <FieldError
+                      errors={[
+                        errors[key]?.min,
+                        errors[key]?.max,
+                        errors[key]?.root ?? errors[key],
+                      ]}
                     />
-                    <FieldDescription>
-                      {Number.isFinite(weights[key]) ? formatWeight(weights[key]) : '—'}
-                    </FieldDescription>
-                    <FieldError errors={[errors.score_weights?.[key]]} />
-                  </Field>
+                  </fieldset>
                 ))}
               </div>
-              <p
-                id="weights-sum"
-                className={cn(
-                  'text-sm tabular-nums',
-                  sumOk ? 'text-muted-foreground' : 'font-medium text-destructive',
-                )}
-              >
-                Total: {Math.round(sum * 100)}%{' '}
-                {sumOk ? '✓' : '— the weights must add up to 100% (1.00)'}
-              </p>
-              <FieldError errors={[errors.score_weights?.root ?? errors.score_weights]} />
-            </fieldset>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field data-invalid={!!errors.similarity_threshold}>
-                <FieldLabel htmlFor="similarity_threshold">Duplicate threshold</FieldLabel>
-                <Input
-                  id="similarity_threshold"
-                  aria-invalid={!!errors.similarity_threshold}
-                  {...number('similarity_threshold', '0.01')}
-                />
-                {hint(
-                  'similarity_threshold',
-                  'A topic more similar than this to a NUC core course is marked “May already be in NUC core”. Default 0.80 (80% similar).',
-                )}
-                <FieldError errors={[errors.similarity_threshold]} />
-              </Field>
-              <Field data-invalid={!!errors.max_recommendations}>
-                <FieldLabel htmlFor="max_recommendations">Maximum recommendations</FieldLabel>
-                <Input
-                  id="max_recommendations"
-                  aria-invalid={!!errors.max_recommendations}
-                  {...number('max_recommendations')}
-                />
-                {hint('max_recommendations', 'Recommendations kept per session (1–100).')}
-                <FieldError errors={[errors.max_recommendations]} />
-              </Field>
-            </div>
-          </FieldGroup>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Analysis and curriculum</CardTitle>
-          <CardDescription>Apply to sessions created after saving.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field data-invalid={!!errors.min_topic_size}>
-              <FieldLabel htmlFor="min_topic_size">Smallest topic</FieldLabel>
-              <Input
-                id="min_topic_size"
-                aria-invalid={!!errors.min_topic_size}
-                {...number('min_topic_size')}
+          <details className="group rounded-[20px] border border-dashed border-input-line bg-white px-6 py-4 open:pb-6">
+            <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-extrabold text-ink [&::-webkit-details-marker]:hidden">
+              <ChevronRight
+                className="size-4 text-muted-ink transition-transform group-open:rotate-90"
+                aria-hidden="true"
               />
-              {hint('min_topic_size', 'How many extracts it takes to form a topic. Default 5.')}
-              <FieldError errors={[errors.min_topic_size]} />
-            </Field>
-            <Field data-invalid={!!errors.evidence_per_recommendation}>
-              <FieldLabel htmlFor="evidence_per_recommendation">
-                Example extracts per recommendation
-              </FieldLabel>
-              <Input
-                id="evidence_per_recommendation"
-                aria-invalid={!!errors.evidence_per_recommendation}
-                {...number('evidence_per_recommendation')}
-              />
-              {hint('evidence_per_recommendation', 'Default 8.')}
-              <FieldError errors={[errors.evidence_per_recommendation]} />
-            </Field>
-            <Field data-invalid={!!errors.max_documents_per_session}>
-              <FieldLabel htmlFor="max_documents_per_session">
-                Maximum documents per session
-              </FieldLabel>
-              <Input
-                id="max_documents_per_session"
-                aria-invalid={!!errors.max_documents_per_session}
-                {...number('max_documents_per_session')}
-              />
-              {hint('max_documents_per_session', 'Default 50.')}
-              <FieldError errors={[errors.max_documents_per_session]} />
-            </Field>
-            <Field data-invalid={!!errors.credit_unit_allowance}>
-              <FieldLabel htmlFor="credit_unit_allowance">30% credit-unit allowance</FieldLabel>
-              <Input
-                id="credit_unit_allowance"
-                inputMode="numeric"
-                placeholder="Not set"
-                aria-invalid={!!errors.credit_unit_allowance}
-                {...register('credit_unit_allowance')}
+              Model settings (advanced)
+              <span className="font-medium text-muted-ink">· change only with technical help</span>
+            </summary>
+            <div className="mt-4 space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field data-invalid={!!errors.sbert_model}>
+                  <FieldLabel htmlFor="sbert_model">Meaning model (advanced)</FieldLabel>
+                  <Input
+                    id="sbert_model"
+                    autoComplete="off"
+                    aria-invalid={!!errors.sbert_model}
+                    {...register('sbert_model')}
+                  />
+                  {hint(
+                    'sbert_model',
+                    'Compares texts by meaning. Change it only with technical help. Default all-MiniLM-L6-v2.',
+                  )}
+                  <FieldError errors={[errors.sbert_model]} />
+                </Field>
+                <Field data-invalid={!!errors.spacy_model}>
+                  <FieldLabel htmlFor="spacy_model">Language model (advanced)</FieldLabel>
+                  <Input
+                    id="spacy_model"
+                    autoComplete="off"
+                    aria-invalid={!!errors.spacy_model}
+                    {...register('spacy_model')}
+                  />
+                  {hint(
+                    'spacy_model',
+                    'Reads sentences and words. It must be installed on the server. Default en_core_web_sm.',
+                  )}
+                  <FieldError errors={[errors.spacy_model]} />
+                </Field>
+              </div>
+              {sbertModel.trim() !== byKey.sbert_model.value && (
+                <Alert variant="warning">
+                  <AlertTriangle aria-hidden="true" />
+                  <AlertTitle>Changing the meaning model</AlertTitle>
+                  <AlertDescription>
+                    Documents embedded with different models cannot be analysed together. After
+                    saving, re-upload the existing documents and the NUC core so that they all use
+                    the new model; sessions mixing models are refused with an explanation.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </details>
+        </>
+      )}
+
+      {section === 'names' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Course-style topic names</CardTitle>
+            <CardDescription>
+              Each topic is given the name from this list that is closest in meaning, if one is
+              close enough; otherwise it keeps a name made from its keywords. One name per line.
+              Applies to sessions run after saving.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Field data-invalid={!!errors.topic_names}>
+              <FieldLabel htmlFor="topic_names">Topic names</FieldLabel>
+              <Textarea
+                id="topic_names"
+                rows={14}
+                aria-invalid={!!errors.topic_names}
+                {...register('topic_names')}
               />
               {hint(
-                'credit_unit_allowance',
-                'Credit units available for the institution-designed 30%. Leave empty until the department confirms the figure.',
+                'topic_name_catalogue',
+                'Standard computing course and topic names (ACM/IEEE CS2023 areas and common NUC course titles).',
               )}
-              <FieldError errors={[errors.credit_unit_allowance]} />
+              <FieldError errors={[errors.topic_names]} />
             </Field>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Course-style topic names</CardTitle>
-          <CardDescription>
-            Each topic is given the name from this list that is closest in meaning, if one is close
-            enough; otherwise it keeps a name made from its keywords. One name per line. Applies to
-            sessions run after saving.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Field data-invalid={!!errors.topic_names}>
-            <FieldLabel htmlFor="topic_names">Topic names</FieldLabel>
-            <Textarea
-              id="topic_names"
-              rows={10}
-              aria-invalid={!!errors.topic_names}
-              {...register('topic_names')}
-            />
-            {hint(
-              'topic_name_catalogue',
-              'Standard computing course and topic names (ACM/IEEE CS2023 areas and common NUC course titles).',
-            )}
-            <FieldError errors={[errors.topic_names]} />
-          </Field>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>NUC courses excluded from the overlap comparison</CardTitle>
-          <CardDescription>
-            General studies, SIWES, project and seminar courses describe work experience or
-            communication rather than subject content, so they are not compared with topics. Applies
-            to sessions run after saving; the NUC Core page lists what is excluded.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field data-invalid={!!errors.excluded_prefixes}>
-              <FieldLabel htmlFor="excluded_prefixes">Course-code prefixes</FieldLabel>
-              <Input
-                id="excluded_prefixes"
-                autoComplete="off"
-                placeholder="e.g. GST"
-                aria-invalid={!!errors.excluded_prefixes}
-                {...register('excluded_prefixes')}
-              />
-              {hint('nuc_course_exclusions', 'Separated by commas. Default GST.')}
-              <FieldError errors={[errors.excluded_prefixes]} />
-            </Field>
-            <Field data-invalid={!!errors.excluded_keywords}>
-              <FieldLabel htmlFor="excluded_keywords">Title keywords</FieldLabel>
-              <Textarea
-                id="excluded_keywords"
-                rows={5}
-                aria-invalid={!!errors.excluded_keywords}
-                {...register('excluded_keywords')}
-              />
-              <FieldDescription>
-                One per line; a course is excluded when its title contains any of them (upper or
-                lower case).
-              </FieldDescription>
-              <FieldError errors={[errors.excluded_keywords]} />
-            </Field>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Document processing</CardTitle>
-          <CardDescription>
-            Applied when documents are parsed, so they affect documents uploaded after saving.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <FieldGroup>
+      {section === 'exclusions' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>NUC courses excluded from the overlap comparison</CardTitle>
+            <CardDescription>
+              General studies, SIWES, project and seminar courses describe work experience or
+              communication rather than subject content, so they are not compared with topics.
+              Applies to sessions run after saving; the NUC Core page lists what is excluded.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <div className="grid gap-4 sm:grid-cols-2">
-              {(
-                [
-                  ['passage_sentences', 'Sentences per extract', 'Default 3 to 5.'],
-                  ['passage_words', 'Words per extract', 'Default 100 to 200.'],
-                ] as const
-              ).map(([key, label, text]) => (
-                <fieldset key={key} className="space-y-2">
-                  <legend className="text-sm font-medium">{label}</legend>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      aria-label={`${label}: minimum`}
-                      className="w-24"
-                      aria-invalid={!!errors[key]?.min}
-                      {...number(`${key}.min`)}
-                    />
-                    <span className="text-sm text-muted-foreground">to</span>
-                    <Input
-                      aria-label={`${label}: maximum`}
-                      className="w-24"
-                      aria-invalid={!!errors[key]?.max}
-                      {...number(`${key}.max`)}
-                    />
-                  </div>
-                  {hint(key, text)}
-                  <FieldError
-                    errors={[errors[key]?.min, errors[key]?.max, errors[key]?.root ?? errors[key]]}
-                  />
-                </fieldset>
-              ))}
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field data-invalid={!!errors.sbert_model}>
-                <FieldLabel htmlFor="sbert_model">Meaning model (advanced)</FieldLabel>
+              <Field data-invalid={!!errors.excluded_prefixes}>
+                <FieldLabel htmlFor="excluded_prefixes">Course-code prefixes</FieldLabel>
                 <Input
-                  id="sbert_model"
+                  id="excluded_prefixes"
                   autoComplete="off"
-                  aria-invalid={!!errors.sbert_model}
-                  {...register('sbert_model')}
+                  placeholder="e.g. GST"
+                  aria-invalid={!!errors.excluded_prefixes}
+                  {...register('excluded_prefixes')}
                 />
-                {hint(
-                  'sbert_model',
-                  'Compares texts by meaning. Change it only with technical help. Default all-MiniLM-L6-v2.',
-                )}
-                <FieldError errors={[errors.sbert_model]} />
+                {hint('nuc_course_exclusions', 'Separated by commas. Default GST.')}
+                <FieldError errors={[errors.excluded_prefixes]} />
               </Field>
-              <Field data-invalid={!!errors.spacy_model}>
-                <FieldLabel htmlFor="spacy_model">Language model (advanced)</FieldLabel>
-                <Input
-                  id="spacy_model"
-                  autoComplete="off"
-                  aria-invalid={!!errors.spacy_model}
-                  {...register('spacy_model')}
+              <Field data-invalid={!!errors.excluded_keywords}>
+                <FieldLabel htmlFor="excluded_keywords">Title keywords</FieldLabel>
+                <Textarea
+                  id="excluded_keywords"
+                  rows={5}
+                  aria-invalid={!!errors.excluded_keywords}
+                  {...register('excluded_keywords')}
                 />
-                {hint(
-                  'spacy_model',
-                  'Reads sentences and words. It must be installed on the server. Default en_core_web_sm.',
-                )}
-                <FieldError errors={[errors.spacy_model]} />
+                <FieldDescription>
+                  One per line; a course is excluded when its title contains any of them (upper or
+                  lower case).
+                </FieldDescription>
+                <FieldError errors={[errors.excluded_keywords]} />
               </Field>
             </div>
-            {sbertModel.trim() !== byKey.sbert_model.value && (
-              <Alert>
-                <AlertTriangle aria-hidden="true" className="text-amber-600" />
-                <AlertTitle>Changing the meaning model</AlertTitle>
-                <AlertDescription>
-                  Documents embedded with different models cannot be analysed together. After
-                  saving, re-upload the existing documents and the NUC core so that they all use the
-                  new model; sessions mixing models are refused with an explanation.
-                </AlertDescription>
-              </Alert>
-            )}
-          </FieldGroup>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
-      <div className="flex gap-2">
-        <Button type="submit" disabled={update.isPending || !isDirty}>
-          {update.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
-          Save settings
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={!isDirty}
-          onClick={() => reset(toForm(byKey))}
-        >
-          Discard changes
-        </Button>
-      </div>
+      {actions}
     </form>
   )
 }

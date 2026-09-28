@@ -164,12 +164,12 @@ export function StopWordsPanel() {
           </AlertDescription>
         </Alert>
       ) : words.isSuccess && words.data.items.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-10 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-[20px] border border-dashed border-input-line bg-white px-6 py-12 text-center">
           <SpellCheck className="size-8 text-muted-foreground" aria-hidden="true" />
           <p className="font-medium">No stop words match</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="overflow-hidden rounded-[20px] border border-line bg-white">
           <Table aria-label="Stop words">
             <TableHeader>
               <TableRow>

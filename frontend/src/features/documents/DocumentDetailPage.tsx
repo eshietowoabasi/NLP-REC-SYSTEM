@@ -27,7 +27,7 @@ import { documentFileUrl, useDocument, usePassages } from './api'
 import { DocumentActionDialogs, type DocumentAction } from './DocumentActionDialogs'
 import { DocumentStatusBadge } from './DocumentStatusBadge'
 import { EditDocumentDialog } from './EditDocumentDialog'
-import { CATEGORY_LABELS } from './labels'
+import { CATEGORY_BADGES, CATEGORY_LABELS, monthYear } from './labels'
 
 export function DocumentDetailPage() {
   const params = useParams()
@@ -74,6 +74,7 @@ function DocumentDetailView({ document }: { document: DocumentDetail }) {
   const processing = status === 'uploaded' || status === 'parsing'
   const backTo = document.is_nuc_core && isAdmin ? '/admin/nuc-core' : '/documents'
 
+  const subtitle = [document.source, monthYear(document.published_on)].filter(Boolean).join(' · ')
   const metadata: [string, ReactNode][] = [
     ['Source', document.source ?? 'Not given'],
     [
@@ -83,7 +84,7 @@ function DocumentDetailView({ document }: { document: DocumentDetail }) {
           href={document.source_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
+          className="inline-flex items-center gap-1 break-all text-primary hover:underline"
         >
           {document.source_url}
           <ExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
@@ -105,23 +106,27 @@ function DocumentDetailView({ document }: { document: DocumentDetail }) {
   ]
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link to={backTo}>
-          <ArrowLeft aria-hidden="true" />
-          {document.is_nuc_core ? 'NUC core reference' : 'Document library'}
-        </Link>
-      </Button>
+    <div className="mx-auto max-w-6xl space-y-5">
+      <Link
+        to={backTo}
+        className="inline-flex items-center gap-1.5 text-[13px] font-bold text-primary hover:underline"
+      >
+        <ArrowLeft className="size-4" aria-hidden="true" />
+        {document.is_nuc_core ? 'NUC core reference' : 'Document library'}
+      </Link>
 
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
-          <h2 className="text-2xl font-semibold tracking-tight break-words">{document.title}</h2>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary">{CATEGORY_LABELS[document.source_category]}</Badge>
+        <div className="space-y-2.5">
+          <h2 className="page-title break-words">{document.title}</h2>
+          <div className="flex flex-wrap items-center gap-2 text-[13px] text-body">
+            <Badge variant={CATEGORY_BADGES[document.source_category]}>
+              {CATEGORY_LABELS[document.source_category]}
+            </Badge>
             <DocumentStatusBadge status={status} />
+            {subtitle && <span>From {subtitle}</span>}
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2.5">
           <Button variant="outline" asChild>
             <a href={documentFileUrl(document.id)} download>
               <Download aria-hidden="true" /> Download
@@ -143,7 +148,7 @@ function DocumentDetailView({ document }: { document: DocumentDetail }) {
                   <Archive aria-hidden="true" /> Archive
                 </Button>
               )}
-              <Button variant="outline" onClick={() => setAction({ kind: 'delete', document })}>
+              <Button variant="destructive" onClick={() => setAction({ kind: 'delete', document })}>
                 <Trash2 aria-hidden="true" /> Delete
               </Button>
             </>
@@ -152,7 +157,7 @@ function DocumentDetailView({ document }: { document: DocumentDetail }) {
       </div>
 
       {processing && (
-        <Alert>
+        <Alert variant="info">
           <Loader2 className="animate-spin" aria-hidden="true" />
           <AlertTitle>Processing</AlertTitle>
           <AlertDescription>
@@ -168,27 +173,29 @@ function DocumentDetailView({ document }: { document: DocumentDetail }) {
         </Alert>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[9rem_1fr]">
-            {metadata.map(([label, value]) => (
-              <div key={label} className="contents">
-                <dt className="text-muted-foreground">{label}</dt>
-                <dd className="font-medium break-all">{value}</dd>
-              </div>
-            ))}
-          </dl>
-        </CardContent>
-      </Card>
-
-      {status === 'ready' || status === 'archived' ? (
-        <PassagesCard documentId={document.id} total={document.passage_count} />
-      ) : null}
-
-      {!document.is_nuc_core && <SessionsCard document={document} />}
+      <div className="grid items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0 space-y-4">
+          {status === 'ready' || status === 'archived' ? (
+            <PassagesCard documentId={document.id} total={document.passage_count} />
+          ) : null}
+          {!document.is_nuc_core && <SessionsCard document={document} />}
+        </div>
+        <Card size="sm" className="lg:order-last">
+          <CardHeader>
+            <CardTitle>At a glance</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="flex flex-col gap-3 text-sm">
+              {metadata.map(([label, value]) => (
+                <div key={label} className="flex flex-col gap-0.5">
+                  <dt className="text-body-soft">{label}</dt>
+                  <dd className="font-bold break-words text-ink">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </CardContent>
+        </Card>
+      </div>
 
       <EditDocumentDialog document={document} open={editing} onOpenChange={setEditing} />
       <DocumentActionDialogs
@@ -215,21 +222,29 @@ function PassagesCard({ documentId, total }: { documentId: number; total: number
       </CardHeader>
       <CardContent className="space-y-3">
         {total === 0 ? (
-          <p className="text-sm text-muted-foreground">No text could be read from this document.</p>
+          <p className="text-sm text-muted-ink">No text could be read from this document.</p>
         ) : passages.isError ? (
           <p className="text-sm text-destructive">{passages.error.message}</p>
         ) : passages.isPending ? (
           <Skeleton className="h-32 w-full" />
         ) : (
           <>
-            <ol className="space-y-3">
+            <ol className="space-y-2.5">
               {passages.data.items.map((passage) => (
-                <li key={passage.id} className="rounded-md border p-3">
-                  <div className="mb-1 flex gap-2 text-xs text-muted-foreground">
-                    <span>Extract {passage.position + 1}</span>
-                    {passage.page_number !== null && <span>· Page {passage.page_number}</span>}
+                <li key={passage.id} className="flex gap-3.5 rounded-[14px] bg-sand px-4 py-3.5">
+                  <span
+                    className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-line bg-white text-xs font-extrabold text-muted-ink tabular-nums"
+                    aria-hidden="true"
+                  >
+                    {passage.position + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="mb-1 flex gap-2 text-xs font-bold text-muted-ink">
+                      <span>Extract {passage.position + 1}</span>
+                      {passage.page_number !== null && <span>· Page {passage.page_number}</span>}
+                    </div>
+                    <p className="text-sm leading-relaxed text-[#2e2620]">{passage.text}</p>
                   </div>
-                  <p className="text-sm leading-relaxed">{passage.text}</p>
                 </li>
               ))}
             </ol>
@@ -255,13 +270,18 @@ function SessionsCard({ document }: { document: DocumentDetail }) {
       </CardHeader>
       <CardContent>
         {document.sessions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Not used in any analysis session yet.</p>
+          <p className="text-sm text-muted-ink">Not used in any analysis session yet.</p>
         ) : (
-          <ul className="divide-y text-sm">
+          <ul className="divide-y divide-divider text-sm">
             {document.sessions.map((session) => (
-              <li key={session.id} className="flex justify-between gap-4 py-2">
-                <span className="font-medium">{session.session_name}</span>
-                <span className="text-muted-foreground">
+              <li key={session.id} className="flex justify-between gap-4 py-2.5">
+                <Link
+                  to={`/sessions/${session.id}`}
+                  className="font-bold text-ink hover:text-primary"
+                >
+                  {session.session_name}
+                </Link>
+                <span className="text-muted-ink">
                   {session.status} · {formatDate(session.created_at)}
                 </span>
               </li>

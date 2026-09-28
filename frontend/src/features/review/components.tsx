@@ -11,6 +11,7 @@ import { Link, NavLink } from 'react-router'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
+import { EmptyState } from '@/components/shared/EmptyState'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useSession } from '@/features/sessions/api'
@@ -50,8 +51,8 @@ export function KeywordsLine({
   if (keywords.length === 0) return null
   const shown = keywords.slice(0, limit).map((k) => k.label ?? k.term)
   return (
-    <p className="text-xs text-muted-foreground">
-      <span className="font-medium text-foreground">Keywords:</span> {shown.join(', ')}
+    <p className="text-xs leading-relaxed text-muted-ink">
+      <span className="font-bold text-body">Keywords:</span> {shown.join(', ')}
     </p>
   )
 }
@@ -59,49 +60,43 @@ export function KeywordsLine({
 /** "Not in NUC core" or amber "May already be in NUC core": icon + words, never colour alone. */
 export function OverlapBadge({ status }: { status: OverlapStatus }) {
   return status === 'Potential Duplicate' ? (
-    <Badge
-      variant="outline"
-      className="border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
-    >
+    <Badge variant="warning">
       <AlertTriangle aria-hidden="true" /> May already be in NUC core
     </Badge>
   ) : (
-    <Badge
-      variant="outline"
-      className="border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-      title="Not similar to any NUC core course"
-    >
+    <Badge variant="info" title="Not similar to any NUC core course">
       <Sparkles aria-hidden="true" /> Not in NUC core
     </Badge>
   )
 }
 
-const DECISION_STYLES: Record<PlannerDecision, string> = {
-  accepted: 'text-emerald-700 dark:text-emerald-400',
-  rejected: 'text-destructive',
-  flagged: 'text-amber-700 dark:text-amber-400',
-}
+const DECISION_VARIANTS = {
+  accepted: 'success',
+  rejected: 'destructive',
+  flagged: 'warning',
+} as const satisfies Record<PlannerDecision, string>
 
+/** Status chip (design spec §4): accepted green, rejected red, discuss later amber. */
 export function DecisionBadge({ decision }: { decision: PlannerDecision | null }) {
   if (!decision) {
     return (
-      <Badge variant="outline" className="text-muted-foreground">
+      <Badge variant="neutral">
         <CircleDashed aria-hidden="true" /> Not reviewed yet
       </Badge>
     )
   }
   const Icon = DECISION_ICONS[decision]
   return (
-    <Badge variant="outline" className={DECISION_STYLES[decision]}>
+    <Badge variant={DECISION_VARIANTS[decision]}>
       <Icon aria-hidden="true" /> {DECISION_LABELS[decision]}
     </Badge>
   )
 }
 
 const LEVEL_STYLES: Record<ScoreLevel, string> = {
-  High: 'text-foreground font-medium',
-  Medium: 'text-muted-foreground',
-  Low: 'text-muted-foreground',
+  High: 'text-ink font-bold',
+  Medium: 'text-body',
+  Low: 'text-muted-ink',
 }
 
 /** "High", "Medium" or "Low" for a 0–1 score (words, never colour alone). */
@@ -126,9 +121,7 @@ export function ScoreMeter({
   const points = toPoints(value)
   return (
     <div className="grid grid-cols-[7.5rem_1fr_4.75rem] items-center gap-2 text-xs">
-      <span className={cn('text-muted-foreground', emphasis && 'font-medium text-foreground')}>
-        {label}
-      </span>
+      <span className={cn('text-body-soft', emphasis && 'font-bold text-ink')}>{label}</span>
       <div
         role="meter"
         aria-label={label}
@@ -136,15 +129,12 @@ export function ScoreMeter({
         aria-valuemax={100}
         aria-valuenow={points}
         aria-valuetext={`${points} out of 100, ${scoreLevel(value)}`}
-        className="h-1.5 overflow-hidden rounded-full bg-viz-series/15"
+        className="h-1.5 overflow-hidden rounded-full bg-viz-track"
       >
-        <div
-          className={cn('h-full rounded-full bg-viz-series', !emphasis && 'opacity-70')}
-          style={{ width: `${points}%` }}
-        />
+        <div className="h-full rounded-full bg-viz-series" style={{ width: `${points}%` }} />
       </div>
       <span className="flex items-baseline justify-end gap-1.5">
-        <span className={cn('tabular-nums', emphasis ? 'font-semibold' : 'text-foreground')}>
+        <span className={cn('tabular-nums', emphasis ? 'font-extrabold' : 'font-bold text-ink')}>
           {points}
         </span>
         <ScoreLevelText value={value} className="w-12" />
@@ -153,16 +143,11 @@ export function ScoreMeter({
   )
 }
 
-const PART_COLOURS = {
-  ner: 'bg-viz-series',
-  topic: 'bg-viz-series/70',
-  novelty: 'bg-viz-series/45',
-} as const
-
 /**
- * The composite score out of 100 as the sum of its three weighted parts: a large figure, a
- * stacked bar (each segment = the points a part contributes) and a legend naming every part
- * with its numbers, so the colours are never the only way to read it.
+ * The composite score out of 100 and its three weighted parts (Recommendations.dc.html and
+ * RecommendationDetail.dc.html): a large figure, then one row per part with its points out of
+ * 100 and High/Medium/Low in words. `detailed` adds each part's weight and a thin bar. The
+ * figure's accessible name spells out how the parts add up.
  */
 export function ScoreContribution({
   recommendation,
@@ -171,7 +156,7 @@ export function ScoreContribution({
 }: {
   recommendation: Recommendation
   weights: ScoreWeights
-  /** Show each part's weight and contributed points in the legend. */
+  /** Show each part's weight and a bar (Recommendation Detail). */
   detailed?: boolean
 }) {
   const composite = recommendation.composite_score
@@ -192,46 +177,66 @@ export function ScoreContribution({
     )
     .join('; ')
   return (
-    <figure className="space-y-2" aria-label={`Score ${formatOutOf100(composite)}. ${summary}.`}>
+    <figure
+      className={cn('flex flex-col', detailed ? 'gap-3' : 'gap-2')}
+      aria-label={`Score ${formatOutOf100(composite)}. ${summary}.`}
+    >
       <div className="flex items-baseline justify-between gap-2">
-        <figcaption className="text-xs font-medium text-muted-foreground">Score</figcaption>
+        <figcaption
+          className={cn(
+            'font-bold text-muted-ink',
+            detailed ? 'text-[13px]' : 'text-xs tracking-[0.04em] uppercase',
+          )}
+        >
+          Score
+        </figcaption>
         <span
-          className={cn('font-semibold tabular-nums', detailed ? 'text-3xl' : 'text-2xl')}
+          className={cn(
+            'leading-none font-extrabold tracking-[-0.02em] text-ink tabular-nums',
+            detailed ? 'text-[38px]' : 'text-[26px]',
+          )}
           aria-hidden="true"
         >
           {toPoints(composite)}
-          <span className="text-sm font-normal text-muted-foreground">/100</span>
+          <span
+            className={cn(
+              'font-semibold tracking-normal text-muted-ink',
+              detailed ? 'text-[15px]' : 'text-[13px]',
+            )}
+          >
+            /100
+          </span>
         </span>
       </div>
-      <div className="flex h-2.5 w-full gap-0.5 rounded-sm bg-muted" aria-hidden="true">
-        {parts.map((part, index) => (
-          <div
-            key={part.key}
-            className={cn(
-              PART_COLOURS[part.key],
-              index === parts.length - 1 && 'rounded-r-sm',
-              index === 0 && 'rounded-l-sm',
-            )}
-            style={{ width: `${part.points}%` }}
-            title={`${part.label}: ${toPoints(part.value)}/100, ${formatWeight(part.weight)} → ${part.points} points`}
-          />
-        ))}
-      </div>
-      <ul className={cn('text-xs', detailed ? 'space-y-1.5' : 'space-y-1')} aria-hidden="true">
+      <ul className={cn(detailed ? 'space-y-3' : 'space-y-1.5')} aria-hidden="true">
         {parts.map((part) => (
-          <li key={part.key} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            <span className={cn('size-2.5 shrink-0 rounded-sm', PART_COLOURS[part.key])} />
-            <span className="text-muted-foreground">{part.label}</span>
-            <span className="ml-auto flex items-baseline gap-1.5 text-foreground tabular-nums">
-              {toPoints(part.value)}
-              <ScoreLevelText value={part.value} />
-              {detailed && (
-                <span className="text-muted-foreground">
-                  · {formatWeight(part.weight)} →{' '}
-                  <strong className="text-foreground">+{part.points}</strong> points
-                </span>
+          <li key={part.key} className="flex flex-col gap-[5px]">
+            <div
+              className={cn(
+                'flex items-baseline justify-between gap-2',
+                detailed ? 'text-[13px]' : 'text-xs',
               )}
-            </span>
+            >
+              <span className="text-ink">
+                {part.label}
+                {detailed && (
+                  <span className="text-faint"> · {Math.round(part.weight * 100)}%</span>
+                )}
+              </span>
+              <span className="flex items-baseline gap-1 whitespace-nowrap tabular-nums">
+                <strong className="font-extrabold text-ink">{toPoints(part.value)}</strong>
+                {!detailed && <span className="text-faint">·</span>}
+                <ScoreLevelText value={part.value} className={detailed ? 'text-[13px]' : ''} />
+              </span>
+            </div>
+            {detailed && (
+              <div className="h-1.5 rounded-full bg-viz-track">
+                <div
+                  className="h-1.5 rounded-full bg-viz-series"
+                  style={{ width: `${toPoints(part.value)}%` }}
+                />
+              </div>
+            )}
           </li>
         ))}
       </ul>
@@ -271,20 +276,18 @@ export function EmptyPanel({
   children?: ReactNode
 }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-12 text-center">
-      <Icon className="size-10 text-muted-foreground" aria-hidden="true" />
-      <h3 className="text-lg font-semibold">{title}</h3>
-      {children && <div className="max-w-md text-sm text-muted-foreground">{children}</div>}
-    </div>
+    <EmptyState icon={Icon} title={title}>
+      {children}
+    </EmptyState>
   )
 }
 
 export function LoadingBlock({ label }: { label: string }) {
   return (
-    <div className="space-y-3" aria-label={label} role="status">
-      <Skeleton className="h-8 w-1/3" />
-      <Skeleton className="h-40 w-full" />
-      <Skeleton className="h-40 w-full" />
+    <div className="space-y-4" aria-label={label} role="status">
+      <Skeleton className="h-9 w-1/3 rounded-xl" />
+      <Skeleton className="h-40 w-full rounded-[20px]" />
+      <Skeleton className="h-40 w-full rounded-[20px]" />
     </div>
   )
 }
@@ -348,28 +351,32 @@ export function SessionReviewHeader({
   title: string
 }) {
   const links = [
+    { to: `/sessions/${sessionId}/recommendations`, label: 'Suggested topics' },
     { to: `/sessions/${sessionId}/evidence`, label: 'Evidence' },
-    { to: `/sessions/${sessionId}/recommendations`, label: 'Recommendations' },
     { to: `/sessions/${sessionId}/curriculum`, label: 'Proposed courses' },
   ]
   return (
-    <div className="space-y-3">
-      <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link to={`/sessions/${sessionId}`}>
-          <ArrowLeft aria-hidden="true" /> {sessionName ?? 'Analysis session'}
-        </Link>
-      </Button>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
-        <nav aria-label="Session review" className="flex flex-wrap gap-1">
+    <div className="space-y-4">
+      <Link
+        to={`/sessions/${sessionId}`}
+        className="inline-flex items-center gap-1.5 text-[13px] font-bold text-primary hover:underline"
+      >
+        <ArrowLeft className="size-4" aria-hidden="true" /> {sessionName ?? 'Analysis session'}
+      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="page-title">{title}</h2>
+        <nav
+          aria-label="Session review"
+          className="flex flex-wrap gap-1.5 rounded-[14px] bg-sand-deep p-1"
+        >
           {links.map((link) => (
             <NavLink
               key={link.to}
               to={link.to}
               className={({ isActive }) =>
                 cn(
-                  'rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground',
-                  isActive && 'bg-muted text-foreground',
+                  'flex h-10 items-center rounded-[10px] px-[18px] text-sm font-semibold text-body-soft hover:text-ink focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none',
+                  isActive && 'bg-white font-extrabold text-ink',
                 )
               }
             >

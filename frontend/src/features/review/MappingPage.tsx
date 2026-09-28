@@ -17,9 +17,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { DocumentRef } from '@/components/shared/DocumentRef'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Field,
   FieldDescription,
@@ -95,15 +96,14 @@ export function MappingPage() {
   }
   const data = recommendation.data
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link to={`/recommendations/${data.id}`}>
-          <ArrowLeft aria-hidden="true" /> {data.topic_title}
-        </Link>
-      </Button>
-      <h2 className="text-2xl font-semibold tracking-tight">
-        {data.mapping ? 'Edit course' : 'Design course'}
-      </h2>
+    <div className="mx-auto max-w-6xl space-y-4">
+      <Link
+        to={`/recommendations/${data.id}`}
+        className="inline-flex items-center gap-1.5 text-[13px] font-bold text-primary hover:underline"
+      >
+        <ArrowLeft className="size-4" aria-hidden="true" /> {data.topic_title}
+      </Link>
+      <h2 className="page-title">{data.mapping ? 'Edit course' : 'Design course'}</h2>
       {data.planner_decision !== 'accepted' && !data.mapping ? (
         <EmptyPanel icon={X} title="Only accepted recommendations can have a course">
           Accept this recommendation first, then design its course.{' '}
@@ -112,7 +112,7 @@ export function MappingPage() {
           </Link>
         </EmptyPanel>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
+        <div className="grid items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_320px]">
           <MappingForm recommendation={data} />
           <EvidencePanel recommendation={data} />
         </div>
@@ -188,8 +188,8 @@ function MappingForm({ recommendation }: { recommendation: RecommendationDetail 
   }
 
   return (
-    <Card className="self-start">
-      <CardContent>
+    <Card className="self-start rounded-[22px] py-6">
+      <CardContent className="sm:px-7">
         <form onSubmit={onSubmit} noValidate aria-label="Course design">
           <FieldGroup>
             {formError && (
@@ -228,17 +228,18 @@ function MappingForm({ recommendation }: { recommendation: RecommendationDetail 
                 render={({ field }) => (
                   <ToggleGroup
                     type="single"
-                    variant="outline"
+                    variant="segment"
+                    spacing={1.5}
                     value={String(field.value)}
                     onValueChange={(value) => value && field.onChange(Number(value))}
                     aria-label="Credit units"
-                    className="w-fit"
+                    className="w-fit rounded-xl bg-sand-deep p-1"
                   >
                     {[1, 2, 3].map((units) => (
                       <ToggleGroupItem
                         key={units}
                         value={String(units)}
-                        className="w-12 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                        className="w-[52px]"
                         aria-label={`${units} credit unit${units === 1 ? '' : 's'}`}
                       >
                         {units}
@@ -274,7 +275,7 @@ function MappingForm({ recommendation }: { recommendation: RecommendationDetail 
               <ol className="space-y-2">
                 {outcomes.fields.map((item, index) => (
                   <li key={item.id} className="flex items-start gap-2">
-                    <span className="mt-2 w-5 text-right text-sm text-muted-foreground tabular-nums">
+                    <span className="mt-3 w-6 text-right text-[13px] font-extrabold text-faint tabular-nums">
                       {index + 1}.
                     </span>
                     <div className="flex-1">
@@ -301,9 +302,8 @@ function MappingForm({ recommendation }: { recommendation: RecommendationDetail 
               <FieldError errors={[errors.learning_outcomes?.root ?? errors.learning_outcomes]} />
               <Button
                 type="button"
-                variant="outline"
-                size="sm"
-                className="w-fit"
+                variant="link"
+                className="w-fit text-[13px]"
                 disabled={outcomes.fields.length >= MAX_OUTCOMES}
                 onClick={() => outcomes.append({ text: '' })}
               >
@@ -311,8 +311,8 @@ function MappingForm({ recommendation }: { recommendation: RecommendationDetail 
               </Button>
             </FieldSet>
 
-            <div className="flex flex-wrap justify-between gap-2">
-              <div className="flex gap-2">
+            <div className="flex flex-wrap-reverse justify-between gap-2.5 border-t border-divider pt-4">
+              <div className="flex gap-2.5">
                 <Button type="submit" disabled={save.isPending}>
                   {save.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
                   {mapping ? 'Save changes' : 'Save course'}
@@ -322,12 +322,7 @@ function MappingForm({ recommendation }: { recommendation: RecommendationDetail 
                 </Button>
               </div>
               {mapping && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="text-destructive"
-                  onClick={() => setConfirmDelete(true)}
-                >
+                <Button type="button" variant="destructive" onClick={() => setConfirmDelete(true)}>
                   <Trash2 aria-hidden="true" /> Remove course
                 </Button>
               )}
@@ -404,15 +399,15 @@ function TagInput({
   return (
     <Field data-invalid={!!error}>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <div className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-md border px-2 py-1.5 focus-within:ring-[3px] focus-within:ring-ring/50">
+      <div className="flex min-h-12 flex-wrap items-center gap-1.5 rounded-xl border border-input bg-white px-2 py-1.5 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/25">
         <ul className="contents" aria-label={`${label} added`}>
           {values.map((value) => (
             <li key={value}>
-              <Badge variant="secondary" className="gap-1 pr-1">
+              <Badge variant="secondary" className="gap-1 rounded-lg py-1.5 pr-1.5 text-[13px]">
                 {value}
                 <button
                   type="button"
-                  className="rounded-sm hover:bg-muted-foreground/20"
+                  className="cursor-pointer rounded-sm hover:bg-divider"
                   aria-label={`Remove ${value}`}
                   onClick={() => onChange(values.filter((v) => v !== value))}
                 >
@@ -429,7 +424,7 @@ function TagInput({
           onKeyDown={onKeyDown}
           onBlur={add}
           placeholder={values.length ? '' : 'e.g. CSC 301'}
-          className="min-w-24 flex-1 bg-transparent text-sm outline-none"
+          className="h-8 min-w-24 flex-1 bg-transparent px-1.5 text-sm outline-none placeholder:text-faint"
         />
       </div>
       <FieldDescription>{description}</FieldDescription>
@@ -438,46 +433,53 @@ function TagInput({
   )
 }
 
+/** Beside the form: what the topic is about and the evidence behind it. */
 function EvidencePanel({ recommendation }: { recommendation: RecommendationDetail }) {
   return (
-    <Card className="self-start">
-      <CardHeader>
-        <CardTitle className="text-base">{recommendation.topic_title}</CardTitle>
-        <CardDescription className="flex flex-wrap items-center gap-2">
-          <span className="tabular-nums">
-            Rank {recommendation.rank} · Score {formatOutOf100(recommendation.composite_score)}
-          </span>
+    <div className="flex flex-col gap-4 self-start">
+      <section
+        aria-label="The topic"
+        className="flex flex-col gap-2.5 rounded-[20px] bg-ink px-[22px] py-5 text-white"
+      >
+        <span className="text-xs font-extrabold tracking-[0.1em] text-amber uppercase">
+          Rank {recommendation.rank} · Score {formatOutOf100(recommendation.composite_score)}
+        </span>
+        <h3 className="text-base font-extrabold">{recommendation.topic_title}</h3>
+        <div>
           <OverlapBadge status={recommendation.overlap_status} />
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4 text-sm">
-        <p className="text-muted-foreground">{recommendation.topic_description}</p>
+        </div>
+        <p className="text-[13px] leading-normal text-[#d9ccc2]">
+          {recommendation.topic_description}
+        </p>
         {recommendation.skills.length > 0 && (
-          <div className="flex flex-wrap gap-1" aria-label="Skills">
+          <ul className="flex flex-wrap gap-1.5" aria-label="Skills">
             {recommendation.skills.map((skill) => (
-              <Badge key={skill.name} variant="secondary">
+              <li
+                key={skill.name}
+                className="rounded-full bg-white/12 px-2.5 py-[5px] text-xs font-semibold"
+              >
                 {skill.name}
-              </Badge>
-            ))}
-          </div>
-        )}
-        <section aria-labelledby="mapping-evidence" className="space-y-2">
-          <h3 id="mapping-evidence" className="font-medium">
-            Evidence
-          </h3>
-          <ul className="max-h-[28rem] space-y-2 overflow-y-auto pr-1">
-            {recommendation.evidence.map((item) => (
-              <li key={item.passage_id} className="rounded-md bg-muted/50 p-2">
-                <p className="text-xs text-muted-foreground">
-                  {item.document.title}
-                  {item.page_number != null && ` · p. ${item.page_number}`}
-                </p>
-                <p>{item.text}</p>
               </li>
             ))}
           </ul>
-        </section>
-      </CardContent>
-    </Card>
+        )}
+      </section>
+      <section
+        aria-labelledby="mapping-evidence"
+        className="flex flex-col gap-3 rounded-[20px] border border-line bg-white px-5 py-[18px]"
+      >
+        <h3 id="mapping-evidence" className="text-sm font-extrabold">
+          Evidence
+        </h3>
+        <ul className="max-h-[28rem] space-y-2 overflow-y-auto pr-1">
+          {recommendation.evidence.map((item) => (
+            <li key={item.passage_id} className="space-y-1 rounded-[14px] bg-sand px-3.5 py-3">
+              <DocumentRef document={item.document} titleClassName="text-xs" />
+              <p className="text-[13px] leading-relaxed">{item.text}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
   )
 }

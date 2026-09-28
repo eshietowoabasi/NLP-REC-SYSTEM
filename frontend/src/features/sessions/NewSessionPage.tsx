@@ -21,7 +21,9 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/c
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
-import { CATEGORY_LABELS, UPLOAD_CATEGORIES } from '@/features/documents/labels'
+import { FilterChip } from '@/components/shared/FilterChip'
+import { PageHeader } from '@/components/shared/PageHeader'
+import { CATEGORY_LABELS, documentMeta, UPLOAD_CATEGORIES } from '@/features/documents/labels'
 import { ApiError } from '@/lib/api'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -142,33 +144,44 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
     })
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link to="/sessions">
-          <ArrowLeft aria-hidden="true" /> Analysis sessions
-        </Link>
-      </Button>
-      <div>
-        <h2 className="text-xl font-semibold">New analysis session</h2>
-        <p className="text-sm text-muted-foreground">
-          Choose the documents to analyse. The system finds the topics they talk about, compares
-          them with the NUC core and ranks them as possible new courses.
-        </p>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-5">
+      <Link
+        to="/sessions"
+        className="inline-flex items-center gap-1.5 text-[13px] font-bold text-primary hover:underline"
+      >
+        <ArrowLeft className="size-4" aria-hidden="true" /> Analyses
+      </Link>
+      <PageHeader
+        title="New analysis session"
+        description="Choose the documents to analyse. The system finds the topics they talk about, compares them with the NUC core and ranks them as possible new courses."
+      />
 
-      <ol className="flex flex-wrap gap-2" aria-label="Steps">
+      <ol className="flex flex-wrap items-center gap-3" aria-label="Steps">
         {STEPS.map((item, index) => (
           <li
             key={item.title}
             aria-current={index === step ? 'step' : undefined}
             className={cn(
-              'flex items-center gap-2 rounded-full border px-3 py-1 text-sm',
-              index === step && 'border-primary bg-primary text-primary-foreground',
-              index < step && 'text-muted-foreground',
+              'flex items-center gap-2.5 text-sm font-semibold text-faint',
+              index === step && 'font-extrabold text-primary',
+              index < step && 'font-bold text-green',
             )}
           >
-            <span className="tabular-nums">
-              {index < step ? <Check className="size-3.5" aria-hidden="true" /> : index + 1}
+            {index > 0 && (
+              <span className="h-0.5 w-10 bg-input-line sm:w-[60px]" aria-hidden="true" />
+            )}
+            <span
+              className={cn(
+                'flex size-[30px] items-center justify-center rounded-full bg-divider text-muted-ink tabular-nums',
+                index === step && 'bg-primary text-primary-foreground',
+                index < step && 'bg-green-tint text-green',
+              )}
+            >
+              {index < step ? (
+                <Check className="size-4" strokeWidth={2.6} aria-hidden="true" />
+              ) : (
+                index + 1
+              )}
             </span>
             {item.title}
           </li>
@@ -176,7 +189,7 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
       </ol>
 
       {noNucCore && (
-        <Alert>
+        <Alert variant="warning">
           <AlertTriangle aria-hidden="true" />
           <AlertTitle>No active NUC core reference</AlertTitle>
           <AlertDescription>
@@ -191,146 +204,190 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
         </Alert>
       )}
 
-      <form onSubmit={(event) => event.preventDefault()} noValidate>
-        {step === 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Name the session</CardTitle>
-              <CardDescription>For example “2026 review — job market and policy”.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Field data-invalid={!!errors.session_name} className="max-w-lg">
-                <FieldLabel htmlFor="session_name">Session name</FieldLabel>
-                <Input
-                  id="session_name"
-                  autoFocus
-                  aria-invalid={!!errors.session_name}
-                  {...register('session_name')}
-                />
-                <FieldError errors={[errors.session_name]} />
-              </Field>
-            </CardContent>
-          </Card>
-        )}
-
-        {step === 1 && (
-          <Controller
-            control={control}
-            name="document_ids"
-            render={({ field, fieldState }) => (
-              <DocumentPicker
-                selected={field.value}
-                onChange={field.onChange}
-                maxDocuments={defaults.max_documents}
-                error={fieldState.error?.message}
-              />
-            )}
-          />
-        )}
-
-        {step === 2 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Scoring settings</CardTitle>
-              <CardDescription>
-                Pre-filled with the usual values. The score adds up employer demand, how often the
-                topic comes up and how new it is, weighted as below.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FieldGroup className="max-w-xl">
-                <WeightsFields control={control} register={register} errors={errors} />
-                <Field data-invalid={!!errors.similarity_threshold}>
-                  <FieldLabel htmlFor="similarity_threshold">Duplicate threshold</FieldLabel>
+      <div className="grid items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_340px]">
+        <form onSubmit={(event) => event.preventDefault()} noValidate>
+          {step === 0 && (
+            <Card className="rounded-[20px]">
+              <CardHeader>
+                <CardTitle>Name the session</CardTitle>
+                <CardDescription>
+                  For example “2026 review — job market and policy”.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Field data-invalid={!!errors.session_name} className="max-w-lg">
+                  <FieldLabel htmlFor="session_name">Session name</FieldLabel>
                   <Input
-                    id="similarity_threshold"
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    max="0.99"
-                    className="w-32"
-                    aria-invalid={!!errors.similarity_threshold}
-                    {...register('similarity_threshold', { valueAsNumber: true })}
+                    id="session_name"
+                    autoFocus
+                    aria-invalid={!!errors.session_name}
+                    {...register('session_name')}
                   />
-                  <FieldDescription>
-                    A topic more similar than this to a NUC core course is marked “May already be in
-                    NUC core”.
-                  </FieldDescription>
-                  <FieldError errors={[errors.similarity_threshold]} />
+                  <FieldError errors={[errors.session_name]} />
                 </Field>
-                <Field data-invalid={!!errors.max_recommendations}>
-                  <FieldLabel htmlFor="max_recommendations">Maximum recommendations</FieldLabel>
-                  <Input
-                    id="max_recommendations"
-                    type="number"
-                    step="1"
-                    min="1"
-                    max="100"
-                    className="w-32"
-                    aria-invalid={!!errors.max_recommendations}
-                    {...register('max_recommendations', { valueAsNumber: true })}
-                  />
-                  <FieldError errors={[errors.max_recommendations]} />
-                </Field>
-                <div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setValue('weights', defaults.parameters.weights, { shouldValidate: true })
-                      setValue('similarity_threshold', defaults.parameters.similarity_threshold)
-                      setValue('max_recommendations', defaults.parameters.max_recommendations)
-                    }}
-                  >
-                    Reset to defaults
-                  </Button>
-                </div>
-              </FieldGroup>
-            </CardContent>
-          </Card>
-        )}
-
-        <div className="mt-6 flex flex-wrap justify-between gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setStep((s) => s - 1)}
-            disabled={step === 0 || create.isPending}
-          >
-            <ArrowLeft aria-hidden="true" /> Back
-          </Button>
-          {step < STEPS.length - 1 ? (
-            <Button type="button" onClick={() => void next()}>
-              Next <ArrowRight aria-hidden="true" />
-            </Button>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={create.isPending}
-                onClick={() => void submit(false)()}
-              >
-                Create
-              </Button>
-              <Button
-                type="button"
-                disabled={create.isPending || noNucCore}
-                onClick={() => void submit(true)()}
-              >
-                {create.isPending ? (
-                  <Loader2 className="animate-spin" aria-hidden="true" />
-                ) : (
-                  <Play aria-hidden="true" />
-                )}
-                Create &amp; run
-              </Button>
-            </div>
+              </CardContent>
+            </Card>
           )}
-        </div>
-      </form>
+
+          {step === 1 && (
+            <Controller
+              control={control}
+              name="document_ids"
+              render={({ field, fieldState }) => (
+                <DocumentPicker
+                  selected={field.value}
+                  onChange={field.onChange}
+                  maxDocuments={defaults.max_documents}
+                  error={fieldState.error?.message}
+                />
+              )}
+            />
+          )}
+
+          {step === 2 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Scoring settings</CardTitle>
+                <CardDescription>
+                  Pre-filled with the usual values. The score adds up employer demand, how often the
+                  topic comes up and how new it is, weighted as below.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FieldGroup className="max-w-xl">
+                  <WeightsFields control={control} register={register} errors={errors} />
+                  <Field data-invalid={!!errors.similarity_threshold}>
+                    <FieldLabel htmlFor="similarity_threshold">
+                      “May already be in NUC core” above
+                    </FieldLabel>
+                    <Input
+                      id="similarity_threshold"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      max="0.99"
+                      className="w-32"
+                      aria-invalid={!!errors.similarity_threshold}
+                      {...register('similarity_threshold', { valueAsNumber: true })}
+                    />
+                    <FieldDescription>
+                      A topic more similar than this to a NUC core course is marked “May already be
+                      in NUC core”. 0.80 means 80% similar.
+                    </FieldDescription>
+                    <FieldError errors={[errors.similarity_threshold]} />
+                  </Field>
+                  <Field data-invalid={!!errors.max_recommendations}>
+                    <FieldLabel htmlFor="max_recommendations">Maximum recommendations</FieldLabel>
+                    <Input
+                      id="max_recommendations"
+                      type="number"
+                      step="1"
+                      min="1"
+                      max="100"
+                      className="w-32"
+                      aria-invalid={!!errors.max_recommendations}
+                      {...register('max_recommendations', { valueAsNumber: true })}
+                    />
+                    <FieldError errors={[errors.max_recommendations]} />
+                  </Field>
+                  <div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setValue('weights', defaults.parameters.weights, { shouldValidate: true })
+                        setValue('similarity_threshold', defaults.parameters.similarity_threshold)
+                        setValue('max_recommendations', defaults.parameters.max_recommendations)
+                      }}
+                    >
+                      Reset to defaults
+                    </Button>
+                  </div>
+                </FieldGroup>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="mt-6 flex flex-wrap justify-between gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setStep((s) => s - 1)}
+              disabled={step === 0 || create.isPending}
+            >
+              <ArrowLeft aria-hidden="true" /> Back
+            </Button>
+            {step < STEPS.length - 1 ? (
+              <Button type="button" onClick={() => void next()}>
+                Next <ArrowRight aria-hidden="true" />
+              </Button>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={create.isPending}
+                  onClick={() => void submit(false)()}
+                >
+                  Create
+                </Button>
+                <Button
+                  type="button"
+                  disabled={create.isPending || noNucCore}
+                  onClick={() => void submit(true)()}
+                >
+                  {create.isPending ? (
+                    <Loader2 className="animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Play aria-hidden="true" />
+                  )}
+                  Create &amp; run
+                </Button>
+              </div>
+            )}
+          </div>
+        </form>
+        <AnalysisSummary control={control} defaults={defaults} />
+      </div>
     </div>
+  )
+}
+
+/** "Your analysis": what has been chosen so far (NewAnalysis.dc.html). */
+function AnalysisSummary({
+  control,
+  defaults,
+}: {
+  control: Control<SessionForm>
+  defaults: SessionDefaults
+}) {
+  const [name, documentIds] = useWatch({ control, name: ['session_name', 'document_ids'] })
+  return (
+    <aside
+      aria-labelledby="analysis-summary"
+      className="flex flex-col gap-3.5 rounded-[20px] border border-line bg-white px-6 py-[22px]"
+    >
+      <h3 id="analysis-summary" className="card-title">
+        Your analysis
+      </h3>
+      <dl className="flex flex-col gap-3 text-sm">
+        <div className="flex justify-between gap-3">
+          <dt className="text-body-soft">Name</dt>
+          <dd className="truncate font-bold text-ink">{name.trim() || '—'}</dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt className="text-body-soft">Documents selected</dt>
+          <dd className="font-bold text-ink tabular-nums">{documentIds.length}</dd>
+        </div>
+      </dl>
+      <div className="flex flex-col gap-1.5 rounded-xl bg-teal-tint px-3.5 py-3 text-teal-ink">
+        <span className="text-[13px] font-extrabold">Compared against</span>
+        <span className="text-[13px]">
+          {defaults.nuc_core_version?.version_label ?? 'No NUC core yet'}
+        </span>
+      </div>
+    </aside>
   )
 }
 
@@ -364,7 +421,9 @@ function WeightsFields({
 
   return (
     <fieldset className="space-y-3">
-      <legend className="mb-2 text-sm font-medium">Score weights</legend>
+      <legend className="mb-2 text-sm font-extrabold">
+        What matters most when ranking topics?
+      </legend>
       <div className="grid gap-3 sm:grid-cols-3">
         {items.map((item) => (
           <Field key={item.name} data-invalid={!!item.error}>
@@ -387,10 +446,7 @@ function WeightsFields({
       </div>
       <p
         role="status"
-        className={cn(
-          'text-sm',
-          valid ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive',
-        )}
+        className={cn('text-sm', valid ? 'font-bold text-green' : 'font-bold text-destructive')}
       >
         Total: {Number.isFinite(sum) ? `${Math.round(sum * 100)}%` : '—'}{' '}
         {valid ? '✓' : '— the weights must add up to 100% (1.00)'}
@@ -443,26 +499,17 @@ function DocumentPicker({
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by category">
-            <Button
-              type="button"
-              size="sm"
-              variant={category === null ? 'default' : 'outline'}
-              aria-pressed={category === null}
-              onClick={() => setCategory(null)}
-            >
+            <FilterChip active={category === null} onClick={() => setCategory(null)}>
               All
-            </Button>
+            </FilterChip>
             {UPLOAD_CATEGORIES.map((value) => (
-              <Button
+              <FilterChip
                 key={value}
-                type="button"
-                size="sm"
-                variant={category === value ? 'default' : 'outline'}
-                aria-pressed={category === value}
+                active={category === value}
                 onClick={() => setCategory(value)}
               >
                 {CATEGORY_LABELS[value]}
-              </Button>
+              </FilterChip>
             ))}
           </div>
           <p
@@ -517,7 +564,7 @@ function DocumentPicker({
         ) : documents.isError ? (
           <p className="text-sm text-destructive">{documents.error.message}</p>
         ) : documents.data.length === 0 ? (
-          <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+          <p className="rounded-2xl border border-dashed border-input-line p-6 text-center text-sm text-body-soft">
             No ready documents.{' '}
             <Link to="/documents" className="underline">
               Upload documents
@@ -526,26 +573,32 @@ function DocumentPicker({
           </p>
         ) : (
           <ul
-            className="max-h-96 divide-y overflow-y-auto rounded-md border"
+            className="max-h-96 divide-y divide-divider overflow-y-auto rounded-2xl border border-line"
             aria-label="Ready documents"
           >
             {shown.length === 0 && (
-              <li className="p-4 text-sm text-muted-foreground">No documents match.</li>
+              <li className="p-4 text-sm text-muted-ink">No documents match.</li>
             )}
             {shown.map((document) => {
               const id = `doc-${document.id}`
               return (
-                <li key={document.id} className="flex items-center gap-3 px-3 py-2">
+                <li
+                  key={document.id}
+                  className="flex items-center gap-3.5 px-4 py-2.5 hover:bg-sand"
+                >
                   <Checkbox
                     id={id}
                     checked={chosen.has(document.id)}
                     onCheckedChange={(checked) => toggle(document.id, checked === true)}
                   />
                   <label htmlFor={id} className="min-w-0 flex-1 cursor-pointer">
-                    <span className="block truncate text-sm font-medium">{document.title}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {CATEGORY_LABELS[document.source_category]} ·{' '}
-                      {formatNumber(document.word_count)} words
+                    <span className="block truncate text-sm font-bold text-ink">
+                      {document.title}
+                    </span>
+                    <span className="block text-xs text-muted-ink">
+                      {[documentMeta(document), `${formatNumber(document.word_count)} words`]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </span>
                   </label>
                 </li>

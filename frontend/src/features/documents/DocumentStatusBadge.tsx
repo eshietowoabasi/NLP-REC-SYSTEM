@@ -14,13 +14,13 @@ const ICONS = {
   archived: Archive,
 } as const
 
-const STYLES: Record<DocumentStatus, string> = {
-  uploaded: 'text-muted-foreground',
-  parsing: 'text-sky-700 dark:text-sky-400',
-  ready: 'text-emerald-700 dark:text-emerald-400',
-  failed: 'text-destructive',
-  archived: 'text-muted-foreground',
-}
+const VARIANTS = {
+  uploaded: 'neutral',
+  parsing: 'info',
+  ready: 'success',
+  failed: 'destructive',
+  archived: 'neutral',
+} as const satisfies Record<DocumentStatus, string>
 
 interface DocumentStatusBadgeProps {
   status: DocumentStatus
@@ -31,7 +31,7 @@ interface DocumentStatusBadgeProps {
 export function DocumentStatusBadge({ status, errorMessage }: DocumentStatusBadgeProps) {
   const Icon = ICONS[status]
   const badge = (
-    <Badge variant="outline" className={STYLES[status]}>
+    <Badge variant={VARIANTS[status]}>
       <Icon aria-hidden="true" className={status === 'parsing' ? 'animate-spin' : undefined} />
       {STATUS_LABELS[status]}
     </Badge>

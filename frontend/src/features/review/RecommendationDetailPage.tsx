@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, Loader2, Pencil } from 'lucide-react'
+import { ArrowLeft, BookOpen, Loader2, Pencil } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useParams } from 'react-router'
@@ -20,6 +20,7 @@ import { ApiError } from '@/lib/api'
 import { formatDateTime } from '@/lib/format'
 import { applyServerErrors } from '@/lib/forms'
 import { cn } from '@/lib/utils'
+import { DocumentRef } from '@/components/shared/DocumentRef'
 import { NotFoundPage } from '@/routes/NotFoundPage'
 import type { Evidence, RecommendationDetail } from '@/types/api'
 
@@ -67,25 +68,27 @@ export function RecommendationDetailPage() {
 
 function RecommendationView({ recommendation }: { recommendation: RecommendationDetail }) {
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link to={`/sessions/${recommendation.session_id}/recommendations`}>
-          <ArrowLeft aria-hidden="true" /> Recommendations · {recommendation.session.session_name}
-        </Link>
-      </Button>
+    <div className="mx-auto max-w-6xl space-y-4">
+      <Link
+        to={`/sessions/${recommendation.session_id}/recommendations`}
+        className="inline-flex items-center gap-1.5 text-[13px] font-bold text-primary hover:underline"
+      >
+        <ArrowLeft className="size-4" aria-hidden="true" /> Back to suggested topics ·{' '}
+        {recommendation.session.session_name}
+      </Link>
 
-      <TitleSection recommendation={recommendation} />
-
-      <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
-        <div className="min-w-0 space-y-6">
-          <ScoreCard recommendation={recommendation} />
-          <OverlapCard recommendation={recommendation} />
+      <div className="grid items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0 space-y-4">
+          <TitleSection recommendation={recommendation} />
           <EvidenceCard evidence={recommendation.evidence} />
+          <OverlapCard recommendation={recommendation} />
         </div>
-        <div className="space-y-6">
+        <aside className="space-y-4" aria-label="Score and decision">
+          <ScoreCard recommendation={recommendation} />
           <DecisionCard recommendation={recommendation} />
+          <ScoreMeaningCard recommendation={recommendation} />
           <TermsCard recommendation={recommendation} />
-        </div>
+        </aside>
       </div>
     </div>
   )
@@ -108,22 +111,18 @@ function TitleSection({ recommendation }: { recommendation: RecommendationDetail
   const [editing, setEditing] = useState(false)
 
   return (
-    <div className="space-y-3">
+    <section className="flex flex-col gap-3 rounded-[20px] border border-line bg-white px-6 py-[22px] sm:px-[26px]">
       {editing ? (
         <EditForm recommendation={recommendation} onDone={() => setEditing(false)} />
       ) : (
         <>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 space-y-2">
-              <p className="text-sm text-muted-foreground">Recommendation #{recommendation.rank}</p>
-              <h2 className="text-2xl font-semibold tracking-tight break-words">
-                {recommendation.topic_title}
-              </h2>
-              {recommendation.topic_title !== recommendation.auto_title && (
-                <p className="text-sm text-muted-foreground">
-                  Generated title: {recommendation.auto_title}
-                </p>
-              )}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <p className="text-[13px] font-bold text-muted-ink">
+                Recommendation #{recommendation.rank}
+              </p>
+              <OverlapBadge status={recommendation.overlap_status} />
+              <DecisionBadge decision={recommendation.planner_decision} />
             </div>
             {canEdit && (
               <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
@@ -131,16 +130,18 @@ function TitleSection({ recommendation }: { recommendation: RecommendationDetail
               </Button>
             )}
           </div>
-          <KeywordsLine keywords={recommendation.keywords} />
-          <div className="flex flex-wrap gap-1.5">
-            <OverlapBadge status={recommendation.overlap_status} />
-            <DecisionBadge decision={recommendation.planner_decision} />
+          <div className="flex flex-col gap-1">
+            <h2 className="page-title break-words">{recommendation.topic_title}</h2>
+            {recommendation.topic_title !== recommendation.auto_title && (
+              <p className="text-xs text-muted-ink">Generated title: {recommendation.auto_title}</p>
+            )}
+            <KeywordsLine keywords={recommendation.keywords} />
           </div>
-          <p className="max-w-3xl text-sm leading-relaxed">{recommendation.topic_description}</p>
+          <Description text={recommendation.topic_description} />
           <ExampleQuote evidence={recommendation.evidence[0]} />
         </>
       )}
-    </div>
+    </section>
   )
 }
 
@@ -179,8 +180,8 @@ function EditForm({
   })
 
   return (
-    <Card>
-      <CardContent>
+    <div>
+      <div>
         <form onSubmit={onSubmit} noValidate>
           <FieldGroup>
             {formError && (
@@ -207,7 +208,7 @@ function EditForm({
               />
               <FieldError errors={[errors.topic_description]} />
             </Field>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-ink">
               The generated title ({recommendation.auto_title}) is kept for reference.
             </p>
             <div className="flex gap-2">
@@ -221,24 +222,45 @@ function EditForm({
             </div>
           </FieldGroup>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
 
-/** "Example from a job advert (Title, MyJobMag, Sep 2026): “…”". */
+const WHY = 'Why this is recommended:'
+
+/** The description, with its "Why this is recommended:" opening in bold. */
+function Description({ text }: { text: string }) {
+  const why = text.startsWith(WHY)
+  return (
+    <p className="max-w-3xl text-[15px] leading-relaxed text-[#2e2620]">
+      {why ? (
+        <>
+          <strong className="font-bold text-ink">{WHY}</strong>
+          {text.slice(WHY.length)}
+        </>
+      ) : (
+        text
+      )}
+    </p>
+  )
+}
+
+/** "Example from a job advert (Title, MyJobMag, Sep 2026): “…”", as an amber quote block. */
 function ExampleQuote({ evidence }: { evidence: Evidence | undefined }) {
   if (!evidence) return null
   const { document } = evidence
   const kind = DOCUMENT_TYPE[document.source_category] ?? 'document'
   const details = [document.source, monthYear(document.published_on)].filter(Boolean).join(', ')
   return (
-    <figure className="max-w-3xl space-y-1 rounded-md border-l-4 border-muted-foreground/30 bg-muted/40 px-4 py-3">
-      <figcaption className="text-xs text-muted-foreground">
+    <figure className="flex max-w-3xl flex-col gap-1.5 rounded-r-[14px] border-l-4 border-amber bg-amber-tint px-4 py-3.5">
+      <figcaption className="text-xs font-bold text-muted-ink">
         Example from {/^[aeiou]/i.test(kind) ? 'an' : 'a'} {kind} ({document.title}
         {details && `, ${details}`}):
       </figcaption>
-      <blockquote className="text-sm italic">“{shorten(evidence.text, 400)}”</blockquote>
+      <blockquote className="text-sm leading-relaxed text-[#2e2620] italic">
+        “{shorten(evidence.text, 400)}”
+      </blockquote>
     </figure>
   )
 }
@@ -258,32 +280,29 @@ function ScoreCard({ recommendation }: { recommendation: RecommendationDetail })
     recommendation.composite_score,
   )
   return (
-    <Card>
+    <Card size="sm">
       <CardHeader>
         <CardTitle>Why it ranks #{recommendation.rank}</CardTitle>
-        <CardDescription>
-          The score out of 100 adds up three scores, each out of 100 compared with this
-          session&apos;s other topics and weighted by how much it counts.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="rounded-md bg-muted/60 p-3 text-sm leading-relaxed tabular-nums">
+        <ScoreContribution recommendation={recommendation} weights={weights} detailed />
+        <p className="rounded-xl bg-sand px-3.5 py-3 text-[13px] leading-relaxed text-body tabular-nums">
           {terms.map((term, index) => (
             <span key={term.key}>
               {index > 0 && ' + '}
-              <strong>{points[index]}</strong>
-              <span className="text-muted-foreground"> ({term.label.toLowerCase()})</span>
+              <strong className="text-ink">{points[index]}</strong>
+              <span className="text-muted-ink"> ({term.label.toLowerCase()})</span>
             </span>
           ))}{' '}
-          = <strong>{toPoints(recommendation.composite_score)} points</strong> out of 100
+          = <strong className="text-ink">{toPoints(recommendation.composite_score)} points</strong>{' '}
+          out of 100
         </p>
-        <ScoreContribution recommendation={recommendation} weights={weights} detailed />
-        <div className="space-y-2">
+        <div className="space-y-2 border-t border-divider pt-3">
           <Button
             type="button"
             variant="link"
             size="sm"
-            className="h-auto px-0"
+            className="h-8 text-[13px]"
             aria-expanded={showCalculation}
             aria-controls="score-calculation"
             onClick={() => setShowCalculation((shown) => !shown)}
@@ -293,19 +312,19 @@ function ScoreCard({ recommendation }: { recommendation: RecommendationDetail })
           {showCalculation && (
             <div id="score-calculation" className="space-y-1.5">
               <p
-                className="rounded-md bg-muted/60 p-3 font-mono text-sm leading-relaxed tabular-nums"
+                className="rounded-xl bg-sand p-3 font-mono text-xs leading-relaxed text-ink tabular-nums"
                 aria-label="Composite score formula"
               >
                 {terms.map((term, index) => (
                   <span key={term.key}>
                     {index > 0 && ' + '}
                     {formatDecimal(term.weight)} × {formatDecimal(term.value)}
-                    <span className="text-muted-foreground"> ({term.technical})</span>
+                    <span className="text-muted-ink"> ({term.technical})</span>
                   </span>
                 ))}{' '}
                 = <strong>{formatDecimal(recommendation.composite_score)}</strong>
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-ink">
                 The exact calculation on the 0–1 scale; the points above are these values × 100,
                 rounded so that the parts add up to the total. Highest similarity to the NUC core:{' '}
                 {recommendation.max_similarity.toFixed(3)}.
@@ -313,30 +332,47 @@ function ScoreCard({ recommendation }: { recommendation: RecommendationDetail })
             </div>
           )}
         </div>
-        <dl className="grid gap-3 border-t pt-4 text-xs text-muted-foreground sm:grid-cols-3">
+      </CardContent>
+    </Card>
+  )
+}
+
+/** What the three scores mean, in plain words. */
+function ScoreMeaningCard({ recommendation }: { recommendation: RecommendationDetail }) {
+  return (
+    <Card size="sm">
+      <CardHeader>
+        <CardTitle>What the scores mean</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-xs leading-relaxed text-muted-ink">
+          The score out of 100 adds up three scores, each out of 100 compared with this
+          session&apos;s other topics and weighted by how much it counts.
+        </p>
+        <dl className="grid gap-3 text-xs text-muted-ink">
           <div>
-            <dt className="font-medium text-foreground">Employer demand</dt>
+            <dt className="font-bold text-ink">Employer demand</dt>
             <dd>
               How many documents ask for the skills that belong to this topic. Skills that every
               topic mentions count less.
             </dd>
           </div>
           <div>
-            <dt className="font-medium text-foreground">How often it comes up</dt>
+            <dt className="font-bold text-ink">How often it comes up</dt>
             <dd>
               How much of the material is about this topic (each document counts the same), and how
               clearly its extracts belong to it.
             </dd>
           </div>
           <div>
-            <dt className="font-medium text-foreground">How new it is</dt>
+            <dt className="font-bold text-ink">How new it is</dt>
             <dd>
               How different it is from the closest NUC core{' '}
               {recommendation.closest_nuc_course ? 'course' : 'extract'}. High means the NUC core
               does not teach it yet.
             </dd>
           </div>
-          <p className="sm:col-span-3">High = 70 or more, Medium = 40–69, Low = below 40.</p>
+          <p>High = 70 or more, Medium = 40–69, Low = below 40.</p>
         </dl>
       </CardContent>
     </Card>
@@ -357,7 +393,12 @@ function OverlapCard({ recommendation }: { recommendation: RecommendationDetail 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Overlap with the NUC core</CardTitle>
+        <CardTitle className="flex items-center gap-3">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-teal-tint">
+            <BookOpen className="size-5 text-teal" strokeWidth={1.8} aria-hidden="true" />
+          </span>
+          Comparison with the NUC core
+        </CardTitle>
         <CardDescription>
           {course ? (
             <>
@@ -378,18 +419,17 @@ function OverlapCard({ recommendation }: { recommendation: RecommendationDetail 
         {course && (
           <p
             className={cn(
-              'rounded-md border p-3 text-sm md:col-span-2',
-              duplicate &&
-                'border-amber-300 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-950/40',
+              'rounded-[14px] bg-sand px-4 py-3 text-sm md:col-span-2',
+              duplicate && 'bg-amber-tint',
             )}
           >
-            <span className="font-medium tabular-nums">
+            <span className="font-bold tabular-nums">
               {formatPercent(recommendation.max_similarity)} similar
             </span>{' '}
-            to the closest NUC course: <span className="font-medium">{course.code}</span> –{' '}
+            to the closest NUC course: <span className="font-bold">{course.code}</span> –{' '}
             {course.title}
             {(course.units != null || course.page_number != null) && (
-              <span className="text-muted-foreground">
+              <span className="text-muted-ink">
                 {' · '}
                 {[
                   course.units != null && `${course.units} units`,
@@ -401,45 +441,47 @@ function OverlapCard({ recommendation }: { recommendation: RecommendationDetail 
             )}
           </p>
         )}
-        <section aria-labelledby="overlap-theme" className="space-y-1.5 rounded-md border p-3">
-          <h3 id="overlap-theme" className="text-sm font-semibold">
+        <section
+          aria-labelledby="overlap-theme"
+          className="space-y-1.5 rounded-[14px] border border-line p-4"
+        >
+          <h3 id="overlap-theme" className="text-sm font-extrabold">
             Typical extract from this topic
           </h3>
           {top ? (
             <>
-              <p className="text-xs text-muted-foreground">
-                {top.document.label ?? top.document.title}
-                {top.page_number != null && ` · p. ${top.page_number}`}
-              </p>
-              <p className="text-sm">{top.text}</p>
+              <DocumentRef
+                document={top.document}
+                titleClassName="text-xs"
+                className="[&>span:last-child]:text-[11px]"
+              />
+              <p className="text-sm leading-relaxed">{top.text}</p>
             </>
           ) : (
-            <p className="text-sm text-muted-foreground">No evidence passages stored.</p>
+            <p className="text-sm text-muted-ink">No evidence extracts stored.</p>
           )}
         </section>
         <section
           aria-labelledby="overlap-nuc"
           className={
             duplicate && !course
-              ? 'space-y-1.5 rounded-md border border-amber-300 bg-amber-50/60 p-3 dark:border-amber-800 dark:bg-amber-950/40'
-              : 'space-y-1.5 rounded-md border p-3'
+              ? 'space-y-1.5 rounded-[14px] bg-amber-tint p-4'
+              : 'space-y-1.5 rounded-[14px] border border-line p-4'
           }
         >
-          <h3 id="overlap-nuc" className="text-sm font-semibold">
+          <h3 id="overlap-nuc" className="text-sm font-extrabold">
             Closest extract in the NUC core
           </h3>
           {nuc ? (
             <>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-ink">
                 {nuc.version_label ?? nuc.document_title}
                 {nuc.page_number != null && ` · p. ${nuc.page_number}`}
               </p>
-              <p className="text-sm">{nuc.text}</p>
+              <p className="text-sm leading-relaxed">{nuc.text}</p>
             </>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              This NUC core extract is no longer available.
-            </p>
+            <p className="text-sm text-muted-ink">This NUC core extract is no longer available.</p>
           )}
         </section>
       </CardContent>
@@ -471,7 +513,7 @@ function EvidenceCard({ evidence }: { evidence: Evidence[] }) {
       </CardHeader>
       <CardContent className="space-y-5">
         {groups.length === 0 && (
-          <p className="text-sm text-muted-foreground">No evidence passages stored.</p>
+          <p className="text-sm text-muted-ink">No evidence extracts stored.</p>
         )}
         {groups.map(({ document, passages }) => (
           <section
@@ -479,24 +521,17 @@ function EvidenceCard({ evidence }: { evidence: Evidence[] }) {
             aria-label={document.label ?? document.title}
             className="space-y-2"
           >
-            <div className="flex flex-wrap items-center gap-2">
-              <Link
-                to={`/documents/${document.id}`}
-                className="text-sm font-semibold hover:underline"
-              >
-                {document.label ?? document.title}
-              </Link>
-            </div>
+            <DocumentRef document={document} link />
             <ul className="space-y-2">
               {passages.map((passage) => (
-                <li key={passage.passage_id} className="rounded-md border-l-2 bg-muted/40 p-3">
-                  <p className="mb-1 text-xs text-muted-foreground tabular-nums">
+                <li key={passage.passage_id} className="rounded-[14px] bg-sand px-4 py-3.5">
+                  <p className="mb-1 text-xs font-bold text-muted-ink tabular-nums">
                     {passage.page_number != null
                       ? `Page ${passage.page_number}`
                       : `Extract ${passage.position + 1}`}{' '}
                     · {formatPercent(passage.relevance_score)} relevant
                   </p>
-                  <p className="text-sm">{passage.text}</p>
+                  <p className="text-sm leading-relaxed text-[#2e2620] italic">“{passage.text}”</p>
                 </li>
               ))}
             </ul>
@@ -511,30 +546,26 @@ function EvidenceCard({ evidence }: { evidence: Evidence[] }) {
 
 function TermsCard({ recommendation }: { recommendation: RecommendationDetail }) {
   return (
-    <Card>
+    <Card size="sm">
       <CardHeader>
         <CardTitle>Skills and keywords</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <section className="space-y-2" aria-labelledby="skills-heading">
-          <h3 id="skills-heading" className="text-sm font-medium">
+          <h3 id="skills-heading" className="section-label">
             Skills
           </h3>
           {recommendation.skills.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No known skills were found in this topic.
-            </p>
+            <p className="text-sm text-muted-ink">No known skills were found in this topic.</p>
           ) : (
-            <ul className="divide-y text-sm">
+            <ul className="divide-y divide-divider text-sm">
               {recommendation.skills.map((skill) => (
-                <li key={skill.name} className="flex items-baseline justify-between gap-2 py-1">
+                <li key={skill.name} className="flex items-baseline justify-between gap-2 py-1.5">
                   <span>
                     {skill.name}{' '}
-                    <span className="text-xs text-muted-foreground">
-                      {SKILL_LABELS[skill.label]}
-                    </span>
+                    <span className="text-xs text-muted-ink">{SKILL_LABELS[skill.label]}</span>
                   </span>
-                  <span className="text-xs text-muted-foreground tabular-nums">
+                  <span className="text-xs text-muted-ink tabular-nums">
                     {skill.document_frequency} docs
                   </span>
                 </li>
@@ -543,13 +574,13 @@ function TermsCard({ recommendation }: { recommendation: RecommendationDetail })
           )}
         </section>
         <section className="space-y-2" aria-labelledby="keywords-heading">
-          <h3 id="keywords-heading" className="text-sm font-medium">
+          <h3 id="keywords-heading" className="section-label">
             Keywords
           </h3>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1.5">
             {recommendation.keywords.map((keyword) => (
-              <Badge key={keyword.term} variant="secondary">
-                {keyword.term}
+              <Badge key={keyword.term} variant="secondary" className="font-semibold">
+                {keyword.label ?? keyword.term}
               </Badge>
             ))}
           </div>
@@ -578,7 +609,7 @@ function DecisionCard({ recommendation }: { recommendation: RecommendationDetail
     )
 
   return (
-    <Card>
+    <Card size="sm" className="border-2 border-primary shadow-selected">
       <CardHeader>
         <CardTitle>Decision</CardTitle>
         {recommendation.decided_by && (
@@ -590,20 +621,20 @@ function DecisionCard({ recommendation }: { recommendation: RecommendationDetail
       <CardContent className="space-y-4">
         <DecisionControl recommendation={recommendation} layout="panel" />
         {mapping && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-ink">
             {mapping.credit_units} credit unit{mapping.credit_units === 1 ? '' : 's'} ·{' '}
             {mapping.learning_outcomes.length} learning outcome
             {mapping.learning_outcomes.length === 1 ? '' : 's'} ·{' '}
             <Link
               to={`/sessions/${recommendation.session_id}/curriculum`}
-              className="underline-offset-4 hover:underline"
+              className="font-bold text-primary hover:underline"
             >
               View the proposed courses
             </Link>
           </p>
         )}
         {canEdit ? (
-          <div className="grid gap-1.5 border-t pt-4">
+          <div className="grid gap-1.5 border-t border-divider pt-4">
             <Label htmlFor="decision-notes">Notes</Label>
             <Textarea
               id="decision-notes"
@@ -626,7 +657,7 @@ function DecisionCard({ recommendation }: { recommendation: RecommendationDetail
           </div>
         ) : (
           recommendation.planner_notes && (
-            <p className="border-t pt-4 text-sm">{recommendation.planner_notes}</p>
+            <p className="border-t border-divider pt-4 text-sm">{recommendation.planner_notes}</p>
           )
         )}
       </CardContent>

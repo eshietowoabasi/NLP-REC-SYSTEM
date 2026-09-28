@@ -3,10 +3,8 @@ import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
-import { Progress } from '@/components/ui/progress'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import type { DecisionFilter, Recommendation, ReviewCounts, ScoreWeights } from '@/types/api'
 
@@ -35,13 +33,13 @@ const FILTERS: { value: DecisionFilter; label: string; count: keyof ReviewCounts
 export function RecommendationsPage() {
   const sessionId = Number(useParams().sessionId)
   return (
-    <CompletedSessionGate sessionId={sessionId} title="Recommendations">
+    <CompletedSessionGate sessionId={sessionId} title="Suggested topics">
       {(session) => (
-        <div className="mx-auto max-w-5xl space-y-6">
+        <div className="mx-auto max-w-6xl space-y-5">
           <SessionReviewHeader
             sessionId={session.id}
             sessionName={session.session_name}
-            title="Recommendations"
+            title="Suggested topics"
           />
           <RecommendationReview sessionId={session.id} weights={session.parameter_config.weights} />
         </div>
@@ -86,7 +84,6 @@ function RecommendationReview({
     )
   }
   const { items, counts } = list.data
-  const reviewedPercent = counts.total ? (counts.reviewed / counts.total) * 100 : 0
 
   if (counts.total === 0) {
     return (
@@ -97,14 +94,14 @@ function RecommendationReview({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <p className="max-w-prose text-sm text-muted-foreground">
+        <p className="max-w-3xl text-sm leading-relaxed text-body-soft">
           Suggested topics, best first. Each has a score out of 100: employer demand{' '}
-          <span className="text-foreground">{formatWeight(weights.ner)}</span>, how often it comes
-          up <span className="text-foreground">{formatWeight(weights.topic)}</span> and how new it
-          is <span className="text-foreground">{formatWeight(weights.novelty)}</span>. Open a topic
-          to see its evidence and decide.
+          <span className="font-bold text-ink">{formatWeight(weights.ner)}</span>, how often it
+          comes up <span className="font-bold text-ink">{formatWeight(weights.topic)}</span> and how
+          new it is <span className="font-bold text-ink">{formatWeight(weights.novelty)}</span>.
+          Open a topic to see its evidence and decide.
         </p>
         <Button variant="outline" size="sm" asChild>
           <a href={`/api/sessions/${sessionId}/recommendations/export`} download>
@@ -112,26 +109,21 @@ function RecommendationReview({
           </a>
         </Button>
       </div>
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
-          <p>
-            <span className="font-semibold">
-              {counts.reviewed} of {counts.total}
-            </span>{' '}
-            reviewed
-          </p>
-          <p className="text-muted-foreground">
-            {counts.potential_duplicates} {counts.potential_duplicates === 1 ? 'topic' : 'topics'}{' '}
-            may already be in the NUC core
-          </p>
-        </div>
-        <Progress value={reviewedPercent} aria-label="Review progress" />
-      </div>
+      <p className="text-[13px] text-body-soft">
+        <span className="font-bold text-ink">
+          {counts.reviewed} of {counts.total}
+        </span>{' '}
+        reviewed ·{' '}
+        <span>
+          {counts.potential_duplicates} {counts.potential_duplicates === 1 ? 'topic' : 'topics'} may
+          already be in the NUC core
+        </span>
+      </p>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <ToggleGroup
           type="single"
-          variant="outline"
+          variant="chip"
           value={decision}
           onValueChange={(value) => value && setDecision(value as DecisionFilter)}
           aria-label="Filter by decision"
@@ -140,7 +132,7 @@ function RecommendationReview({
           {FILTERS.map((filter) => (
             <ToggleGroupItem key={filter.value} value={filter.value}>
               {filter.label}
-              <span className="text-muted-foreground tabular-nums">
+              <span className="tabular-nums opacity-70 before:content-['·_']">
                 {counts[filter.count]}
                 {filter.value === 'accepted' &&
                   ` · ${counts.accepted_with_courses} with course${counts.accepted_with_courses === 1 ? '' : 's'}`}
@@ -154,7 +146,9 @@ function RecommendationReview({
             checked={hideDuplicates}
             onCheckedChange={(checked) => setHideDuplicates(checked === true)}
           />
-          <Label htmlFor="hide-duplicates">Hide topics that may already be in the NUC core</Label>
+          <Label htmlFor="hide-duplicates" className="font-semibold text-body">
+            Hide topics that may already be in the NUC core
+          </Label>
         </div>
       </div>
 
@@ -163,7 +157,7 @@ function RecommendationReview({
           Choose another filter, or show the topics that may already be in the NUC core.
         </EmptyPanel>
       ) : (
-        <ol className="space-y-4" aria-label="Ranked recommendations">
+        <ol className="space-y-3.5" aria-label="Ranked recommendations">
           {items.map((recommendation) => (
             <li key={recommendation.id}>
               <RecommendationCard recommendation={recommendation} weights={weights} />
@@ -175,6 +169,7 @@ function RecommendationReview({
   )
 }
 
+/** One suggested topic (Recommendations.dc.html): rank, name, why, decision and score. */
 function RecommendationCard({
   recommendation,
   weights,
@@ -183,34 +178,35 @@ function RecommendationCard({
   weights: ScoreWeights
 }) {
   return (
-    <Card>
-      <CardContent className="grid gap-5 lg:grid-cols-[1fr_16rem]">
-        <div className="min-w-0 space-y-2">
-          <div className="flex items-start gap-3">
-            <span
-              className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold tabular-nums"
-              aria-label={`Rank ${recommendation.rank}`}
-            >
-              {recommendation.rank}
-            </span>
-            <div className="min-w-0 space-y-1.5">
-              <h3 className="text-base leading-tight font-semibold">
-                <Link to={`/recommendations/${recommendation.id}`} className="hover:underline">
+    <article className="flex flex-col gap-5 rounded-[20px] border border-line bg-white px-[22px] py-[18px] lg:flex-row lg:items-center lg:gap-[22px]">
+      <div className="flex min-w-0 flex-1 gap-4 lg:gap-[22px]">
+        <span
+          className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-sand-deep font-extrabold text-ink tabular-nums"
+          aria-label={`Rank ${recommendation.rank}`}
+        >
+          {recommendation.rank}
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div className="flex flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+              <h3 className="text-lg leading-snug font-extrabold tracking-[-0.01em] text-ink">
+                <Link
+                  to={`/recommendations/${recommendation.id}`}
+                  className="hover:text-primary focus-visible:rounded focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+                >
                   {recommendation.topic_title}
                 </Link>
               </h3>
-              <div className="flex flex-wrap gap-1.5">
-                <OverlapBadge status={recommendation.overlap_status} />
-              </div>
+              <OverlapBadge status={recommendation.overlap_status} />
             </div>
+            <KeywordsLine keywords={recommendation.keywords} limit={6} />
           </div>
-          <KeywordsLine keywords={recommendation.keywords} limit={6} />
-          <p className="line-clamp-2 text-sm text-muted-foreground">
+          <p className="line-clamp-2 text-sm leading-normal text-body">
             {recommendation.topic_description}
           </p>
           {recommendation.skills.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">Skills: </span>
+            <p className="text-xs text-muted-ink">
+              <span className="font-bold text-body">Skills: </span>
               {recommendation.skills
                 .slice(0, 6)
                 .map((s) => s.name)
@@ -218,20 +214,21 @@ function RecommendationCard({
             </p>
           )}
           {recommendation.closest_nuc_course && (
-            <p className="text-xs text-muted-foreground">
-              <span className="font-medium text-foreground tabular-nums">
-                {formatPercent(recommendation.max_similarity)} similar
-              </span>{' '}
-              to {recommendation.closest_nuc_course.code} {recommendation.closest_nuc_course.title}{' '}
-              (closest NUC course)
+            <p className="text-[13px] text-muted-ink">
+              Closest NUC course:{' '}
+              <strong className="text-ink">
+                {recommendation.closest_nuc_course.code} {recommendation.closest_nuc_course.title}
+              </strong>{' '}
+              · <span className="tabular-nums">{formatPercent(recommendation.max_similarity)}</span>{' '}
+              similar
             </p>
           )}
           <DecisionControl recommendation={recommendation} />
         </div>
-        <div className="lg:border-l lg:pl-5">
-          <ScoreContribution recommendation={recommendation} weights={weights} />
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+      <div className="shrink-0 rounded-[14px] bg-sand px-4 py-3.5 lg:w-[250px]">
+        <ScoreContribution recommendation={recommendation} weights={weights} />
+      </div>
+    </article>
   )
 }

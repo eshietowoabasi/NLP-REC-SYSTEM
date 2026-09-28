@@ -25,6 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { EmptyState } from '@/components/shared/EmptyState'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -39,6 +40,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
   TableBody,
+  TableCard,
   TableCell,
   TableHead,
   TableHeader,
@@ -55,12 +57,12 @@ import { FORMAT_LABELS, REPORT_SECTIONS, REPORT_STATUS_LABELS } from './labels'
 
 const PER_PAGE = 20
 
-const STATUS_STYLES: Record<ReportStatus, string> = {
-  queued: 'text-muted-foreground',
-  processing: 'text-sky-700 dark:text-sky-400',
-  completed: 'text-emerald-700 dark:text-emerald-400',
-  failed: 'text-destructive',
-}
+const STATUS_VARIANTS = {
+  queued: 'neutral',
+  processing: 'info',
+  completed: 'success',
+  failed: 'destructive',
+} as const satisfies Record<ReportStatus, string>
 const STATUS_ICONS = {
   queued: Clock,
   processing: Loader2,
@@ -71,7 +73,7 @@ const STATUS_ICONS = {
 function ReportStatusBadge({ status }: { status: ReportStatus }) {
   const Icon = STATUS_ICONS[status]
   return (
-    <Badge variant="outline" className={STATUS_STYLES[status]}>
+    <Badge variant={STATUS_VARIANTS[status]}>
       <Icon aria-hidden="true" className={status === 'processing' ? 'animate-spin' : undefined} />
       {REPORT_STATUS_LABELS[status]}
     </Badge>
@@ -125,17 +127,17 @@ export function ReportsPage() {
   const empty = reports.isSuccess && reports.data.pagination.total === 0
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-[18px]">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
-          <h2 className="text-2xl font-semibold tracking-tight">Reports</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="page-title">Reports</h2>
+          <p className="page-lead">
             PDF and Word reports of completed sessions: findings, recommendations, decisions and
             proposed courses.
           </p>
         </div>
         {canEdit && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2.5">
             <Button variant="outline" onClick={() => openGenerate(true)}>
               <Plus aria-hidden="true" /> More options…
             </Button>
@@ -171,13 +173,13 @@ export function ReportsPage() {
           </Select>
         </div>
         {sessionFilter && (
-          <Badge variant="secondary" className="h-8 gap-1 pr-1 text-sm">
+          <Badge variant="brand" className="h-10 gap-1.5 pr-1.5 pl-3.5 text-[13px]">
             Session: {filteredSession ?? `#${sessionFilter}`}
             <button
               type="button"
               onClick={clearSession}
               aria-label="Show reports of all sessions"
-              className="rounded-sm p-0.5 hover:bg-muted-foreground/20"
+              className="cursor-pointer rounded-full p-1 hover:bg-white/60"
             >
               <X className="size-3.5" aria-hidden="true" />
             </button>
@@ -196,24 +198,24 @@ export function ReportsPage() {
           </AlertDescription>
         </Alert>
       ) : empty ? (
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-14 text-center">
-          <FileBarChart className="size-10 text-muted-foreground" aria-hidden="true" />
-          <h3 className="text-lg font-semibold">No reports yet</h3>
-          <p className="max-w-md text-sm text-muted-foreground">
-            Generate a report once a session has completed and its recommendations have been
-            reviewed.
-          </p>
-          {canEdit &&
+        <EmptyState
+          icon={FileBarChart}
+          title="No reports yet"
+          action={
+            canEdit &&
             (sessionFilter ? (
               <DownloadReportButton sessionId={sessionFilter} />
             ) : (
               <Button onClick={() => openGenerate(false)}>
                 <Download aria-hidden="true" /> Download the first report
               </Button>
-            ))}
-        </div>
+            ))
+          }
+        >
+          Generate a report once a session has completed and its recommendations have been reviewed.
+        </EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
+        <TableCard>
           <Table aria-label="Reports">
             <TableHeader>
               <TableRow>
@@ -239,25 +241,38 @@ export function ReportsPage() {
                   ))
                 : reports.data.items.map((report) => (
                     <TableRow key={report.id}>
-                      <TableCell className="font-medium">
-                        <Link to={`/sessions/${report.session.id}`} className="hover:underline">
+                      <TableCell className="font-bold whitespace-normal">
+                        <Link
+                          to={`/sessions/${report.session.id}`}
+                          className="text-ink hover:text-primary"
+                        >
                           {report.session.session_name}
                         </Link>
                       </TableCell>
-                      <TableCell>{report.format.toUpperCase()}</TableCell>
-                      <TableCell className="max-w-56 text-sm whitespace-normal text-muted-foreground">
+                      <TableCell>
+                        <span
+                          className={
+                            report.format === 'docx'
+                              ? 'rounded-lg bg-[#e4ecf7] px-2.5 py-1 text-xs font-extrabold text-[#1d3f73]'
+                              : 'rounded-lg bg-red-tint px-2.5 py-1 text-xs font-extrabold text-red'
+                          }
+                        >
+                          {report.format === 'docx' ? 'WORD' : 'PDF'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="max-w-56 text-[13px] whitespace-normal text-muted-ink">
                         {sectionSummary(report)}
                       </TableCell>
-                      <TableCell>{report.created_by.full_name}</TableCell>
-                      <TableCell className="whitespace-nowrap">
+                      <TableCell className="text-[13px] text-body">
+                        {report.created_by.full_name}
+                      </TableCell>
+                      <TableCell className="text-[13px] whitespace-nowrap text-body">
                         {formatDateTime(report.created_at)}
                       </TableCell>
                       <TableCell className="whitespace-normal">
                         <ReportStatusBadge status={report.status} />
                         {report.status === 'failed' && report.error_message && (
-                          <p className="mt-1 max-w-64 text-xs text-destructive">
-                            {report.error_message}
-                          </p>
+                          <p className="mt-1 max-w-64 text-xs text-red">{report.error_message}</p>
                         )}
                       </TableCell>
                       <TableCell className="text-right whitespace-nowrap">
@@ -271,7 +286,7 @@ export function ReportsPage() {
                               <Download aria-hidden="true" />
                               Download
                               {report.file_size != null && (
-                                <span className="text-muted-foreground">
+                                <span className="font-semibold text-muted-ink">
                                   {formatBytes(report.file_size)}
                                 </span>
                               )}
@@ -296,7 +311,7 @@ export function ReportsPage() {
                   ))}
             </TableBody>
           </Table>
-        </div>
+        </TableCard>
       )}
 
       {reports.data && reports.data.pagination.pages > 1 && (

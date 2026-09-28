@@ -8,6 +8,15 @@ export const CATEGORY_LABELS: Record<SourceCategory, string> = {
   nuc_core: 'NUC core',
 }
 
+/** Chip colour per category (Documents.dc.html): adverts terracotta, policy amber, NUC teal. */
+export const CATEGORY_BADGES = {
+  job_market: 'brand',
+  institutional: 'secondary',
+  policy: 'warning',
+  academic: 'secondary',
+  nuc_core: 'info',
+} as const satisfies Record<SourceCategory, string>
+
 /** What one document of each category is called in a sentence ("a job advert"). */
 export const DOCUMENT_TYPE: Record<SourceCategory, string> = {
   job_market: 'job advert',
@@ -34,6 +43,39 @@ export function shorten(text: string, length: number): string {
     .slice(0, length)
     .replace(/\s+\S*$/, '')
     .replace(/[\s.,;:!?…]+$/, '')}…`
+}
+
+export interface DocumentRefData {
+  id?: number
+  title: string
+  source_category?: SourceCategory
+  source?: string | null
+  published_on?: string | null
+  /** The API's readable label ("Title, job advert (MyJobMag, Sep 2026)"), used as a fallback. */
+  label?: string
+}
+
+const capitalise = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+
+/**
+ * "Job advert · MyJobMag · Sep 2026" for a document. When only the API label is known (e.g.
+ * topic samples), the part after the title is taken from it.
+ */
+export function documentMeta(document: DocumentRefData): string {
+  if (document.source_category) {
+    return [
+      capitalise(DOCUMENT_TYPE[document.source_category] ?? 'document'),
+      document.source,
+      monthYear(document.published_on),
+    ]
+      .filter(Boolean)
+      .join(' · ')
+  }
+  const label = document.label ?? ''
+  const rest = label.startsWith(`${document.title}, `) ? label.slice(document.title.length + 2) : ''
+  const match = /^(.*?) \((.*)\)$/.exec(rest)
+  if (match) return [capitalise(match[1]), ...match[2].split(', ')].join(' · ')
+  return rest ? capitalise(rest) : ''
 }
 
 export const UPLOAD_CATEGORIES: readonly UploadCategory[] = [

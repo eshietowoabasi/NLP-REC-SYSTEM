@@ -77,7 +77,7 @@ describe('Settings: general', () => {
     })
     const { user } = renderApp('/admin/settings')
 
-    const threshold = await screen.findByLabelText('Duplicate threshold')
+    const threshold = await screen.findByLabelText('“May already be in NUC core” above')
     expect(threshold).toHaveValue(0.8)
     expect(screen.getByText(/Changed by Test Admin/)).toBeInTheDocument()
     const save = screen.getByRole('button', { name: 'Save settings' })
@@ -101,6 +101,7 @@ describe('Settings: general', () => {
     })
     const { user } = renderApp('/admin/settings')
 
+    await user.click(await screen.findByRole('tab', { name: 'NUC courses to leave out' }))
     const prefixes = await screen.findByLabelText('Course-code prefixes')
     expect(prefixes).toHaveValue('GST')
     const keywords = screen.getByLabelText('Title keywords')
@@ -124,6 +125,7 @@ describe('Settings: general', () => {
     })
     const { user } = renderApp('/admin/settings')
 
+    await user.click(await screen.findByRole('tab', { name: 'Course-style topic names' }))
     const names = await screen.findByLabelText('Topic names')
     expect(names).toHaveValue('Software Testing and Quality Assurance\nCloud Computing')
     await user.type(names, '\n  Data Mining  \n')
@@ -143,6 +145,7 @@ describe('Settings: general', () => {
     const server = settingsApi()
     const { user } = renderApp('/admin/settings')
 
+    await user.click(await screen.findByRole('tab', { name: 'NUC courses to leave out' }))
     await user.type(await screen.findByLabelText('Course-code prefixes'), ', G5T')
     await user.click(screen.getByRole('button', { name: 'Save settings' }))
 
@@ -174,6 +177,8 @@ describe('Settings: general', () => {
     settingsApi()
     const { user } = renderApp('/admin/settings')
 
+    // Model settings sit in a collapsed "(advanced)" section at the bottom.
+    await user.click(await screen.findByText('Model settings (advanced)'))
     const model = await screen.findByLabelText('Meaning model (advanced)')
     expect(screen.queryByText('Changing the meaning model')).not.toBeInTheDocument()
     await user.clear(model)
@@ -190,6 +195,7 @@ describe('Settings: general', () => {
     })
     const { user } = renderApp('/admin/settings')
 
+    await user.click(await screen.findByText('Model settings (advanced)'))
     const spacy = await screen.findByLabelText('Language model (advanced)')
     await user.clear(spacy)
     await user.type(spacy, 'xx_sm')
@@ -206,7 +212,7 @@ describe('Settings: skill patterns', () => {
     })
     const { user } = renderApp('/admin/settings')
 
-    await user.click(await screen.findByRole('tab', { name: 'Skill patterns' }))
+    await user.click(await screen.findByRole('tab', { name: 'Skills list' }))
     const table = await screen.findByRole('table', { name: 'Skill patterns' })
     expect(await within(table).findByText('“docker”')).toBeInTheDocument()
     expect(within(table).getByText('[{"LOWER":"go"},{"LOWER":"developer"}]')).toBeInTheDocument()
@@ -225,7 +231,7 @@ describe('Settings: skill patterns', () => {
     })
     const { user } = renderApp('/admin/settings')
 
-    await user.click(await screen.findByRole('tab', { name: 'Skill patterns' }))
+    await user.click(await screen.findByRole('tab', { name: 'Skills list' }))
     await user.click(await screen.findByRole('button', { name: /Add pattern/ }))
     const dialog = await screen.findByRole('dialog')
     await user.type(within(dialog).getByLabelText('Canonical name'), 'Rust')
@@ -256,7 +262,7 @@ describe('Settings: skill patterns', () => {
     })
     const { user } = renderApp('/admin/settings')
 
-    await user.click(await screen.findByRole('tab', { name: 'Skill patterns' }))
+    await user.click(await screen.findByRole('tab', { name: 'Skills list' }))
     await user.click(await screen.findByRole('button', { name: /Add pattern/ }))
     const dialog = await screen.findByRole('dialog')
     await user.type(within(dialog).getByLabelText('Canonical name'), 'Docker')
@@ -284,7 +290,7 @@ describe('Settings: stop words', () => {
     })
     const { user } = renderApp('/admin/settings')
 
-    await user.click(await screen.findByRole('tab', { name: 'Stop words' }))
+    await user.click(await screen.findByRole('tab', { name: 'Words to ignore' }))
     const input = await screen.findByLabelText('Add a stop word')
     await user.type(input, 'two words')
     await user.click(screen.getByRole('button', { name: 'Add' }))
