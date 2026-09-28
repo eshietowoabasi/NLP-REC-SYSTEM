@@ -6,7 +6,8 @@ import { RequireAuth, RequireRole } from './guards'
 import type { RouteHandle } from './handle'
 import { NotFoundPage } from './NotFoundPage'
 
-const title = (value: string) => ({ title: value }) satisfies RouteHandle
+const title = (value: string, crumb = 'Workspace') =>
+  ({ title: value, crumb }) satisfies RouteHandle
 
 /*
  * Route-level code splitting: every screen is loaded on first visit, so the initial bundle
@@ -46,7 +47,7 @@ export const routes: RouteObject[] = [
               () => import('@/features/auth/ProfilePage'),
               (m) => m.ProfilePage,
             ),
-            handle: title('Profile'),
+            handle: title('Profile', 'Account'),
           },
           {
             path: 'documents',
@@ -62,7 +63,7 @@ export const routes: RouteObject[] = [
               () => import('@/features/documents/DocumentDetailPage'),
               (m) => m.DocumentDetailPage,
             ),
-            handle: title('Document'),
+            handle: title('Document', 'Documents'),
           },
           {
             path: 'sessions',
@@ -70,7 +71,7 @@ export const routes: RouteObject[] = [
               () => import('@/features/sessions/SessionsPage'),
               (m) => m.SessionsPage,
             ),
-            handle: title('Analysis Sessions'),
+            handle: title('Analyses'),
           },
           {
             path: 'sessions/new',
@@ -82,7 +83,7 @@ export const routes: RouteObject[] = [
                   () => import('@/features/sessions/NewSessionPage'),
                   (m) => m.NewSessionPage,
                 ),
-                handle: title('New Session'),
+                handle: title('New analysis', 'Analyses'),
               },
             ],
           },
@@ -92,7 +93,7 @@ export const routes: RouteObject[] = [
               () => import('@/features/sessions/SessionDetailPage'),
               (m) => m.SessionDetailPage,
             ),
-            handle: title('Analysis Session'),
+            handle: title('Analysis', 'Analyses'),
           },
           {
             path: 'sessions/:sessionId/evidence',
@@ -100,7 +101,7 @@ export const routes: RouteObject[] = [
               () => import('@/features/review/EvidencePage'),
               (m) => m.EvidencePage,
             ),
-            handle: title('Evidence'),
+            handle: title('Evidence', 'Analyses'),
           },
           {
             path: 'sessions/:sessionId/recommendations',
@@ -108,7 +109,7 @@ export const routes: RouteObject[] = [
               () => import('@/features/review/RecommendationsPage'),
               (m) => m.RecommendationsPage,
             ),
-            handle: title('Recommendations'),
+            handle: title('Suggested topics', 'Analyses'),
           },
           {
             path: 'sessions/:sessionId/curriculum',
@@ -116,7 +117,7 @@ export const routes: RouteObject[] = [
               () => import('@/features/review/CurriculumPage'),
               (m) => m.CurriculumPage,
             ),
-            handle: title('Proposed courses'),
+            handle: title('Proposed courses', 'Analyses'),
           },
           {
             path: 'recommendations/:recommendationId',
@@ -124,7 +125,7 @@ export const routes: RouteObject[] = [
               () => import('@/features/review/RecommendationDetailPage'),
               (m) => m.RecommendationDetailPage,
             ),
-            handle: title('Recommendation'),
+            handle: title('Topic', 'Analyses'),
           },
           {
             path: 'recommendations/:recommendationId/mapping',
@@ -136,7 +137,7 @@ export const routes: RouteObject[] = [
                   () => import('@/features/review/MappingPage'),
                   (m) => m.MappingPage,
                 ),
-                handle: title('Design course'),
+                handle: title('Design course', 'Analyses'),
               },
             ],
           },
@@ -158,7 +159,7 @@ export const routes: RouteObject[] = [
                   () => import('@/features/admin/users/UsersPage'),
                   (m) => m.UsersPage,
                 ),
-                handle: title('Users'),
+                handle: title('Users', 'Administration'),
               },
               {
                 path: 'nuc-core',
@@ -166,7 +167,7 @@ export const routes: RouteObject[] = [
                   () => import('@/features/admin/nuc-core/NucCorePage'),
                   (m) => m.NucCorePage,
                 ),
-                handle: title('NUC Core Reference'),
+                handle: title('NUC core curriculum', 'Administration'),
               },
               {
                 path: 'settings',
@@ -174,7 +175,7 @@ export const routes: RouteObject[] = [
                   () => import('@/features/admin/settings/SettingsPage'),
                   (m) => m.SettingsPage,
                 ),
-                handle: title('Settings'),
+                handle: title('Settings', 'Administration'),
               },
               {
                 path: 'audit-log',
@@ -182,11 +183,11 @@ export const routes: RouteObject[] = [
                   () => import('@/features/admin/audit/AuditLogPage'),
                   (m) => m.AuditLogPage,
                 ),
-                handle: title('Audit Log'),
+                handle: title('Activity log', 'Administration'),
               },
             ],
           },
-          { path: '*', element: <NotFoundPage />, handle: title('Not found') },
+          { path: '*', element: <NotFoundPage />, handle: title('Not found', '') },
         ],
       },
     ],

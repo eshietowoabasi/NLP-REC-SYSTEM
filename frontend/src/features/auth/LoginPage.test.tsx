@@ -15,7 +15,9 @@ describe('LoginPage', () => {
     mockApi(anonymous)
     const { router } = renderApp('/profile')
 
-    expect(await screen.findByRole('heading', { name: 'Sign in to NLP-RS' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: 'Sign in to SkillBridge' }),
+    ).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/login')
     expect(router.state.location.search).toBe('?next=%2Fprofile')
   })

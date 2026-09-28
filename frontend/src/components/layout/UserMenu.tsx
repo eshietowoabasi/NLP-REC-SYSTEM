@@ -2,9 +2,6 @@ import { ChevronDown, LogOut, UserRound } from 'lucide-react'
 import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,9 +12,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useLogout } from '@/features/auth/api'
 import { useAuth } from '@/features/auth/useAuth'
-import { initials } from '@/lib/format'
 import { ROLE_LABELS } from '@/lib/roles'
 
+import { UserAvatar } from './UserAvatar'
+
+/** The user chip of the top bar: initials, name and role, opening Profile / Log out. */
 export function UserMenu() {
   const { user } = useAuth()
   const logout = useLogout()
@@ -31,41 +30,37 @@ export function UserMenu() {
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <Badge variant="secondary" className="hidden md:inline-flex">
-        {ROLE_LABELS[user.role]}
-      </Badge>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-9 gap-2 px-2" aria-label="Account menu">
-            <Avatar className="size-7">
-              <AvatarFallback className="text-xs">{initials(user.full_name)}</AvatarFallback>
-            </Avatar>
-            <span className="hidden max-w-40 truncate text-sm font-medium sm:inline">
-              {user.full_name}
-            </span>
-            <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel className="font-normal">
-            <div className="truncate font-medium">{user.full_name}</div>
-            <div className="truncate text-xs text-muted-foreground">{user.email}</div>
-            <div className="mt-1 text-xs text-muted-foreground md:hidden">
-              {ROLE_LABELS[user.role]}
-            </div>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            <Link to="/profile">
-              <UserRound aria-hidden="true" /> Profile
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={signOut} disabled={logout.isPending}>
-            <LogOut aria-hidden="true" /> Log out
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="Account menu"
+          className="flex cursor-pointer items-center gap-2.5 rounded-xl px-1.5 py-1 text-left hover:bg-sand focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none aria-expanded:bg-sand"
+        >
+          <UserAvatar name={user.full_name} role={user.role} />
+          <span className="hidden min-w-0 flex-col sm:flex">
+            <span className="max-w-44 truncate text-sm font-bold text-ink">{user.full_name}</span>
+            <span className="text-xs text-muted-ink">{ROLE_LABELS[user.role]}</span>
+          </span>
+          <ChevronDown className="size-4 text-muted-ink" aria-hidden="true" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-60">
+        <DropdownMenuLabel className="font-normal">
+          <div className="truncate font-bold text-ink">{user.full_name}</div>
+          <div className="truncate text-xs text-muted-ink">{user.email}</div>
+          <div className="mt-1 text-xs text-muted-ink sm:hidden">{ROLE_LABELS[user.role]}</div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link to="/profile">
+            <UserRound aria-hidden="true" /> Profile
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={signOut} disabled={logout.isPending}>
+          <LogOut aria-hidden="true" /> Log out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

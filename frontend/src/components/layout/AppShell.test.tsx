@@ -35,7 +35,8 @@ describe('AppShell', () => {
 
     signedInAs(plannerUser)
     renderApp('/')
-    expect(await screen.findByText('Workspace')).toBeInTheDocument()
+    // "Workspace" is both the sidebar group and the top bar's breadcrumb.
+    expect(await screen.findAllByText('Workspace')).toHaveLength(2)
     expect(screen.queryByText('Administration')).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument()
   })
@@ -49,7 +50,7 @@ describe('AppShell', () => {
       'href',
       '/admin/settings',
     )
-    expect(screen.getByRole('link', { name: 'Audit Log' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Activity log' })).toHaveAttribute(
       'href',
       '/admin/audit-log',
     )
@@ -65,7 +66,9 @@ describe('AppShell', () => {
     expect(within(menu).getByText('test.planner@example.com')).toBeInTheDocument()
     await user.click(within(menu).getByRole('menuitem', { name: 'Log out' }))
 
-    expect(await screen.findByRole('heading', { name: 'Sign in to NLP-RS' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: 'Sign in to SkillBridge' }),
+    ).toBeInTheDocument()
     expect(server.calls('POST', '/auth/logout')).toHaveLength(1)
   })
 

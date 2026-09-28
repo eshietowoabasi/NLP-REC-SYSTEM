@@ -8,16 +8,23 @@ function hasTitle(handle: unknown): handle is RouteHandle {
 }
 
 /**
- * Title of the deepest matched route (from its `handle.title`); also sets document.title.
+ * Title and breadcrumb of the deepest matched route (from its `handle`); also sets
+ * document.title.
  */
-export function usePageTitle(): string {
+export function usePageHeading(): { title: string; crumb: string } {
   const matches = useMatches()
   const match = [...matches].reverse().find((m) => hasTitle(m.handle))
-  const title = match && hasTitle(match.handle) ? match.handle.title : APP_NAME
+  const handle = match && hasTitle(match.handle) ? match.handle : undefined
+  const title = handle?.title ?? APP_NAME
 
   useEffect(() => {
     document.title = title === APP_NAME ? APP_NAME : `${title} · ${APP_NAME}`
   }, [title])
 
-  return title
+  return { title, crumb: handle?.crumb ?? 'Workspace' }
+}
+
+/** Title of the deepest matched route; also sets document.title. */
+export function usePageTitle(): string {
+  return usePageHeading().title
 }
