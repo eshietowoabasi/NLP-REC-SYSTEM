@@ -2,17 +2,17 @@
  "date": "2026-09-28",
  "backend": {
   "command": "pytest --cov=app (PowerShell, native Windows, Python 3.13.15)",
-  "collected": 404,
-  "passed": 391,
+  "collected": 405,
+  "passed": 392,
   "skipped": 13,
   "failed": 0,
-  "seconds": 362.03,
+  "seconds": 495.4,
   "skipped_reasons": {
    "libmagic is not installed on this machine": 12,
    "WeasyPrint system libraries missing": 1
   },
   "coverage": {
-   "statements": 4541,
+   "statements": 4544,
    "missing_statements": 81,
    "branches": 832,
    "partial_branches": 69,
@@ -23,7 +23,7 @@
    "test_admin_config.py": 18,
    "test_admin_users.py": 16,
    "test_auth.py": 20,
-   "test_config.py": 10,
+   "test_config.py": 11,
    "test_courses.py": 5,
    "test_dashboard.py": 3,
    "test_document_details.py": 3,
@@ -54,15 +54,15 @@
  "frontend": {
   "command": "vitest run --coverage (Vitest 5.0.1, jsdom)",
   "files": 17,
-  "tests": 131,
-  "passed": 131,
+  "tests": 133,
+  "passed": 133,
   "failed": 0,
-  "seconds": 101.24,
+  "seconds": 139.34,
   "coverage": {
-   "statements": 84.63,
-   "branches": 76.87,
-   "functions": 81.15,
-   "lines": 85.46
+   "statements": 84.28,
+   "branches": 76.62,
+   "functions": 80.93,
+   "lines": 85.33
   },
   "it_blocks_per_file": {
    "src/components/layout/AppShell.test.tsx": 5,
@@ -78,7 +78,7 @@
    "src/features/documents/UploadDialog.test.tsx": 3,
    "src/features/reports/reports.test.tsx": 8,
    "src/features/review/review.test.tsx": 26,
-   "src/features/sessions/sessions.test.tsx": 10,
+   "src/features/sessions/sessions.test.tsx": 12,
    "src/features/system/SystemStatusCard.test.tsx": 4,
    "src/lib/api.test.ts": 7,
    "src/routes/guards.test.tsx": 3
@@ -86,6 +86,7 @@
   "typecheck": "tsc -b: no errors",
   "eslint": "no problems",
   "prettier": "All matched files use Prettier code style!",
-  "build": "vite build succeeded (28 Sep 2026)"
+  "build": "vite build succeeded (28 Sep 2026)",
+  "note": "An earlier full run on the same code, with the demo app running alongside, had 5 timeouts (128 passed, 5 failed; different tests on each run). Those 5 files passed when run alone (59/59), and the full rerun recorded here passed 133/133."
  }
 }

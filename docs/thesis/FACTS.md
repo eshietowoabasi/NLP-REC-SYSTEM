@@ -1189,9 +1189,11 @@ Run on 28 Sep 2026 on the development laptop (results: `results/test_results.jso
 | | Backend | Frontend |
 |---|---|---|
 | Tool | pytest 9.1.1 + pytest-cov 7.1.0 | Vitest 5.0.1 + Testing Library, jsdom, coverage-v8 |
-| Tests | 404 collected: **391 passed, 13 skipped, 0 failed** (362 s) | 17 files: **131 passed, 0 failed** (101 s) |
-| Coverage | **97.1%** statements+branches (98.22% of 4,541 statements; 832 branches, 69 partial) — brief target ≥ 85% | statements 84.63%, branches 76.87%, functions 81.15%, lines 85.46% |
+| Tests | 405 collected: **392 passed, 13 skipped, 0 failed** (495 s) | 17 files: **133 passed, 0 failed** (139 s) |
+| Coverage | **97.1%** statements+branches (98.22% of 4,544 statements; 832 branches, 69 partial) — brief target ≥ 85% | statements 84.28%, branches 76.62%, functions 80.93%, lines 85.33% |
 | Static checks | ruff: all checks passed; black: 142 files unchanged | `tsc -b` no errors (TypeScript strict); ESLint no problems; Prettier clean; `vite build` succeeds |
+
+An earlier full run on the same code, with the demo app running alongside, had 5 timeouts (128 passed, 5 failed; different tests on each run). Those 5 files passed when run alone (59/59), and the full rerun recorded here passed 133/133.
 
 Skipped backend tests: 12 need libmagic (absent on native Windows, present in Docker) and 1
 renders a real PDF with WeasyPrint (needs Pango, present in Docker).
@@ -1213,7 +1215,7 @@ and TLS helpers. One test runs the real pipeline with the real SBERT model (107.
 | test_admin_config.py | 18 |
 | test_admin_users.py | 16 |
 | test_auth.py | 20 |
-| test_config.py | 10 |
+| test_config.py | 11 |
 | test_courses.py | 5 |
 | test_dashboard.py | 3 |
 | test_document_details.py | 3 |
@@ -1246,7 +1248,7 @@ suggested topics (badges, scores, filters, decisions, one-click report), topic d
 proposed courses, reports, NUC core, users, settings tabs, audit log, API client (CSRF retry,
 401 handling).
 
-| Frontend test file | `it` blocks (131 tests after `it.each` expansion) |
+| Frontend test file | `it` blocks (133 tests after `it.each` expansion) |
 |---|---|
 | src/components/layout/AppShell.test.tsx | 5 |
 | src/features/admin/audit/AuditLogPage.test.tsx | 2 |
@@ -1261,7 +1263,7 @@ proposed courses, reports, NUC core, users, settings tabs, audit log, API client
 | src/features/documents/UploadDialog.test.tsx | 3 |
 | src/features/reports/reports.test.tsx | 8 |
 | src/features/review/review.test.tsx | 26 |
-| src/features/sessions/sessions.test.tsx | 10 |
+| src/features/sessions/sessions.test.tsx | 12 |
 | src/features/system/SystemStatusCard.test.tsx | 4 |
 | src/lib/api.test.ts | 7 |
 | src/routes/guards.test.tsx | 3 |
