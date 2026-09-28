@@ -46,6 +46,7 @@ import { DocumentStatusBadge } from './DocumentStatusBadge'
 import {
   CATEGORY_BADGES,
   CATEGORY_LABELS,
+  documentType,
   monthYear,
   STATUS_LABELS,
   UPLOAD_CATEGORIES,
@@ -134,7 +135,7 @@ export function DocumentsPage() {
             <Input
               id="document-search"
               className="pl-8"
-              placeholder="Title or file name"
+              placeholder="Search by title"
               value={search}
               onChange={(event) => {
                 setSearch(event.target.value)
@@ -294,7 +295,7 @@ function DocumentRow({
       </TableCell>
       <TableCell>
         <Badge variant={CATEGORY_BADGES[document.source_category]}>
-          {CATEGORY_LABELS[document.source_category]}
+          {documentType(document.source_category)}
         </Badge>
       </TableCell>
       <TableCell className="text-[13px] text-body">{document.uploaded_by.full_name}</TableCell>

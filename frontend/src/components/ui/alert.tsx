@@ -47,7 +47,7 @@ function AlertTitle({ className, ...props }: React.ComponentProps<'div'>) {
     <div
       data-slot="alert-title"
       className={cn(
-        'font-extrabold group-has-[>svg]/alert:col-start-2 [&_a]:underline [&_a]:underline-offset-3',
+        'font-extrabold group-has-[>svg]/alert:col-start-2 [&_a:not([data-slot=button])]:underline [&_a:not([data-slot=button])]:underline-offset-3',
         className,
       )}
       {...props}
@@ -60,7 +60,7 @@ function AlertDescription({ className, ...props }: React.ComponentProps<'div'>) 
     <div
       data-slot="alert-description"
       className={cn(
-        'text-sm leading-relaxed text-balance text-body md:text-pretty [&_a]:font-bold [&_a]:text-primary [&_a]:hover:underline [&_p:not(:last-child)]:mb-3',
+        'text-sm leading-relaxed text-balance text-body md:text-pretty [&_a:not([data-slot=button])]:font-bold [&_a:not([data-slot=button])]:text-primary [&_a:not([data-slot=button])]:hover:underline [&_p:not(:last-child)]:mb-3',
         className,
       )}
       {...props}

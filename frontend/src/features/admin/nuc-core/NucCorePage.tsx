@@ -381,7 +381,6 @@ function VersionHistory() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Version</TableHead>
-                  <TableHead>File</TableHead>
                   <TableHead>Uploaded</TableHead>
                   <TableHead>By</TableHead>
                   <TableHead>Status</TableHead>
@@ -390,18 +389,18 @@ function VersionHistory() {
               <TableBody>
                 {versions.data.map((version) => (
                   <TableRow key={version.id}>
-                    <TableCell className="font-medium">
-                      {version.version_label}
+                    <TableCell className="font-bold">
+                      <Link
+                        to={`/documents/${version.document.id}`}
+                        className="text-ink hover:text-primary"
+                      >
+                        {version.version_label}
+                      </Link>
                       {version.is_active && (
-                        <Badge variant="secondary" className="ml-2">
+                        <Badge variant="success" className="ml-2">
                           Active
                         </Badge>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <Link to={`/documents/${version.document.id}`} className="hover:underline">
-                        {version.document.original_filename}
-                      </Link>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       {formatDateTime(version.created_at)}

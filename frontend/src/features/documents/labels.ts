@@ -17,6 +17,12 @@ export const CATEGORY_BADGES = {
   nuc_core: 'info',
 } as const satisfies Record<SourceCategory, string>
 
+/** One document's type for chips: "Job advert", "Policy document". */
+export function documentType(category: SourceCategory): string {
+  const type = DOCUMENT_TYPE[category]
+  return type.charAt(0).toUpperCase() + type.slice(1)
+}
+
 /** What one document of each category is called in a sentence ("a job advert"). */
 export const DOCUMENT_TYPE: Record<SourceCategory, string> = {
   job_market: 'job advert',

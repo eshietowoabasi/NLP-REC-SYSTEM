@@ -27,7 +27,7 @@ import { documentFileUrl, useDocument, usePassages } from './api'
 import { DocumentActionDialogs, type DocumentAction } from './DocumentActionDialogs'
 import { DocumentStatusBadge } from './DocumentStatusBadge'
 import { EditDocumentDialog } from './EditDocumentDialog'
-import { CATEGORY_BADGES, CATEGORY_LABELS, monthYear } from './labels'
+import { CATEGORY_BADGES, documentType, monthYear } from './labels'
 
 export function DocumentDetailPage() {
   const params = useParams()
@@ -95,7 +95,6 @@ function DocumentDetailView({ document }: { document: DocumentDetail }) {
       ),
     ],
     ['Published', formatDate(document.published_on, 'Not given')],
-    ['File', document.original_filename],
     ['Type', document.file_type.toUpperCase()],
     ['Size', formatBytes(document.file_size)],
     ['Pages', document.page_count === null ? 'Not paginated' : String(document.page_count)],
@@ -120,7 +119,7 @@ function DocumentDetailView({ document }: { document: DocumentDetail }) {
           <h2 className="page-title break-words">{document.title}</h2>
           <div className="flex flex-wrap items-center gap-2 text-[13px] text-body">
             <Badge variant={CATEGORY_BADGES[document.source_category]}>
-              {CATEGORY_LABELS[document.source_category]}
+              {documentType(document.source_category)}
             </Badge>
             <DocumentStatusBadge status={status} />
             {subtitle && <span>From {subtitle}</span>}

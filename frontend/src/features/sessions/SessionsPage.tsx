@@ -178,10 +178,10 @@ export function SessionsPage() {
               ) : (
                 sessions.data.items.map((session) => (
                   <TableRow key={session.id}>
-                    <TableCell className="max-w-72">
+                    <TableCell className="min-w-64 whitespace-normal">
                       <Link
                         to={`/sessions/${session.id}`}
-                        className="block truncate font-bold text-ink hover:text-primary"
+                        className="block font-bold text-ink hover:text-primary"
                       >
                         {session.session_name}
                       </Link>

@@ -1,6 +1,6 @@
 # CLAUDE.md — NLP-RS project context
 
-NLP-Driven Curriculum Recommendation System: a B.Sc. Computer Science final-year project
+NLP-Driven Curriculum Recommendation System (branded **SkillBridge** in the UI): a B.Sc. Computer Science final-year project
 (University of Uyo, Dept. of Computer Science). Planners upload job adverts, policy,
 institutional and academic documents; an NLP pipeline proposes candidate course topics for the
 university-designed **30%** of the NUC CCMAS curriculum, scored against the fixed NUC **70%** core.
@@ -183,8 +183,15 @@ cosmetic.
   session pages show `SessionProgress` (Review → Design courses → Report); reports download in one
   click via `DownloadReportButton` / `generateAndDownload` (reports/download.ts). Scores are shown
   out of 100 with the helpers in `review/labels.ts`; "flagged" is displayed as "Discuss later".
-- Charts (Recharts): colours from the `--viz-*` tokens in `index.css` (validated palette; one
-  hue for magnitude, amber only for "Potential Duplicate" with icon + label), a table beside
+- SkillBridge design (Phase 6, `docs/design/skillbridge-design/DESIGN_SPEC.md`): use the brand tokens in
+  `index.css` (`terracotta`, `amber`, `ink`, `sand`, `line`, `muted-ink` …, shadcn variables mapped onto
+  them; light only), the restyled shadcn primitives (Badge variants success/warning/info/neutral/brand,
+  Alert variants success/warning/info, Toggle `chip`/`segment`, `TableCard`) and the shared pieces in
+  `components/shared/` (`PageHeader`, `EmptyState`, `FilterChip`, `DocumentRef`) and
+  `components/brand/Logo`. Page titles are `h2.page-title`; the top bar's `h1` comes from the route's
+  `handle` (`title`, `crumb`). Never show file names; reference documents with `DocumentRef`.
+- Charts (Recharts): colours from the `--viz-*` tokens in `index.css` (terracotta for
+  magnitude on a divider-coloured track, amber only for "Potential Duplicate" with icon + label), a table beside
   every chart, hover tooltips. Chart-heavy routes are lazy-loaded.
 - Edit files with the Edit/Write tools or Python, not PowerShell `Get-Content`/`Set-Content`
   (they garble UTF-8 and add BOMs).

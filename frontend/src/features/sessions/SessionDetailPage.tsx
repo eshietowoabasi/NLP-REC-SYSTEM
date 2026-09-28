@@ -20,7 +20,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuth } from '@/features/auth/useAuth'
-import { CATEGORY_BADGES, CATEGORY_LABELS } from '@/features/documents/labels'
+import { CATEGORY_BADGES, documentType } from '@/features/documents/labels'
+import { cn } from '@/lib/utils'
 import { ApiError } from '@/lib/api'
 import { formatDateTime } from '@/lib/format'
 import { NotFoundPage } from '@/routes/NotFoundPage'
@@ -76,6 +77,7 @@ function SessionView({ session }: { session: SessionDetail }) {
   const retry = useRetrySession()
   const [deleting, setDeleting] = useState(false)
   const busy = run.isPending || retry.isPending
+  const running = session.status === 'pending' || session.status === 'processing'
   const failedStage = PIPELINE_STAGES.find((s) => s.id === session.current_stage)?.label
 
   const start = (action: typeof run, label: string) =>
@@ -161,7 +163,7 @@ function SessionView({ session }: { session: SessionDetail }) {
             <div className="flex flex-wrap gap-2">
               <Button size="sm" asChild>
                 <Link to={`/sessions/${session.id}/recommendations`}>
-                  <ListChecks aria-hidden="true" /> View recommendations
+                  <ListChecks aria-hidden="true" /> View suggested topics
                 </Link>
               </Button>
               <Button size="sm" variant="outline" asChild>
@@ -180,7 +182,12 @@ function SessionView({ session }: { session: SessionDetail }) {
       )}
       {session.status === 'completed' && <SessionProgress sessionId={session.id} />}
 
-      <div className="grid items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div
+        className={cn(
+          'grid items-start gap-[18px]',
+          running && 'lg:grid-cols-[minmax(0,1fr)_340px]',
+        )}
+      >
         <Card className="rounded-3xl py-7">
           <CardHeader className="sm:px-8">
             {session.status === 'processing' && (
@@ -201,19 +208,21 @@ function SessionView({ session }: { session: SessionDetail }) {
             <StageTracker session={session} />
           </CardContent>
         </Card>
-        <section
-          aria-labelledby="whats-happening"
-          className="flex flex-col gap-2.5 rounded-[20px] bg-ink px-6 py-[22px] text-white"
-        >
-          <h3 id="whats-happening" className="text-base font-extrabold">
-            What&apos;s happening?
-          </h3>
-          <p className="text-sm leading-relaxed text-[#d9ccc2]">
-            The system reads every advert and policy paper, spots the skills employers mention,
-            groups similar needs into topics, then checks each topic against the NUC core so you
-            only see what&apos;s new.
-          </p>
-        </section>
+        {running && (
+          <section
+            aria-labelledby="whats-happening"
+            className="flex flex-col gap-2.5 rounded-[20px] bg-ink px-6 py-[22px] text-white"
+          >
+            <h3 id="whats-happening" className="text-base font-extrabold">
+              What&apos;s happening?
+            </h3>
+            <p className="text-sm leading-relaxed text-[#d9ccc2]">
+              The system reads every advert and policy paper, spots the skills employers mention,
+              groups similar needs into topics, then checks each topic against the NUC core so you
+              only see what&apos;s new.
+            </p>
+          </section>
+        )}
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -261,7 +270,7 @@ function SessionView({ session }: { session: SessionDetail }) {
                     {document.title}
                   </Link>
                   <Badge variant={CATEGORY_BADGES[document.source_category]} className="shrink-0">
-                    {CATEGORY_LABELS[document.source_category]}
+                    {documentType(document.source_category)}
                   </Badge>
                 </li>
               ))}

@@ -43,7 +43,8 @@ describe('DocumentDetailPage', () => {
     expect(
       await screen.findByRole('heading', { name: 'Synthetic backend engineer advert' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('synthetic-backend-ad.pdf')).toBeInTheDocument()
+    // File names are never shown (design brief); the title and source identify a document.
+    expect(screen.queryByText('synthetic-backend-ad.pdf')).not.toBeInTheDocument()
     expect(await screen.findByText('Synthetic passage about cloud security.')).toBeInTheDocument()
     expect(screen.getByText('· Page 2')).toBeInTheDocument()
     expect(screen.getByText('Synthetic session')).toBeInTheDocument()
