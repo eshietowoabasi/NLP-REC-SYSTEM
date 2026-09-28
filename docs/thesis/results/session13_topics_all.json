@@ -1,0 +1,1896 @@
+{
+ "topics": [
+  {
+   "size": 41,
+   "title": "IT Support and Help Desk Operations",
+   "samples": [
+    {
+     "passage_id": 1262,
+     "document_id": 31
+    },
+    {
+     "passage_id": 1256,
+     "document_id": 30
+    },
+    {
+     "passage_id": 1154,
+     "document_id": 9
+    }
+   ],
+   "keywords": [
+    {
+     "term": "support",
+     "label": "IT Support",
+     "weight": 0.032127
+    },
+    {
+     "term": "system",
+     "label": "system",
+     "weight": 0.030895
+    },
+    {
+     "term": "network",
+     "label": "Networking",
+     "weight": 0.022644
+    },
+    {
+     "term": "technical",
+     "label": "technical",
+     "weight": 0.022267
+    },
+    {
+     "term": "maintain",
+     "label": "maintain",
+     "weight": 0.020029
+    },
+    {
+     "term": "manage",
+     "label": "manage",
+     "weight": 0.01856
+    },
+    {
+     "term": "provide",
+     "label": "provide",
+     "weight": 0.018355
+    },
+    {
+     "term": "service",
+     "label": "service",
+     "weight": 0.017668
+    },
+    {
+     "term": "maintenance",
+     "label": "maintenance",
+     "weight": 0.017112
+    },
+    {
+     "term": "management",
+     "label": "management",
+     "weight": 0.015705
+    }
+   ],
+   "strength": 1.0,
+   "topic_id": 0,
+   "skill_demand": 0.835515,
+   "strength_raw": 0.154521,
+   "keyword_title": "System, Networking and Technical",
+   "document_count": 16,
+   "name_similarity": 0.6231,
+   "mean_probability": 0.861963,
+   "skill_demand_raw": 3.025844
+  },
+  {
+   "size": 39,
+   "title": "Digital Economy and Policy",
+   "samples": [
+    {
+     "passage_id": 1056,
+     "document_id": 5
+    },
+    {
+     "passage_id": 1017,
+     "document_id": 5
+    },
+    {
+     "passage_id": 1021,
+     "document_id": 5
+    }
+   ],
+   "keywords": [
+    {
+     "term": "digital economy",
+     "label": "digital economy",
+     "weight": 0.051476
+    },
+    {
+     "term": "development",
+     "label": "development",
+     "weight": 0.021056
+    },
+    {
+     "term": "federal",
+     "label": "federal",
+     "weight": 0.019998
+    },
+    {
+     "term": "ministry communications",
+     "label": "ministry communications",
+     "weight": 0.019666
+    },
+    {
+     "term": "pillar",
+     "label": "pillar",
+     "weight": 0.019612
+    },
+    {
+     "term": "policy",
+     "label": "policy",
+     "weight": 0.018133
+    }
+   ],
+   "strength": 0.142818,
+   "topic_id": 1,
+   "skill_demand": 0.310225,
+   "strength_raw": 0.007112,
+   "keyword_title": "Digital Economy, Ministry Communications and Federal",
+   "document_count": 1,
+   "name_similarity": 0.7021,
+   "mean_probability": 0.970753,
+   "skill_demand_raw": 1.286644
+  },
+  {
+   "size": 23,
+   "title": "Mobile Application Development",
+   "samples": [
+    {
+     "passage_id": 1391,
+     "document_id": 54
+    },
+    {
+     "passage_id": 1390,
+     "document_id": 54
+    },
+    {
+     "passage_id": 1389,
+     "document_id": 54
+    }
+   ],
+   "keywords": [
+    {
+     "term": "design",
+     "label": "design",
+     "weight": 0.081754
+    },
+    {
+     "term": "product",
+     "label": "product",
+     "weight": 0.048184
+    },
+    {
+     "term": "android",
+     "label": "android",
+     "weight": 0.027107
+    },
+    {
+     "term": "user",
+     "label": "user",
+     "weight": 0.025634
+    },
+    {
+     "term": "prototype",
+     "label": "prototypes",
+     "weight": 0.025421
+    },
+    {
+     "term": "designer",
+     "label": "designer",
+     "weight": 0.024882
+    },
+    {
+     "term": "flow",
+     "label": "flows",
+     "weight": 0.023952
+    },
+    {
+     "term": "ship",
+     "label": "shipped",
+     "weight": 0.022596
+    },
+    {
+     "term": "research",
+     "label": "research",
+     "weight": 0.021109
+    },
+    {
+     "term": "screen",
+     "label": "screens",
+     "weight": 0.020771
+    }
+   ],
+   "strength": 0.485775,
+   "topic_id": 2,
+   "skill_demand": 0.583246,
+   "strength_raw": 0.043208,
+   "keyword_title": "Product, Android and User",
+   "document_count": 4,
+   "name_similarity": 0.5098,
+   "mean_probability": 0.614064,
+   "skill_demand_raw": 2.190599
+  },
+  {
+   "size": 21,
+   "title": "Threat Intelligence and Vulnerability Management",
+   "samples": [
+    {
+     "passage_id": 1424,
+     "document_id": 59
+    },
+    {
+     "passage_id": 1432,
+     "document_id": 60
+    },
+    {
+     "passage_id": 1423,
+     "document_id": 59
+    }
+   ],
+   "keywords": [
+    {
+     "term": "security",
+     "label": "security",
+     "weight": 0.059876
+    },
+    {
+     "term": "threat intelligence",
+     "label": "Threat Intelligence",
+     "weight": 0.042842
+    },
+    {
+     "term": "vulnerability management",
+     "label": "Vulnerability Assessment",
+     "weight": 0.029304
+    },
+    {
+     "term": "remediation",
+     "label": "remediation",
+     "weight": 0.028488
+    },
+    {
+     "term": "assessment",
+     "label": "assessments",
+     "weight": 0.028488
+    },
+    {
+     "term": "management",
+     "label": "management",
+     "weight": 0.027998
+    },
+    {
+     "term": "risk",
+     "label": "risk",
+     "weight": 0.02484
+    }
+   ],
+   "strength": 0.746596,
+   "topic_id": 3,
+   "skill_demand": 1.0,
+   "strength_raw": 0.091092,
+   "keyword_title": "Threat Intelligence, Vulnerability Assessment and Security",
+   "document_count": 8,
+   "name_similarity": 0.7052,
+   "mean_probability": 0.915599,
+   "skill_demand_raw": 3.570441
+  },
+  {
+   "size": 19,
+   "title": "Project, English and Problem",
+   "samples": [
+    {
+     "passage_id": 1327,
+     "document_id": 40
+    },
+    {
+     "passage_id": 1245,
+     "document_id": 27
+    },
+    {
+     "passage_id": 1429,
+     "document_id": 59
+    }
+   ],
+   "keywords": [
+    {
+     "term": "client",
+     "label": "client",
+     "weight": 0.01908
+    },
+    {
+     "term": "project",
+     "label": "project",
+     "weight": 0.017364
+    },
+    {
+     "term": "english",
+     "label": "english",
+     "weight": 0.016729
+    },
+    {
+     "term": "problem",
+     "label": "problem",
+     "weight": 0.01649
+    },
+    {
+     "term": "performance",
+     "label": "performance",
+     "weight": 0.015779
+    },
+    {
+     "term": "ecowas",
+     "label": "ecowas",
+     "weight": 0.015715
+    },
+    {
+     "term": "meet",
+     "label": "meet",
+     "weight": 0.015709
+    },
+    {
+     "term": "communication",
+     "label": "communication",
+     "weight": 0.015559
+    },
+    {
+     "term": "write",
+     "label": "write",
+     "weight": 0.015354
+    },
+    {
+     "term": "stakeholder",
+     "label": "stakeholders",
+     "weight": 0.015256
+    }
+   ],
+   "strength": 0.443525,
+   "topic_id": 4,
+   "skill_demand": 0.560134,
+   "strength_raw": 0.037113,
+   "keyword_title": "Project, English and Problem",
+   "document_count": 12,
+   "name_similarity": 0.4974,
+   "mean_probability": 0.69796,
+   "skill_demand_raw": 2.114075
+  },
+  {
+   "size": 19,
+   "title": "Agile Software Development",
+   "samples": [
+    {
+     "passage_id": 1316,
+     "document_id": 39
+    },
+    {
+     "passage_id": 1295,
+     "document_id": 37
+    },
+    {
+     "passage_id": 1298,
+     "document_id": 37
+    }
+   ],
+   "keywords": [
+    {
+     "term": "delivery",
+     "label": "delivery",
+     "weight": 0.057651
+    },
+    {
+     "term": "product",
+     "label": "product",
+     "weight": 0.035577
+    },
+    {
+     "term": "partner",
+     "label": "partner",
+     "weight": 0.032849
+    },
+    {
+     "term": "sprint",
+     "label": "sprint",
+     "weight": 0.025938
+    },
+    {
+     "term": "dependency",
+     "label": "dependencies",
+     "weight": 0.025033
+    },
+    {
+     "term": "scrum",
+     "label": "Agile Methodologies",
+     "weight": 0.02414
+    },
+    {
+     "term": "release",
+     "label": "release",
+     "weight": 0.020688
+    },
+    {
+     "term": "planning",
+     "label": "planning",
+     "weight": 0.019312
+    },
+    {
+     "term": "daily",
+     "label": "daily",
+     "weight": 0.017292
+    }
+   ],
+   "strength": 0.47875,
+   "topic_id": 5,
+   "skill_demand": 0.549106,
+   "strength_raw": 0.042163,
+   "keyword_title": "Delivery, Product and Partner",
+   "document_count": 8,
+   "name_similarity": 0.5576,
+   "mean_probability": 0.768899,
+   "skill_demand_raw": 2.077562
+  },
+  {
+   "size": 18,
+   "title": "Testing Tools, Communication and Agile Methodologies",
+   "samples": [
+    {
+     "passage_id": 1343,
+     "document_id": 43
+    },
+    {
+     "passage_id": 1337,
+     "document_id": 42
+    },
+    {
+     "passage_id": 1225,
+     "document_id": 24
+    }
+   ],
+   "keywords": [
+    {
+     "term": "test",
+     "label": "test",
+     "weight": 0.038722
+    },
+    {
+     "term": "communication",
+     "label": "communication",
+     "weight": 0.0266
+    },
+    {
+     "term": "testing tool",
+     "label": "testing tools",
+     "weight": 0.023834
+    },
+    {
+     "term": "agile scrum",
+     "label": "agile scrum",
+     "weight": 0.022389
+    },
+    {
+     "term": "problem solve",
+     "label": "problem solving",
+     "weight": 0.022023
+    },
+    {
+     "term": "management",
+     "label": "management",
+     "weight": 0.019799
+    },
+    {
+     "term": "cd pipeline",
+     "label": "CD pipelines",
+     "weight": 0.019739
+    }
+   ],
+   "strength": 0.634341,
+   "topic_id": 6,
+   "skill_demand": 0.930677,
+   "strength_raw": 0.06832,
+   "keyword_title": "Testing Tools, Communication and Agile Methodologies",
+   "document_count": 13,
+   "name_similarity": 0.5291,
+   "mean_probability": 0.982469,
+   "skill_demand_raw": 3.340918
+  },
+  {
+   "size": 13,
+   "title": "Broadband Penetration, Country and Solid Infrastructure",
+   "samples": [
+    {
+     "passage_id": 1081,
+     "document_id": 5
+    },
+    {
+     "passage_id": 1082,
+     "document_id": 5
+    },
+    {
+     "passage_id": 1035,
+     "document_id": 5
+    }
+   ],
+   "keywords": [
+    {
+     "term": "country",
+     "label": "country",
+     "weight": 0.043504
+    },
+    {
+     "term": "broadband penetration",
+     "label": "broadband penetration",
+     "weight": 0.041921
+    },
+    {
+     "term": "fibre",
+     "label": "fibre",
+     "weight": 0.03554
+    },
+    {
+     "term": "access",
+     "label": "access",
+     "weight": 0.035429
+    },
+    {
+     "term": "deployment",
+     "label": "deployment",
+     "weight": 0.030973
+    },
+    {
+     "term": "solid infrastructure",
+     "label": "solid infrastructure",
+     "weight": 0.025192
+    }
+   ],
+   "strength": 0.021689,
+   "topic_id": 7,
+   "skill_demand": 0.0,
+   "strength_raw": 0.001656,
+   "keyword_title": "Broadband Penetration, Country and Solid Infrastructure",
+   "document_count": 1,
+   "name_similarity": 0.4938,
+   "mean_probability": 0.678333,
+   "skill_demand_raw": 0.0
+  },
+  {
+   "size": 12,
+   "title": "Data Analysis, Education Business and Impact",
+   "samples": [
+    {
+     "passage_id": 1212,
+     "document_id": 21
+    },
+    {
+     "passage_id": 1215,
+     "document_id": 22
+    },
+    {
+     "passage_id": 1190,
+     "document_id": 17
+    }
+   ],
+   "keywords": [
+    {
+     "term": "data analyst",
+     "label": "data analyst",
+     "weight": 0.042496
+    },
+    {
+     "term": "analysis",
+     "label": "analysis",
+     "weight": 0.038921
+    },
+    {
+     "term": "education business",
+     "label": "education business",
+     "weight": 0.038486
+    },
+    {
+     "term": "impact",
+     "label": "impact",
+     "weight": 0.029548
+    },
+    {
+     "term": "science",
+     "label": "science",
+     "weight": 0.028982
+    }
+   ],
+   "strength": 0.610387,
+   "topic_id": 8,
+   "skill_demand": 0.811124,
+   "strength_raw": 0.063883,
+   "keyword_title": "Data Analysis, Education Business and Impact",
+   "document_count": 6,
+   "name_similarity": 0.5144,
+   "mean_probability": 0.996628,
+   "skill_demand_raw": 2.945085
+  },
+  {
+   "size": 11,
+   "title": "IT Service Management (ITIL)",
+   "samples": [
+    {
+     "passage_id": 1358,
+     "document_id": 47
+    },
+    {
+     "passage_id": 1229,
+     "document_id": 25
+    },
+    {
+     "passage_id": 1361,
+     "document_id": 48
+    }
+   ],
+   "keywords": [
+    {
+     "term": "itil",
+     "label": "ITIL",
+     "weight": 0.042355
+    },
+    {
+     "term": "server",
+     "label": "server",
+     "weight": 0.037398
+    },
+    {
+     "term": "cloud",
+     "label": "cloud",
+     "weight": 0.030004
+    },
+    {
+     "term": "environment",
+     "label": "environment",
+     "weight": 0.029867
+    },
+    {
+     "term": "financial service",
+     "label": "financial services",
+     "weight": 0.028847
+    },
+    {
+     "term": "exposure",
+     "label": "exposure",
+     "weight": 0.027181
+    },
+    {
+     "term": "management",
+     "label": "management",
+     "weight": 0.026799
+    },
+    {
+     "term": "service regulated",
+     "label": "services regulated",
+     "weight": 0.026426
+    },
+    {
+     "term": "infrastructure",
+     "label": "infrastructure",
+     "weight": 0.025274
+    }
+   ],
+   "strength": 0.518221,
+   "topic_id": 9,
+   "skill_demand": 0.694875,
+   "strength_raw": 0.048204,
+   "keyword_title": "ITIL, Server and Cloud",
+   "document_count": 11,
+   "name_similarity": 0.5181,
+   "mean_probability": 0.875279,
+   "skill_demand_raw": 2.560193
+  },
+  {
+   "size": 11,
+   "title": "Digital Marketing",
+   "samples": [
+    {
+     "passage_id": 1303,
+     "document_id": 38
+    },
+    {
+     "passage_id": 1304,
+     "document_id": 38
+    },
+    {
+     "passage_id": 1307,
+     "document_id": 38
+    }
+   ],
+   "keywords": [
+    {
+     "term": "growth",
+     "label": "growth",
+     "weight": 0.049179
+    },
+    {
+     "term": "customer",
+     "label": "customer",
+     "weight": 0.042148
+    },
+    {
+     "term": "product",
+     "label": "product",
+     "weight": 0.030611
+    },
+    {
+     "term": "marketing",
+     "label": "marketing",
+     "weight": 0.027843
+    },
+    {
+     "term": "lifecycle",
+     "label": "lifecycle",
+     "weight": 0.02707
+    },
+    {
+     "term": "investment",
+     "label": "investment",
+     "weight": 0.026103
+    },
+    {
+     "term": "cross",
+     "label": "cross",
+     "weight": 0.023662
+    },
+    {
+     "term": "journey",
+     "label": "journeys",
+     "weight": 0.02284
+    },
+    {
+     "term": "activation",
+     "label": "activation",
+     "weight": 0.022064
+    },
+    {
+     "term": "funnel",
+     "label": "funnel",
+     "weight": 0.020882
+    }
+   ],
+   "strength": 0.326969,
+   "topic_id": 10,
+   "skill_demand": 0.134384,
+   "strength_raw": 0.022699,
+   "keyword_title": "Growth, Customer and Product",
+   "document_count": 3,
+   "name_similarity": 0.5197,
+   "mean_probability": 0.821431,
+   "skill_demand_raw": 0.704447
+  },
+  {
+   "size": 11,
+   "title": "Digital Literacy and Skills",
+   "samples": [
+    {
+     "passage_id": 1077,
+     "document_id": 5
+    },
+    {
+     "passage_id": 1078,
+     "document_id": 5
+    },
+    {
+     "passage_id": 1034,
+     "document_id": 5
+    }
+   ],
+   "keywords": [
+    {
+     "term": "digital literacy",
+     "label": "digital literacy",
+     "weight": 0.078114
+    },
+    {
+     "term": "training",
+     "label": "training",
+     "weight": 0.034235
+    },
+    {
+     "term": "nigerians",
+     "label": "nigerians",
+     "weight": 0.031324
+    },
+    {
+     "term": "programme",
+     "label": "programme",
+     "weight": 0.030357
+    },
+    {
+     "term": "sector",
+     "label": "sector",
+     "weight": 0.024822
+    },
+    {
+     "term": "digitally literate",
+     "label": "digitally literate",
+     "weight": 0.021504
+    },
+    {
+     "term": "level",
+     "label": "level",
+     "weight": 0.020709
+    }
+   ],
+   "strength": 0.026238,
+   "topic_id": 11,
+   "skill_demand": 0.0,
+   "strength_raw": 0.001793,
+   "keyword_title": "Digital Literacy, Training and Nigerians",
+   "document_count": 1,
+   "name_similarity": 0.7248,
+   "mean_probability": 0.867526,
+   "skill_demand_raw": 0.0
+  },
+  {
+   "size": 11,
+   "title": "Cyber Law and Data Protection",
+   "samples": [
+    {
+     "passage_id": 1112,
+     "document_id": 5
+    },
+    {
+     "passage_id": 1106,
+     "document_id": 5
+    },
+    {
+     "passage_id": 1110,
+     "document_id": 5
+    }
+   ],
+   "keywords": [
+    {
+     "term": "cybersecurity",
+     "label": "Information Security",
+     "weight": 0.045736
+    },
+    {
+     "term": "treaty",
+     "label": "treaty",
+     "weight": 0.034435
+    },
+    {
+     "term": "protection",
+     "label": "protection",
+     "weight": 0.031205
+    },
+    {
+     "term": "convention",
+     "label": "convention",
+     "weight": 0.028696
+    },
+    {
+     "term": "privacy",
+     "label": "privacy",
+     "weight": 0.027159
+    },
+    {
+     "term": "instrument",
+     "label": "instruments",
+     "weight": 0.024999
+    },
+    {
+     "term": "nin",
+     "label": "nin",
+     "weight": 0.024692
+    },
+    {
+     "term": "framework",
+     "label": "framework",
+     "weight": 0.024637
+    },
+    {
+     "term": "identity",
+     "label": "identity",
+     "weight": 0.024573
+    },
+    {
+     "term": "guideline",
+     "label": "guidelines",
+     "weight": 0.024573
+    }
+   ],
+   "strength": 0.019525,
+   "topic_id": 12,
+   "skill_demand": 0.466733,
+   "strength_raw": 0.001594,
+   "keyword_title": "Information Security, Treaty and Protection",
+   "document_count": 1,
+   "name_similarity": 0.5404,
+   "mean_probability": 0.771261,
+   "skill_demand_raw": 1.804832
+  },
+  {
+   "size": 10,
+   "title": "Full-Stack Web Development",
+   "samples": [
+    {
+     "passage_id": 1357,
+     "document_id": 47
+    },
+    {
+     "passage_id": 1363,
+     "document_id": 49
+    },
+    {
+     "passage_id": 1352,
+     "document_id": 46
+    }
+   ],
+   "keywords": [
+    {
+     "term": "react",
+     "label": "React",
+     "weight": 0.060104
+    },
+    {
+     "term": "net",
+     "label": ".NET",
+     "weight": 0.049613
+    },
+    {
+     "term": "production",
+     "label": "production",
+     "weight": 0.038021
+    },
+    {
+     "term": "developer",
+     "label": "developers",
+     "weight": 0.037366
+    },
+    {
+     "term": "backend",
+     "label": "backend",
+     "weight": 0.031808
+    },
+    {
+     "term": "core",
+     "label": "core",
+     "weight": 0.030921
+    },
+    {
+     "term": "stack developer",
+     "label": "stack developer",
+     "weight": 0.030664
+    },
+    {
+     "term": "relational",
+     "label": "relational",
+     "weight": 0.027208
+    },
+    {
+     "term": "frontend",
+     "label": "frontend",
+     "weight": 0.027208
+    }
+   ],
+   "strength": 0.453274,
+   "topic_id": 13,
+   "skill_demand": 0.83875,
+   "strength_raw": 0.038478,
+   "keyword_title": "React, Stack and .NET",
+   "document_count": 4,
+   "name_similarity": 0.5622,
+   "mean_probability": 0.946799,
+   "skill_demand_raw": 3.036554
+  },
+  {
+   "size": 9,
+   "title": "Data Engineering and Data Pipelines",
+   "samples": [
+    {
+     "passage_id": 1197,
+     "document_id": 18
+    },
+    {
+     "passage_id": 1194,
+     "document_id": 18
+    },
+    {
+     "passage_id": 1201,
+     "document_id": 19
+    }
+   ],
+   "keywords": [
+    {
+     "term": "data",
+     "label": "data",
+     "weight": 0.06303
+    },
+    {
+     "term": "apache",
+     "label": "apache",
+     "weight": 0.046265
+    },
+    {
+     "term": "pipeline",
+     "label": "pipelines",
+     "weight": 0.039049
+    },
+    {
+     "term": "power bi",
+     "label": "Power BI",
+     "weight": 0.038749
+    },
+    {
+     "term": "snowflake",
+     "label": "Snowflake",
+     "weight": 0.027002
+    },
+    {
+     "term": "power apps",
+     "label": "power apps",
+     "weight": 0.023921
+    }
+   ],
+   "strength": 0.369113,
+   "topic_id": 14,
+   "skill_demand": 0.783946,
+   "strength_raw": 0.027504,
+   "keyword_title": "Data Engineering, Power BI and Apache",
+   "document_count": 3,
+   "name_similarity": 0.6078,
+   "mean_probability": 0.813089,
+   "skill_demand_raw": 2.855101
+  },
+  {
+   "size": 9,
+   "title": "E-Government and Digital Public Services",
+   "samples": [
+    {
+     "passage_id": 1095,
+     "document_id": 5
+    },
+    {
+     "passage_id": 1038,
+     "document_id": 5
+    },
+    {
+     "passage_id": 1067,
+     "document_id": 5
+    }
+   ],
+   "keywords": [
+    {
+     "term": "digital platform",
+     "label": "digital platforms",
+     "weight": 0.043168
+    },
+    {
+     "term": "government interoperability",
+     "label": "government interoperability",
+     "weight": 0.037157
+    },
+    {
+     "term": "interoperability framework",
+     "label": "interoperability framework",
+     "weight": 0.037157
+    },
+    {
+     "term": "service infrastructure",
+     "label": "service infrastructure",
+     "weight": 0.031819
+    },
+    {
+     "term": "enterprise architecture",
+     "label": "enterprise architecture",
+     "weight": 0.028872
+    }
+   ],
+   "strength": 0.017807,
+   "topic_id": 15,
+   "skill_demand": 0.329363,
+   "strength_raw": 0.001545,
+   "keyword_title": "Government Interoperability, Digital Platforms and Service Infrastructure",
+   "document_count": 1,
+   "name_similarity": 0.6308,
+   "mean_probability": 0.913653,
+   "skill_demand_raw": 1.350008
+  },
+  {
+   "size": 8,
+   "title": "Computer Science, System and Linux",
+   "samples": [
+    {
+     "passage_id": 1228,
+     "document_id": 25
+    },
+    {
+     "passage_id": 1224,
+     "document_id": 24
+    },
+    {
+     "passage_id": 1233,
+     "document_id": 26
+    }
+   ],
+   "keywords": [
+    {
+     "term": "linux",
+     "label": "Linux",
+     "weight": 0.048922
+    },
+    {
+     "term": "computer science",
+     "label": "computer science",
+     "weight": 0.048799
+    },
+    {
+     "term": "system administration",
+     "label": "System Administration",
+     "weight": 0.0475
+    },
+    {
+     "term": "engineering",
+     "label": "engineering",
+     "weight": 0.039141
+    },
+    {
+     "term": "information technology",
+     "label": "information technology",
+     "weight": 0.036863
+    }
+   ],
+   "strength": 0.466303,
+   "topic_id": 16,
+   "skill_demand": 0.688594,
+   "strength_raw": 0.040342,
+   "keyword_title": "Computer Science, System and Linux",
+   "document_count": 8,
+   "name_similarity": 0.4902,
+   "mean_probability": 0.944799,
+   "skill_demand_raw": 2.539396
+  },
+  {
+   "size": 7,
+   "title": "Cloud Infrastructure and Services",
+   "samples": [
+    {
+     "passage_id": 1159,
+     "document_id": 10
+    },
+    {
+     "passage_id": 1146,
+     "document_id": 8
+    },
+    {
+     "passage_id": 1148,
+     "document_id": 8
+    }
+   ],
+   "keywords": [
+    {
+     "term": "aws",
+     "label": "AWS",
+     "weight": 0.044494
+    },
+    {
+     "term": "cluster",
+     "label": "cluster",
+     "weight": 0.040981
+    },
+    {
+     "term": "eks",
+     "label": "eks",
+     "weight": 0.037258
+    },
+    {
+     "term": "cloud",
+     "label": "cloud",
+     "weight": 0.033311
+    },
+    {
+     "term": "operate",
+     "label": "operating",
+     "weight": 0.031348
+    },
+    {
+     "term": "openshift kubernetes",
+     "label": "openshift kubernetes",
+     "weight": 0.029338
+    },
+    {
+     "term": "gitops",
+     "label": "gitops",
+     "weight": 0.027943
+    },
+    {
+     "term": "terraform",
+     "label": "Terraform",
+     "weight": 0.026862
+    }
+   ],
+   "strength": 0.329012,
+   "topic_id": 17,
+   "skill_demand": 0.874409,
+   "strength_raw": 0.022922,
+   "keyword_title": "Openshift Kubernetes, AWS and Cluster",
+   "document_count": 4,
+   "name_similarity": 0.55,
+   "mean_probability": 0.932089,
+   "skill_demand_raw": 3.154617
+  },
+  {
+   "size": 7,
+   "title": "DevOps and Continuous Delivery",
+   "samples": [
+    {
+     "passage_id": 1139,
+     "document_id": 7
+    },
+    {
+     "passage_id": 1140,
+     "document_id": 7
+    },
+    {
+     "passage_id": 1161,
+     "document_id": 11
+    }
+   ],
+   "keywords": [
+    {
+     "term": "devops engineer",
+     "label": "DevOps engineer",
+     "weight": 0.055179
+    },
+    {
+     "term": "infrastructure",
+     "label": "infrastructure",
+     "weight": 0.038312
+    },
+    {
+     "term": "automation",
+     "label": "automation",
+     "weight": 0.028921
+    },
+    {
+     "term": "ci cd",
+     "label": "CI/CD",
+     "weight": 0.028573
+    },
+    {
+     "term": "cd",
+     "label": "CD",
+     "weight": 0.028573
+    },
+    {
+     "term": "ci",
+     "label": "CI",
+     "weight": 0.028243
+    },
+    {
+     "term": "platform",
+     "label": "platforms",
+     "weight": 0.026049
+    },
+    {
+     "term": "monitoring",
+     "label": "monitoring",
+     "weight": 0.025836
+    }
+   ],
+   "strength": 0.364223,
+   "topic_id": 18,
+   "skill_demand": 0.785075,
+   "strength_raw": 0.026923,
+   "keyword_title": "DevOps, Infrastructure and Automation",
+   "document_count": 5,
+   "name_similarity": 0.632,
+   "mean_probability": 0.968158,
+   "skill_demand_raw": 2.85884
+  },
+  {
+   "size": 6,
+   "title": "Business Continuity and Disaster Recovery",
+   "samples": [
+    {
+     "passage_id": 1418,
+     "document_id": 58
+    },
+    {
+     "passage_id": 1420,
+     "document_id": 58
+    },
+    {
+     "passage_id": 1419,
+     "document_id": 58
+    }
+   ],
+   "keywords": [
+    {
+     "term": "business continuity",
+     "label": "business continuity",
+     "weight": 0.105765
+    },
+    {
+     "term": "bcm",
+     "label": "bcm",
+     "weight": 0.049704
+    },
+    {
+     "term": "gcro",
+     "label": "gcro",
+     "weight": 0.042827
+    },
+    {
+     "term": "report",
+     "label": "reports",
+     "weight": 0.042794
+    },
+    {
+     "term": "threat",
+     "label": "threat",
+     "weight": 0.040642
+    },
+    {
+     "term": "continuity management",
+     "label": "continuity management",
+     "weight": 0.03564
+    },
+    {
+     "term": "risk",
+     "label": "risk",
+     "weight": 0.035351
+    },
+    {
+     "term": "plan",
+     "label": "plans",
+     "weight": 0.035216
+    }
+   ],
+   "strength": 0.279361,
+   "topic_id": 19,
+   "skill_demand": 0.0,
+   "strength_raw": 0.017826,
+   "keyword_title": "Business Continuity, Bcm and Gcro",
+   "document_count": 1,
+   "name_similarity": 0.5758,
+   "mean_probability": 0.95443,
+   "skill_demand_raw": 0.259511
+  },
+  {
+   "size": 6,
+   "title": "Technology Entrepreneurship",
+   "samples": [
+    {
+     "passage_id": 1100,
+     "document_id": 5
+    },
+    {
+     "passage_id": 1104,
+     "document_id": 5
+    },
+    {
+     "passage_id": 1099,
+     "document_id": 5
+    }
+   ],
+   "keywords": [
+    {
+     "term": "msme",
+     "label": "msmes",
+     "weight": 0.088874
+    },
+    {
+     "term": "innovation",
+     "label": "innovation",
+     "weight": 0.062711
+    },
+    {
+     "term": "ide",
+     "label": "ides",
+     "weight": 0.060647
+    },
+    {
+     "term": "sme",
+     "label": "smes",
+     "weight": 0.059582
+    },
+    {
+     "term": "enterprises",
+     "label": "enterprises",
+     "weight": 0.047987
+    },
+    {
+     "term": "enable",
+     "label": "enable",
+     "weight": 0.040916
+    },
+    {
+     "term": "drive",
+     "label": "drive",
+     "weight": 0.036314
+    },
+    {
+     "term": "digitally enable",
+     "label": "digitally enabled",
+     "weight": 0.032546
+    },
+    {
+     "term": "small medium",
+     "label": "small medium",
+     "weight": 0.031476
+    }
+   ],
+   "strength": 0.0,
+   "topic_id": 20,
+   "skill_demand": 0.0,
+   "strength_raw": 0.001082,
+   "keyword_title": "Msmes, Innovation and Ides",
+   "document_count": 1,
+   "name_similarity": 0.5371,
+   "mean_probability": 0.959651,
+   "skill_demand_raw": 0.0
+  },
+  {
+   "size": 6,
+   "title": "Linux System Administration",
+   "samples": [
+    {
+     "passage_id": 1364,
+     "document_id": 49
+    },
+    {
+     "passage_id": 1290,
+     "document_id": 36
+    },
+    {
+     "passage_id": 1221,
+     "document_id": 24
+    }
+   ],
+   "keywords": [
+    {
+     "term": "unix",
+     "label": "unix",
+     "weight": 0.045674
+    },
+    {
+     "term": "engineer",
+     "label": "engineer",
+     "weight": 0.03701
+    },
+    {
+     "term": "system",
+     "label": "system",
+     "weight": 0.034791
+    },
+    {
+     "term": "linux",
+     "label": "Linux",
+     "weight": 0.031987
+    },
+    {
+     "term": "distribute",
+     "label": "distributed",
+     "weight": 0.031934
+    },
+    {
+     "term": "performance",
+     "label": "performance",
+     "weight": 0.028687
+    },
+    {
+     "term": "database",
+     "label": "database",
+     "weight": 0.028286
+    },
+    {
+     "term": "frontend",
+     "label": "frontend",
+     "weight": 0.027404
+    },
+    {
+     "term": "backend",
+     "label": "backend",
+     "weight": 0.02563
+    },
+    {
+     "term": "configure support",
+     "label": "configure support",
+     "weight": 0.024811
+    }
+   ],
+   "strength": 0.346183,
+   "topic_id": 21,
+   "skill_demand": 0.611663,
+   "strength_raw": 0.024833,
+   "keyword_title": "Unix, System and Linux",
+   "document_count": 5,
+   "name_similarity": 0.575,
+   "mean_probability": 0.995792,
+   "skill_demand_raw": 2.284686
+  },
+  {
+   "size": 6,
+   "title": "Business Analytics",
+   "samples": [
+    {
+     "passage_id": 1211,
+     "document_id": 21
+    },
+    {
+     "passage_id": 1214,
+     "document_id": 22
+    },
+    {
+     "passage_id": 1185,
+     "document_id": 16
+    }
+   ],
+   "keywords": [
+    {
+     "term": "retail audit",
+     "label": "retail audit",
+     "weight": 0.039266
+    },
+    {
+     "term": "analysis",
+     "label": "analysis",
+     "weight": 0.039071
+    },
+    {
+     "term": "trend",
+     "label": "trends",
+     "weight": 0.039065
+    },
+    {
+     "term": "datum",
+     "label": "data",
+     "weight": 0.038824
+    },
+    {
+     "term": "sample",
+     "label": "sample",
+     "weight": 0.037399
+    },
+    {
+     "term": "insight",
+     "label": "insights",
+     "weight": 0.031467
+    },
+    {
+     "term": "analytic support",
+     "label": "analytics support",
+     "weight": 0.027933
+    },
+    {
+     "term": "support strategic",
+     "label": "support strategic",
+     "weight": 0.027933
+    }
+   ],
+   "strength": 0.390957,
+   "topic_id": 22,
+   "skill_demand": 0.0,
+   "strength_raw": 0.030176,
+   "keyword_title": "Retail Audit, Trends and Data Analysis",
+   "document_count": 5,
+   "name_similarity": 0.6306,
+   "mean_probability": 0.903154,
+   "skill_demand_raw": 0.0
+  },
+  {
+   "size": 6,
+   "title": "ICT Policy and Regulation",
+   "samples": [
+    {
+     "passage_id": 1066,
+     "document_id": 5
+    },
+    {
+     "passage_id": 1069,
+     "document_id": 5
+    },
+    {
+     "passage_id": 1070,
+     "document_id": 5
+    }
+   ],
+   "keywords": [
+    {
+     "term": "regulation",
+     "label": "regulation",
+     "weight": 0.074989
+    },
+    {
+     "term": "digital economy",
+     "label": "digital economy",
+     "weight": 0.049054
+    },
+    {
+     "term": "regulatory instrument",
+     "label": "regulatory instruments",
+     "weight": 0.045445
+    },
+    {
+     "term": "development",
+     "label": "development",
+     "weight": 0.041385
+    },
+    {
+     "term": "developmental",
+     "label": "developmental",
+     "weight": 0.04076
+    },
+    {
+     "term": "regulations",
+     "label": "regulations",
+     "weight": 0.038702
+    }
+   ],
+   "strength": 0.000222,
+   "topic_id": 23,
+   "skill_demand": 0.069478,
+   "strength_raw": 0.001087,
+   "keyword_title": "Regulation, Regulatory Instruments and Digital Economy",
+   "document_count": 1,
+   "name_similarity": 0.6306,
+   "mean_probability": 0.964327,
+   "skill_demand_raw": 0.489548
+  },
+  {
+   "size": 6,
+   "title": "Emerging Technologies",
+   "samples": [
+    {
+     "passage_id": 1121,
+     "document_id": 5
+    },
+    {
+     "passage_id": 1117,
+     "document_id": 5
+    },
+    {
+     "passage_id": 1123,
+     "document_id": 5
+    }
+   ],
+   "keywords": [
+    {
+     "term": "emerge technology",
+     "label": "emerging technologies",
+     "weight": 0.05846
+    },
+    {
+     "term": "inclusion",
+     "label": "inclusion",
+     "weight": 0.040215
+    },
+    {
+     "term": "digital",
+     "label": "digital",
+     "weight": 0.036621
+    },
+    {
+     "term": "innovation",
+     "label": "innovation",
+     "weight": 0.035272
+    },
+    {
+     "term": "emerging technology",
+     "label": "emerging technology",
+     "weight": 0.03295
+    },
+    {
+     "term": "country",
+     "label": "country",
+     "weight": 0.031823
+    }
+   ],
+   "strength": 0.001042,
+   "topic_id": 24,
+   "skill_demand": 0.38688,
+   "strength_raw": 0.001106,
+   "keyword_title": "Emerging Technologies, Inclusion and Digital",
+   "document_count": 1,
+   "name_similarity": 0.6647,
+   "mean_probability": 0.981686,
+   "skill_demand_raw": 1.540445
+  },
+  {
+   "size": 5,
+   "title": "Cloud, Container and Security DevOps",
+   "samples": [
+    {
+     "passage_id": 1136,
+     "document_id": 6
+    },
+    {
+     "passage_id": 1158,
+     "document_id": 10
+    },
+    {
+     "passage_id": 1141,
+     "document_id": 7
+    }
+   ],
+   "keywords": [
+    {
+     "term": "container",
+     "label": "container",
+     "weight": 0.043916
+    },
+    {
+     "term": "computer science",
+     "label": "computer science",
+     "weight": 0.038886
+    },
+    {
+     "term": "security devops",
+     "label": "security DevOps",
+     "weight": 0.03528
+    },
+    {
+     "term": "docker kubernetes",
+     "label": "docker kubernetes",
+     "weight": 0.033062
+    },
+    {
+     "term": "field",
+     "label": "field",
+     "weight": 0.030079
+    },
+    {
+     "term": "gcp",
+     "label": "Google Cloud Platform",
+     "weight": 0.028437
+    }
+   ],
+   "strength": 0.331947,
+   "topic_id": 25,
+   "skill_demand": 0.686757,
+   "strength_raw": 0.023243,
+   "keyword_title": "Cloud, Container and Security DevOps",
+   "document_count": 5,
+   "name_similarity": 0.5065,
+   "mean_probability": 1.0,
+   "skill_demand_raw": 2.533316
+  },
+  {
+   "size": 5,
+   "title": "Data Engineering, Pl Pgsql and PostgreSQL",
+   "samples": [
+    {
+     "passage_id": 1195,
+     "document_id": 18
+    },
+    {
+     "passage_id": 1192,
+     "document_id": 18
+    },
+    {
+     "passage_id": 1193,
+     "document_id": 18
+    }
+   ],
+   "keywords": [
+    {
+     "term": "datum",
+     "label": "data",
+     "weight": 0.110269
+    },
+    {
+     "term": "pl pgsql",
+     "label": "pl pgsql",
+     "weight": 0.086412
+    },
+    {
+     "term": "postgresql",
+     "label": "PostgreSQL",
+     "weight": 0.08366
+    },
+    {
+     "term": "basic",
+     "label": "basic",
+     "weight": 0.068798
+    },
+    {
+     "term": "pipeline",
+     "label": "pipelines",
+     "weight": 0.050575
+    },
+    {
+     "term": "postgis",
+     "label": "postgis",
+     "weight": 0.048792
+    }
+   ],
+   "strength": 0.255049,
+   "topic_id": 26,
+   "skill_demand": 0.650548,
+   "strength_raw": 0.015564,
+   "keyword_title": "Data Engineering, Pl Pgsql and PostgreSQL",
+   "document_count": 1,
+   "name_similarity": 0.5788,
+   "mean_probability": 1.0,
+   "skill_demand_raw": 2.413431
+  },
+  {
+   "size": 5,
+   "title": "Software Testing and Quality Assurance",
+   "samples": [
+    {
+     "passage_id": 1340,
+     "document_id": 43
+    },
+    {
+     "passage_id": 1334,
+     "document_id": 42
+    },
+    {
+     "passage_id": 1345,
+     "document_id": 44
+    }
+   ],
+   "keywords": [
+    {
+     "term": "defect",
+     "label": "defect",
+     "weight": 0.093777
+    },
+    {
+     "term": "execute",
+     "label": "execute",
+     "weight": 0.053137
+    },
+    {
+     "term": "test case",
+     "label": "test cases",
+     "weight": 0.053137
+    },
+    {
+     "term": "testing",
+     "label": "testing",
+     "weight": 0.049252
+    },
+    {
+     "term": "business stakeholder",
+     "label": "business stakeholders",
+     "weight": 0.048568
+    },
+    {
+     "term": "test script",
+     "label": "test scripts",
+     "weight": 0.039784
+    },
+    {
+     "term": "density",
+     "label": "density",
+     "weight": 0.039784
+    }
+   ],
+   "strength": 0.321908,
+   "topic_id": 27,
+   "skill_demand": 0.238698,
+   "strength_raw": 0.022153,
+   "keyword_title": "Test Cases, Defect and Execute",
+   "document_count": 4,
+   "name_similarity": 0.5867,
+   "mean_probability": 1.0,
+   "skill_demand_raw": 1.049822
+  }
+ ],
+ "topic_count": 28,
+ "merged_topics": [
+  [
+   1,
+   20,
+   30
+  ],
+  [
+   6,
+   17
+  ]
+ ],
+ "outlier_passages": 67,
+ "modelled_passages": 417,
+ "note": "Extract texts removed (collected job-advert text is not committed)."
+}

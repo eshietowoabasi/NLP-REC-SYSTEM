@@ -1,0 +1,91 @@
+{
+ "date": "2026-09-28",
+ "backend": {
+  "command": "pytest --cov=app (PowerShell, native Windows, Python 3.13.15)",
+  "collected": 404,
+  "passed": 391,
+  "skipped": 13,
+  "failed": 0,
+  "seconds": 362.03,
+  "skipped_reasons": {
+   "libmagic is not installed on this machine": 12,
+   "WeasyPrint system libraries missing": 1
+  },
+  "coverage": {
+   "statements": 4541,
+   "missing_statements": 81,
+   "branches": 832,
+   "partial_branches": 69,
+   "combined_percent": 97.1,
+   "line_percent": 98.22
+  },
+  "test_functions_per_file": {
+   "test_admin_config.py": 18,
+   "test_admin_users.py": 16,
+   "test_auth.py": 20,
+   "test_config.py": 10,
+   "test_courses.py": 5,
+   "test_dashboard.py": 3,
+   "test_document_details.py": 3,
+   "test_documents_api.py": 22,
+   "test_errors.py": 4,
+   "test_evaluation.py": 5,
+   "test_health.py": 3,
+   "test_ingestion_parsing.py": 22,
+   "test_ingestion_passages.py": 16,
+   "test_ingestion_validation.py": 0,
+   "test_models.py": 10,
+   "test_nuc_core_api.py": 10,
+   "test_pipeline_services.py": 40,
+   "test_rbac.py": 7,
+   "test_reports.py": 25,
+   "test_review_api.py": 15,
+   "test_seed.py": 10,
+   "test_sessions_api.py": 22,
+   "test_storage_and_models.py": 3,
+   "test_support.py": 11,
+   "test_tls.py": 2,
+   "test_worker.py": 3
+  },
+  "ruff": "All checks passed!",
+  "black": "142 files would be left unchanged",
+  "slowest": "107.9 s tests/test_review_api.py::test_results_endpoints_after_a_real_pipeline_run (real SBERT model)"
+ },
+ "frontend": {
+  "command": "vitest run --coverage (Vitest 5.0.1, jsdom)",
+  "files": 17,
+  "tests": 131,
+  "passed": 131,
+  "failed": 0,
+  "seconds": 101.24,
+  "coverage": {
+   "statements": 84.63,
+   "branches": 76.87,
+   "functions": 81.15,
+   "lines": 85.46
+  },
+  "it_blocks_per_file": {
+   "src/components/layout/AppShell.test.tsx": 5,
+   "src/features/admin/audit/AuditLogPage.test.tsx": 2,
+   "src/features/admin/nuc-core/NucCorePage.test.tsx": 5,
+   "src/features/admin/settings/settings.test.tsx": 11,
+   "src/features/admin/users/UsersPage.test.tsx": 11,
+   "src/features/auth/LoginPage.test.tsx": 6,
+   "src/features/auth/ProfilePage.test.tsx": 5,
+   "src/features/dashboard/DashboardPage.test.tsx": 6,
+   "src/features/documents/DocumentDetailPage.test.tsx": 6,
+   "src/features/documents/DocumentsPage.test.tsx": 6,
+   "src/features/documents/UploadDialog.test.tsx": 3,
+   "src/features/reports/reports.test.tsx": 8,
+   "src/features/review/review.test.tsx": 26,
+   "src/features/sessions/sessions.test.tsx": 10,
+   "src/features/system/SystemStatusCard.test.tsx": 4,
+   "src/lib/api.test.ts": 7,
+   "src/routes/guards.test.tsx": 3
+  },
+  "typecheck": "tsc -b: no errors",
+  "eslint": "no problems",
+  "prettier": "All matched files use Prettier code style!",
+  "build": "vite build succeeded (28 Sep 2026)"
+ }
+}

@@ -1,0 +1,76 @@
+{
+  "timestamp": "2026-09-25T04:26:13.156878+00:00",
+  "machine": {
+    "platform": "Windows-11-10.0.26100-SP0",
+    "processor": "Intel64 Family 6 Model 142 Stepping 9, GenuineIntel",
+    "python": "3.13.15"
+  },
+  "documents": 20,
+  "words": 60143,
+  "passages": 896,
+  "nuc_core_passages": 72,
+  "model_load_seconds": 34.22,
+  "ingestion_seconds": 35.62,
+  "analysis_runs": [
+    {
+      "label": "first run (fresh process)",
+      "seconds": 45.12,
+      "stages": {
+        "keywords": 0.137,
+        "skills": 6.135,
+        "embeddings": 0.002,
+        "themes": 38.844,
+        "overlap": 0.002,
+        "scoring": 0.0
+      }
+    },
+    {
+      "label": "second run (warm)",
+      "seconds": 10.45,
+      "stages": {
+        "keywords": 0.056,
+        "skills": 7.339,
+        "embeddings": 0.002,
+        "themes": 3.052,
+        "overlap": 0.001,
+        "scoring": 0.0
+      }
+    }
+  ],
+  "topics": 13,
+  "recommendations": 13,
+  "top_recommendations": [
+    {
+      "rank": 1,
+      "title": "Cloud, Site Reliability and Platform",
+      "composite": 0.942,
+      "overlap": "No Significant Overlap"
+    },
+    {
+      "rank": 2,
+      "title": "Machine Learning, Model and AI",
+      "composite": 0.791,
+      "overlap": "No Significant Overlap"
+    },
+    {
+      "rank": 3,
+      "title": "Incident, Penetration and CompTIA Security+",
+      "composite": 0.643,
+      "overlap": "No Significant Overlap"
+    },
+    {
+      "rank": 4,
+      "title": "Android, Flutter and UI",
+      "composite": 0.538,
+      "overlap": "No Significant Overlap"
+    },
+    {
+      "rank": 5,
+      "title": "API Node.js, Backend and Fintech",
+      "composite": 0.488,
+      "overlap": "No Significant Overlap"
+    }
+  ],
+  "target_seconds": 60.0,
+  "meets_target": true
+}

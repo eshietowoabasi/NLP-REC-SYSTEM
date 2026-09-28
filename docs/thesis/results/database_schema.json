@@ -1,0 +1,1562 @@
+{
+ "alembic_version": {
+  "columns": [
+   {
+    "name": "version_num",
+    "type": "VARCHAR(32)",
+    "nullable": false,
+    "default": null
+   }
+  ],
+  "primary_key": [
+   "version_num"
+  ],
+  "foreign_keys": [],
+  "unique": [],
+  "checks": [],
+  "indexes": []
+ },
+ "analysis_sessions": {
+  "columns": [
+   {
+    "name": "id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": "nextval('analysis_sessions_id_seq'::regclass)"
+   },
+   {
+    "name": "created_by_id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "session_name",
+    "type": "VARCHAR(200)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "status",
+    "type": "VARCHAR(32)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "current_stage",
+    "type": "VARCHAR(32)",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "progress_percent",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": "0"
+   },
+   {
+    "name": "parameter_config",
+    "type": "JSONB",
+    "nullable": false,
+    "default": "'{}'::jsonb"
+   },
+   {
+    "name": "nuc_core_version_id",
+    "type": "INTEGER",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "error_message",
+    "type": "TEXT",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "nullable": false,
+    "default": "now()"
+   },
+   {
+    "name": "started_at",
+    "type": "TIMESTAMP",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "completed_at",
+    "type": "TIMESTAMP",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "stage_timings",
+    "type": "JSONB",
+    "nullable": false,
+    "default": "'{}'::jsonb"
+   }
+  ],
+  "primary_key": [
+   "id"
+  ],
+  "foreign_keys": [
+   {
+    "columns": [
+     "created_by_id"
+    ],
+    "references": "users(id)",
+    "on_delete": null
+   },
+   {
+    "columns": [
+     "nuc_core_version_id"
+    ],
+    "references": "nuc_core_versions(id)",
+    "on_delete": null
+   }
+  ],
+  "unique": [],
+  "checks": [
+   "progress_percent >= 0 AND progress_percent <= 100",
+   "status::text = ANY (ARRAY['pending'::character varying, 'processing'::character varying, 'completed'::character varying, 'failed'::character varying]::text[])"
+  ],
+  "indexes": [
+   {
+    "name": "ix_analysis_sessions_created_by_id",
+    "columns": [
+     "created_by_id"
+    ],
+    "unique": false
+   },
+   {
+    "name": "ix_analysis_sessions_status",
+    "columns": [
+     "status"
+    ],
+    "unique": false
+   }
+  ]
+ },
+ "audit_logs": {
+  "columns": [
+   {
+    "name": "id",
+    "type": "BIGINT",
+    "nullable": false,
+    "default": "nextval('audit_logs_id_seq'::regclass)"
+   },
+   {
+    "name": "user_id",
+    "type": "INTEGER",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "action_type",
+    "type": "VARCHAR(64)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "entity_type",
+    "type": "VARCHAR(64)",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "entity_id",
+    "type": "VARCHAR(64)",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "detail",
+    "type": "JSONB",
+    "nullable": false,
+    "default": "'{}'::jsonb"
+   },
+   {
+    "name": "ip_address",
+    "type": "VARCHAR(45)",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "nullable": false,
+    "default": "now()"
+   }
+  ],
+  "primary_key": [
+   "id"
+  ],
+  "foreign_keys": [
+   {
+    "columns": [
+     "user_id"
+    ],
+    "references": "users(id)",
+    "on_delete": null
+   }
+  ],
+  "unique": [],
+  "checks": [],
+  "indexes": [
+   {
+    "name": "ix_audit_logs_action_type",
+    "columns": [
+     "action_type"
+    ],
+    "unique": false
+   },
+   {
+    "name": "ix_audit_logs_created_at",
+    "columns": [
+     "created_at"
+    ],
+    "unique": false
+   },
+   {
+    "name": "ix_audit_logs_user_id",
+    "columns": [
+     "user_id"
+    ],
+    "unique": false
+   }
+  ]
+ },
+ "curriculum_maps": {
+  "columns": [
+   {
+    "name": "id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": "nextval('curriculum_maps_id_seq'::regclass)"
+   },
+   {
+    "name": "recommendation_id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "course_code",
+    "type": "VARCHAR(16)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "course_title",
+    "type": "VARCHAR(255)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "credit_units",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "prerequisites",
+    "type": "JSONB",
+    "nullable": false,
+    "default": "'[]'::jsonb"
+   },
+   {
+    "name": "learning_outcomes",
+    "type": "JSONB",
+    "nullable": false,
+    "default": "'[]'::jsonb"
+   },
+   {
+    "name": "created_by_id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "nullable": false,
+    "default": "now()"
+   },
+   {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "nullable": false,
+    "default": "now()"
+   }
+  ],
+  "primary_key": [
+   "id"
+  ],
+  "foreign_keys": [
+   {
+    "columns": [
+     "created_by_id"
+    ],
+    "references": "users(id)",
+    "on_delete": null
+   },
+   {
+    "columns": [
+     "recommendation_id"
+    ],
+    "references": "recommendations(id)",
+    "on_delete": "CASCADE"
+   }
+  ],
+  "unique": [
+   [
+    "recommendation_id"
+   ]
+  ],
+  "checks": [
+   "credit_units = ANY (ARRAY[1, 2, 3])"
+  ],
+  "indexes": [
+   {
+    "name": "uq_curriculum_maps_recommendation_id",
+    "columns": [
+     "recommendation_id"
+    ],
+    "unique": true
+   }
+  ]
+ },
+ "document_sessions": {
+  "columns": [
+   {
+    "name": "id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": "nextval('document_sessions_id_seq'::regclass)"
+   },
+   {
+    "name": "document_id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "session_id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "processing_order",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   }
+  ],
+  "primary_key": [
+   "id"
+  ],
+  "foreign_keys": [
+   {
+    "columns": [
+     "document_id"
+    ],
+    "references": "documents(id)",
+    "on_delete": "RESTRICT"
+   },
+   {
+    "columns": [
+     "session_id"
+    ],
+    "references": "analysis_sessions(id)",
+    "on_delete": "CASCADE"
+   }
+  ],
+  "unique": [
+   [
+    "document_id",
+    "session_id"
+   ]
+  ],
+  "checks": [],
+  "indexes": [
+   {
+    "name": "ix_document_sessions_document_id",
+    "columns": [
+     "document_id"
+    ],
+    "unique": false
+   },
+   {
+    "name": "ix_document_sessions_session_id",
+    "columns": [
+     "session_id"
+    ],
+    "unique": false
+   },
+   {
+    "name": "uq_document_sessions_document_id_session_id",
+    "columns": [
+     "document_id",
+     "session_id"
+    ],
+    "unique": true
+   }
+  ]
+ },
+ "documents": {
+  "columns": [
+   {
+    "name": "id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": "nextval('documents_id_seq'::regclass)"
+   },
+   {
+    "name": "uploaded_by_id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "title",
+    "type": "VARCHAR(255)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "original_filename",
+    "type": "VARCHAR(255)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "stored_filename",
+    "type": "VARCHAR(64)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "file_type",
+    "type": "VARCHAR(32)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "file_size",
+    "type": "BIGINT",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "source_category",
+    "type": "VARCHAR(32)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "processing_status",
+    "type": "VARCHAR(32)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "error_message",
+    "type": "TEXT",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "page_count",
+    "type": "INTEGER",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "word_count",
+    "type": "INTEGER",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "uploaded_at",
+    "type": "TIMESTAMP",
+    "nullable": false,
+    "default": "now()"
+   },
+   {
+    "name": "parsed_at",
+    "type": "TIMESTAMP",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "content_hash",
+    "type": "VARCHAR(64)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "source",
+    "type": "VARCHAR(128)",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "source_url",
+    "type": "VARCHAR(1024)",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "published_on",
+    "type": "DATE",
+    "nullable": true,
+    "default": null
+   }
+  ],
+  "primary_key": [
+   "id"
+  ],
+  "foreign_keys": [
+   {
+    "columns": [
+     "uploaded_by_id"
+    ],
+    "references": "users(id)",
+    "on_delete": null
+   }
+  ],
+  "unique": [
+   [
+    "stored_filename"
+   ]
+  ],
+  "checks": [
+   "file_size > 0",
+   "file_type::text = ANY (ARRAY['pdf'::character varying, 'docx'::character varying, 'txt'::character varying]::text[])",
+   "processing_status::text = ANY (ARRAY['uploaded'::character varying, 'parsing'::character varying, 'ready'::character varying, 'failed'::character varying, 'archived'::character varying]::text[])",
+   "source_category::text = ANY (ARRAY['job_market'::character varying, 'institutional'::character varying, 'policy'::character varying, 'academic'::character varying, 'nuc_core'::character varying]::text[])"
+  ],
+  "indexes": [
+   {
+    "name": "ix_documents_category_status",
+    "columns": [
+     "source_category",
+     "processing_status"
+    ],
+    "unique": false
+   },
+   {
+    "name": "ix_documents_content_hash",
+    "columns": [
+     "content_hash"
+    ],
+    "unique": false
+   },
+   {
+    "name": "ix_documents_uploaded_by_id",
+    "columns": [
+     "uploaded_by_id"
+    ],
+    "unique": false
+   },
+   {
+    "name": "uq_documents_stored_filename",
+    "columns": [
+     "stored_filename"
+    ],
+    "unique": true
+   }
+  ]
+ },
+ "nlp_results": {
+  "columns": [
+   {
+    "name": "id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": "nextval('nlp_results_id_seq'::regclass)"
+   },
+   {
+    "name": "session_id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "result_type",
+    "type": "VARCHAR(32)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "payload",
+    "type": "JSONB",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "nullable": false,
+    "default": "now()"
+   }
+  ],
+  "primary_key": [
+   "id"
+  ],
+  "foreign_keys": [
+   {
+    "columns": [
+     "session_id"
+    ],
+    "references": "analysis_sessions(id)",
+    "on_delete": "CASCADE"
+   }
+  ],
+  "unique": [
+   [
+    "session_id",
+    "result_type"
+   ]
+  ],
+  "checks": [
+   "result_type::text = ANY (ARRAY['tfidf'::character varying, 'entities'::character varying, 'topics'::character varying, 'similarity'::character varying]::text[])"
+  ],
+  "indexes": [
+   {
+    "name": "ix_nlp_results_session_id",
+    "columns": [
+     "session_id"
+    ],
+    "unique": false
+   },
+   {
+    "name": "uq_nlp_results_session_id_result_type",
+    "columns": [
+     "session_id",
+     "result_type"
+    ],
+    "unique": true
+   }
+  ]
+ },
+ "nuc_core_versions": {
+  "columns": [
+   {
+    "name": "id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": "nextval('nuc_core_versions_id_seq'::regclass)"
+   },
+   {
+    "name": "document_id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "version_label",
+    "type": "VARCHAR(64)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "is_active",
+    "type": "BOOLEAN",
+    "nullable": false,
+    "default": "false"
+   },
+   {
+    "name": "uploaded_by_id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "nullable": false,
+    "default": "now()"
+   }
+  ],
+  "primary_key": [
+   "id"
+  ],
+  "foreign_keys": [
+   {
+    "columns": [
+     "document_id"
+    ],
+    "references": "documents(id)",
+    "on_delete": null
+   },
+   {
+    "columns": [
+     "uploaded_by_id"
+    ],
+    "references": "users(id)",
+    "on_delete": null
+   }
+  ],
+  "unique": [
+   [
+    "document_id"
+   ]
+  ],
+  "checks": [],
+  "indexes": [
+   {
+    "name": "uq_nuc_core_versions_document_id",
+    "columns": [
+     "document_id"
+    ],
+    "unique": true
+   },
+   {
+    "name": "uq_nuc_core_versions_single_active",
+    "columns": [
+     "is_active"
+    ],
+    "unique": true
+   }
+  ]
+ },
+ "nuc_courses": {
+  "columns": [
+   {
+    "name": "id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": "nextval('nuc_courses_id_seq'::regclass)"
+   },
+   {
+    "name": "document_id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "code",
+    "type": "VARCHAR(16)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "title",
+    "type": "VARCHAR(255)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "units",
+    "type": "INTEGER",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "page_number",
+    "type": "INTEGER",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "text",
+    "type": "TEXT",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "embedding",
+    "type": "VECTOR",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "embedding_model",
+    "type": "VARCHAR(128)",
+    "nullable": true,
+    "default": null
+   }
+  ],
+  "primary_key": [
+   "id"
+  ],
+  "foreign_keys": [
+   {
+    "columns": [
+     "document_id"
+    ],
+    "references": "documents(id)",
+    "on_delete": "CASCADE"
+   }
+  ],
+  "unique": [
+   [
+    "document_id",
+    "code"
+   ]
+  ],
+  "checks": [],
+  "indexes": [
+   {
+    "name": "ix_nuc_courses_document_id",
+    "columns": [
+     "document_id"
+    ],
+    "unique": false
+   },
+   {
+    "name": "uq_nuc_courses_document_id_code",
+    "columns": [
+     "document_id",
+     "code"
+    ],
+    "unique": true
+   }
+  ]
+ },
+ "passages": {
+  "columns": [
+   {
+    "name": "id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": "nextval('passages_id_seq'::regclass)"
+   },
+   {
+    "name": "document_id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "position",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "page_number",
+    "type": "INTEGER",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "text",
+    "type": "TEXT",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "normalised_text",
+    "type": "TEXT",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "embedding",
+    "type": "VECTOR",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "embedding_model",
+    "type": "VARCHAR(128)",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "nullable": false,
+    "default": "now()"
+   }
+  ],
+  "primary_key": [
+   "id"
+  ],
+  "foreign_keys": [
+   {
+    "columns": [
+     "document_id"
+    ],
+    "references": "documents(id)",
+    "on_delete": "CASCADE"
+   }
+  ],
+  "unique": [
+   [
+    "document_id",
+    "position"
+   ]
+  ],
+  "checks": [],
+  "indexes": [
+   {
+    "name": "ix_passages_document_id",
+    "columns": [
+     "document_id"
+    ],
+    "unique": false
+   },
+   {
+    "name": "uq_passages_document_id_position",
+    "columns": [
+     "document_id",
+     "position"
+    ],
+    "unique": true
+   }
+  ]
+ },
+ "recommendation_evidence": {
+  "columns": [
+   {
+    "name": "id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": "nextval('recommendation_evidence_id_seq'::regclass)"
+   },
+   {
+    "name": "recommendation_id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "passage_id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "relevance_score",
+    "type": "DOUBLE PRECISION",
+    "nullable": false,
+    "default": null
+   }
+  ],
+  "primary_key": [
+   "id"
+  ],
+  "foreign_keys": [
+   {
+    "columns": [
+     "passage_id"
+    ],
+    "references": "passages(id)",
+    "on_delete": null
+   },
+   {
+    "columns": [
+     "recommendation_id"
+    ],
+    "references": "recommendations(id)",
+    "on_delete": "CASCADE"
+   }
+  ],
+  "unique": [
+   [
+    "recommendation_id",
+    "passage_id"
+   ]
+  ],
+  "checks": [],
+  "indexes": [
+   {
+    "name": "ix_recommendation_evidence_passage_id",
+    "columns": [
+     "passage_id"
+    ],
+    "unique": false
+   },
+   {
+    "name": "ix_recommendation_evidence_recommendation_id",
+    "columns": [
+     "recommendation_id"
+    ],
+    "unique": false
+   },
+   {
+    "name": "uq_recommendation_evidence_recommendation_id_passage_id",
+    "columns": [
+     "recommendation_id",
+     "passage_id"
+    ],
+    "unique": true
+   }
+  ]
+ },
+ "recommendations": {
+  "columns": [
+   {
+    "name": "id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": "nextval('recommendations_id_seq'::regclass)"
+   },
+   {
+    "name": "session_id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "rank",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "topic_id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "auto_title",
+    "type": "VARCHAR(255)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "topic_title",
+    "type": "VARCHAR(255)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "topic_description",
+    "type": "TEXT",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "keywords",
+    "type": "JSONB",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "skills",
+    "type": "JSONB",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "ner_score",
+    "type": "DOUBLE PRECISION",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "topic_score",
+    "type": "DOUBLE PRECISION",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "novelty_score",
+    "type": "DOUBLE PRECISION",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "composite_score",
+    "type": "DOUBLE PRECISION",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "max_similarity",
+    "type": "DOUBLE PRECISION",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "closest_nuc_passage_id",
+    "type": "INTEGER",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "overlap_status",
+    "type": "VARCHAR(32)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "planner_decision",
+    "type": "VARCHAR(32)",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "planner_notes",
+    "type": "TEXT",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "decided_by_id",
+    "type": "INTEGER",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "decided_at",
+    "type": "TIMESTAMP",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "nullable": false,
+    "default": "now()"
+   },
+   {
+    "name": "closest_nuc_course_id",
+    "type": "INTEGER",
+    "nullable": true,
+    "default": null
+   }
+  ],
+  "primary_key": [
+   "id"
+  ],
+  "foreign_keys": [
+   {
+    "columns": [
+     "closest_nuc_course_id"
+    ],
+    "references": "nuc_courses(id)",
+    "on_delete": "SET NULL"
+   },
+   {
+    "columns": [
+     "closest_nuc_passage_id"
+    ],
+    "references": "passages(id)",
+    "on_delete": "SET NULL"
+   },
+   {
+    "columns": [
+     "decided_by_id"
+    ],
+    "references": "users(id)",
+    "on_delete": null
+   },
+   {
+    "columns": [
+     "session_id"
+    ],
+    "references": "analysis_sessions(id)",
+    "on_delete": "CASCADE"
+   }
+  ],
+  "unique": [
+   [
+    "session_id",
+    "rank"
+   ]
+  ],
+  "checks": [
+   "composite_score >= 0::double precision AND composite_score <= 1::double precision",
+   "ner_score >= 0::double precision AND ner_score <= 1::double precision",
+   "novelty_score >= 0::double precision AND novelty_score <= 1::double precision",
+   "overlap_status::text = ANY (ARRAY['Potential Duplicate'::character varying, 'No Significant Overlap'::character varying]::text[])",
+   "planner_decision::text = ANY (ARRAY['accepted'::character varying, 'rejected'::character varying, 'flagged'::character varying]::text[])",
+   "topic_score >= 0::double precision AND topic_score <= 1::double precision"
+  ],
+  "indexes": [
+   {
+    "name": "ix_recommendations_planner_decision",
+    "columns": [
+     "planner_decision"
+    ],
+    "unique": false
+   },
+   {
+    "name": "ix_recommendations_session_id",
+    "columns": [
+     "session_id"
+    ],
+    "unique": false
+   },
+   {
+    "name": "uq_recommendations_session_id_rank",
+    "columns": [
+     "session_id",
+     "rank"
+    ],
+    "unique": true
+   }
+  ]
+ },
+ "reports": {
+  "columns": [
+   {
+    "name": "id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": "nextval('reports_id_seq'::regclass)"
+   },
+   {
+    "name": "session_id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "format",
+    "type": "VARCHAR(32)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "file_path",
+    "type": "VARCHAR(512)",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "sections",
+    "type": "JSONB",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "status",
+    "type": "VARCHAR(32)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "error_message",
+    "type": "TEXT",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "created_by_id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "nullable": false,
+    "default": "now()"
+   },
+   {
+    "name": "completed_at",
+    "type": "TIMESTAMP",
+    "nullable": true,
+    "default": null
+   }
+  ],
+  "primary_key": [
+   "id"
+  ],
+  "foreign_keys": [
+   {
+    "columns": [
+     "created_by_id"
+    ],
+    "references": "users(id)",
+    "on_delete": null
+   },
+   {
+    "columns": [
+     "session_id"
+    ],
+    "references": "analysis_sessions(id)",
+    "on_delete": "CASCADE"
+   }
+  ],
+  "unique": [],
+  "checks": [
+   "format::text = ANY (ARRAY['pdf'::character varying, 'docx'::character varying]::text[])",
+   "status::text = ANY (ARRAY['queued'::character varying, 'processing'::character varying, 'completed'::character varying, 'failed'::character varying]::text[])"
+  ],
+  "indexes": [
+   {
+    "name": "ix_reports_session_id",
+    "columns": [
+     "session_id"
+    ],
+    "unique": false
+   }
+  ]
+ },
+ "settings": {
+  "columns": [
+   {
+    "name": "key",
+    "type": "VARCHAR(64)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "value",
+    "type": "JSONB",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "updated_by_id",
+    "type": "INTEGER",
+    "nullable": true,
+    "default": null
+   },
+   {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "nullable": false,
+    "default": "now()"
+   }
+  ],
+  "primary_key": [
+   "key"
+  ],
+  "foreign_keys": [
+   {
+    "columns": [
+     "updated_by_id"
+    ],
+    "references": "users(id)",
+    "on_delete": null
+   }
+  ],
+  "unique": [],
+  "checks": [],
+  "indexes": []
+ },
+ "skill_patterns": {
+  "columns": [
+   {
+    "name": "id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": "nextval('skill_patterns_id_seq'::regclass)"
+   },
+   {
+    "name": "label",
+    "type": "VARCHAR(32)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "pattern",
+    "type": "JSONB",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "canonical_name",
+    "type": "VARCHAR(128)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "is_active",
+    "type": "BOOLEAN",
+    "nullable": false,
+    "default": "true"
+   },
+   {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "nullable": false,
+    "default": "now()"
+   }
+  ],
+  "primary_key": [
+   "id"
+  ],
+  "foreign_keys": [],
+  "unique": [
+   [
+    "label",
+    "pattern"
+   ]
+  ],
+  "checks": [
+   "label::text = ANY (ARRAY['SKILL'::character varying, 'TOOL'::character varying, 'CERT'::character varying, 'LANGUAGE'::character varying]::text[])"
+  ],
+  "indexes": [
+   {
+    "name": "ix_skill_patterns_canonical_name",
+    "columns": [
+     "canonical_name"
+    ],
+    "unique": false
+   },
+   {
+    "name": "uq_skill_patterns_label_pattern",
+    "columns": [
+     "label",
+     "pattern"
+    ],
+    "unique": true
+   }
+  ]
+ },
+ "stop_words": {
+  "columns": [
+   {
+    "name": "id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": "nextval('stop_words_id_seq'::regclass)"
+   },
+   {
+    "name": "word",
+    "type": "VARCHAR(64)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "is_active",
+    "type": "BOOLEAN",
+    "nullable": false,
+    "default": "true"
+   },
+   {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "nullable": false,
+    "default": "now()"
+   }
+  ],
+  "primary_key": [
+   "id"
+  ],
+  "foreign_keys": [],
+  "unique": [
+   [
+    "word"
+   ]
+  ],
+  "checks": [],
+  "indexes": [
+   {
+    "name": "uq_stop_words_word",
+    "columns": [
+     "word"
+    ],
+    "unique": true
+   }
+  ]
+ },
+ "users": {
+  "columns": [
+   {
+    "name": "id",
+    "type": "INTEGER",
+    "nullable": false,
+    "default": "nextval('users_id_seq'::regclass)"
+   },
+   {
+    "name": "username",
+    "type": "VARCHAR(64)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "email",
+    "type": "VARCHAR(255)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "password_hash",
+    "type": "VARCHAR(255)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "full_name",
+    "type": "VARCHAR(128)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "role",
+    "type": "VARCHAR(32)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "is_active",
+    "type": "BOOLEAN",
+    "nullable": false,
+    "default": "true"
+   },
+   {
+    "name": "session_token",
+    "type": "VARCHAR(64)",
+    "nullable": false,
+    "default": null
+   },
+   {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "nullable": false,
+    "default": "now()"
+   },
+   {
+    "name": "last_login_at",
+    "type": "TIMESTAMP",
+    "nullable": true,
+    "default": null
+   }
+  ],
+  "primary_key": [
+   "id"
+  ],
+  "foreign_keys": [],
+  "unique": [
+   [
+    "email"
+   ],
+   [
+    "session_token"
+   ],
+   [
+    "username"
+   ]
+  ],
+  "checks": [
+   "role::text = ANY (ARRAY['admin'::character varying, 'planner'::character varying, 'viewer'::character varying]::text[])"
+  ],
+  "indexes": [
+   {
+    "name": "uq_users_email",
+    "columns": [
+     "email"
+    ],
+    "unique": true
+   },
+   {
+    "name": "uq_users_session_token",
+    "columns": [
+     "session_token"
+    ],
+    "unique": true
+   },
+   {
+    "name": "uq_users_username",
+    "columns": [
+     "username"
+    ],
+    "unique": true
+   }
+  ]
+ }
+}

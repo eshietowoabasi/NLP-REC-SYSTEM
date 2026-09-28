@@ -1,0 +1,646 @@
+{
+ "session": {
+  "id": 13,
+  "name": "Real corpus: plain-language topics (merged, named)",
+  "status": "completed",
+  "created_at": "2026-09-27T22:13:16.446750+00:00",
+  "started_at": "2026-09-27T22:13:16.693751+00:00",
+  "completed_at": "2026-09-27T22:16:14.884988+00:00",
+  "parameter_config": {
+   "weights": {
+    "ner": 0.4,
+    "topic": 0.35,
+    "novelty": 0.25
+   },
+   "sbert_model": "all-MiniLM-L6-v2",
+   "spacy_model": "en_core_web_sm",
+   "min_topic_size": 5,
+   "max_recommendations": 20,
+   "similarity_threshold": 0.8,
+   "evidence_per_recommendation": 8
+  },
+  "stage_timings_seconds": {
+   "skills": 9.214,
+   "themes": 123.207,
+   "loading": 45.01,
+   "overlap": 0.058,
+   "scoring": 0.022,
+   "keywords": 0.281,
+   "embeddings": 0.042,
+   "validating": 0.275
+  },
+  "nuc_core_version_id": 1
+ },
+ "corpus": {
+  "documents": 56,
+  "by_category": {
+   "job_market": 55,
+   "policy": 1
+  },
+  "by_source": {
+   "MyJobMag": 54,
+   "UNKNOWN (not recorded)": 1,
+   "NITDA": 1
+  },
+  "by_file_type": {
+   "txt": 55,
+   "pdf": 1
+  },
+  "published_on_min": "2026-07-07",
+  "published_on_max": "2026-09-25",
+  "documents_without_published_date": 2,
+  "published_by_month": {
+   "2026-07": 2,
+   "2026-08": 1,
+   "2026-09": 51
+  },
+  "total_words": 30822,
+  "total_passages": 417,
+  "passages_by_category": {
+   "job_market": 301,
+   "policy": 116
+  }
+ },
+ "nuc_core": {
+  "version_label": "NUC CCMAS Computing 2023",
+  "document_title": "Computing CCMAS 2023 FINAL (1)",
+  "pages": 228,
+  "words": 74717,
+  "passages": 1000,
+  "courses_found": 118,
+  "courses_excluded": 32,
+  "courses_compared": 86,
+  "exclusion_setting": {
+   "code_prefixes": [
+    "GST"
+   ],
+   "title_keywords": [
+    "SIWES",
+    "Industrial Work Experience",
+    "Industrial Training",
+    "Final Year Project",
+    "Seminar"
+   ]
+  },
+  "excluded_by_reason": {
+   "code prefix GST": 4,
+   "title keyword siwes": 11,
+   "title keyword final year project": 14,
+   "title keyword industrial work experience": 3
+  },
+  "excluded_courses": [
+   {
+    "code": "GST 212",
+    "title": "Philosophy, Logic and Human Existence",
+    "reason": "code prefix GST"
+   },
+   {
+    "code": "CSC 299",
+    "title": "SIWES I",
+    "reason": "title keyword siwes"
+   },
+   {
+    "code": "CSC 399",
+    "title": "SIWES II",
+    "reason": "title keyword siwes"
+   },
+   {
+    "code": "CSC 497",
+    "title": "Final Year Project I",
+    "reason": "title keyword final year project"
+   },
+   {
+    "code": "CSC 498",
+    "title": "Final Year Project II",
+    "reason": "title keyword final year project"
+   },
+   {
+    "code": "CYB 299",
+    "title": "SIWES I",
+    "reason": "title keyword siwes"
+   },
+   {
+    "code": "GST 312",
+    "title": "Peace and Conflict Resolution",
+    "reason": "code prefix GST"
+   },
+   {
+    "code": "CYB 399",
+    "title": "SIWES II",
+    "reason": "title keyword siwes"
+   },
+   {
+    "code": "CYB 497",
+    "title": "Final Year Project I",
+    "reason": "title keyword final year project"
+   },
+   {
+    "code": "CYB 498",
+    "title": "Final Year Project II",
+    "reason": "title keyword final year project"
+   },
+   {
+    "code": "DTS 299",
+    "title": "SIWES I",
+    "reason": "title keyword siwes"
+   },
+   {
+    "code": "DTS 399",
+    "title": "SIWES II",
+    "reason": "title keyword siwes"
+   },
+   {
+    "code": "DTS 497",
+    "title": "Final Year Project I",
+    "reason": "title keyword final year project"
+   },
+   {
+    "code": "DTS 498",
+    "title": "Final Year Project II",
+    "reason": "title keyword final year project"
+   },
+   {
+    "code": "ICT 298",
+    "title": "Students Industrial Work Experience Scheme",
+    "reason": "title keyword industrial work experience"
+   },
+   {
+    "code": "ICT 399",
+    "title": "Students Industrial Work Experience Scheme (SIWES)",
+    "reason": "title keyword siwes"
+   },
+   {
+    "code": "ICT 497",
+    "title": "Final Year Project I",
+    "reason": "title keyword final year project"
+   },
+   {
+    "code": "ICT 498",
+    "title": "Final Year Project II",
+    "reason": "title keyword final year project"
+   },
+   {
+    "code": "INS 299",
+    "title": "Students Industrial Work Experience Scheme (SIWES)",
+    "reason": "title keyword siwes"
+   },
+   {
+    "code": "INS 399",
+    "title": "Students Industrial Work Experience Scheme (SIWES)",
+    "reason": "title keyword siwes"
+   },
+   {
+    "code": "INS 497",
+    "title": "Final Year Project I",
+    "reason": "title keyword final year project"
+   },
+   {
+    "code": "INS 498",
+    "title": "Final Year Project II",
+    "reason": "title keyword final year project"
+   },
+   {
+    "code": "GST 111",
+    "title": "Communication in English",
+    "reason": "code prefix GST"
+   },
+   {
+    "code": "GST 112",
+    "title": "Nigerian Peoples and Culture",
+    "reason": "code prefix GST"
+   },
+   {
+    "code": "IFT 299",
+    "title": "SIWES I",
+    "reason": "title keyword siwes"
+   },
+   {
+    "code": "IFT 399",
+    "title": "SIWES II",
+    "reason": "title keyword siwes"
+   },
+   {
+    "code": "IFT 497",
+    "title": "Final Year Project I",
+    "reason": "title keyword final year project"
+   },
+   {
+    "code": "IFT 498",
+    "title": "Final Year Project II",
+    "reason": "title keyword final year project"
+   },
+   {
+    "code": "SEN 299",
+    "title": "Students Industrial Work Experience Scheme I",
+    "reason": "title keyword industrial work experience"
+   },
+   {
+    "code": "SEN 399",
+    "title": "Students Industrial Work Experience Scheme II",
+    "reason": "title keyword industrial work experience"
+   },
+   {
+    "code": "SEN 497",
+    "title": "Final Year Project I",
+    "reason": "title keyword final year project"
+   },
+   {
+    "code": "SEN 498",
+    "title": "Final Year Project II",
+    "reason": "title keyword final year project"
+   }
+  ],
+  "course_prefixes": {
+   "COS": 5,
+   "GST": 4,
+   "CSC": 12,
+   "IFT": 17,
+   "CYB": 18,
+   "DTS": 13,
+   "MTH": 6,
+   "INS": 13,
+   "PHY": 4,
+   "DST": 1,
+   "STA": 2,
+   "ENT": 2,
+   "ICT": 10,
+   "BUA": 1,
+   "SEN": 10
+  },
+  "embedding_model": "all-MiniLM-L6-v2"
+ },
+ "skills_taxonomy": {
+  "patterns_total": 302,
+  "patterns_active": 302,
+  "active_by_label": {
+   "LANGUAGE": 33,
+   "TOOL": 112,
+   "SKILL": 120,
+   "CERT": 37
+  },
+  "distinct_canonical_skills_active": 172,
+  "phrase_patterns_active": 299,
+  "token_patterns_active": 3
+ },
+ "stop_words": {
+  "total": 116,
+  "active": 116
+ },
+ "topic_name_catalogue_size": 120,
+ "settings_now": {
+  "score_weights": {
+   "ner": 0.4,
+   "topic": 0.35,
+   "novelty": 0.25
+  },
+  "similarity_threshold": 0.8,
+  "max_recommendations": 20,
+  "passage_sentences": {
+   "max": 5,
+   "min": 3
+  },
+  "passage_words": {
+   "max": 200,
+   "min": 100
+  },
+  "sbert_model": "all-MiniLM-L6-v2",
+  "spacy_model": "en_core_web_sm",
+  "min_topic_size": 5,
+  "evidence_per_recommendation": 8,
+  "max_documents_per_session": 60,
+  "credit_unit_allowance": null
+ },
+ "results": {
+  "extracts_modelled": 417,
+  "outlier_extracts": 67,
+  "topics_found": 28,
+  "merged_topic_groups": [
+   [
+    1,
+    20,
+    30
+   ],
+   [
+    6,
+    17
+   ]
+  ],
+  "topics_with_course_name": 21,
+  "extracts_with_skills": 213,
+  "distinct_skills_found": 110,
+  "top_skills": [
+   {
+    "name": "IT Support",
+    "label": "SKILL",
+    "mentions": 38,
+    "by_category": {
+     "policy": 1,
+     "job_market": 37
+    },
+    "document_frequency": 22
+   },
+   {
+    "name": "Agile Methodologies",
+    "label": "SKILL",
+    "mentions": 55,
+    "by_category": {
+     "job_market": 55
+    },
+    "document_frequency": 15
+   },
+   {
+    "name": "CI/CD",
+    "label": "SKILL",
+    "mentions": 24,
+    "by_category": {
+     "job_market": 24
+    },
+    "document_frequency": 15
+   },
+   {
+    "name": "SQL",
+    "label": "LANGUAGE",
+    "mentions": 20,
+    "by_category": {
+     "job_market": 20
+    },
+    "document_frequency": 15
+   },
+   {
+    "name": "Information Security",
+    "label": "SKILL",
+    "mentions": 48,
+    "by_category": {
+     "policy": 16,
+     "job_market": 32
+    },
+    "document_frequency": 14
+   },
+   {
+    "name": "Linux",
+    "label": "TOOL",
+    "mentions": 24,
+    "by_category": {
+     "job_market": 24
+    },
+    "document_frequency": 11
+   },
+   {
+    "name": "Python",
+    "label": "LANGUAGE",
+    "mentions": 15,
+    "by_category": {
+     "job_market": 15
+    },
+    "document_frequency": 11
+   },
+   {
+    "name": "DevOps",
+    "label": "SKILL",
+    "mentions": 29,
+    "by_category": {
+     "job_market": 29
+    },
+    "document_frequency": 10
+   },
+   {
+    "name": "Incident Response",
+    "label": "SKILL",
+    "mentions": 14,
+    "by_category": {
+     "job_market": 14
+    },
+    "document_frequency": 10
+   },
+   {
+    "name": "Microsoft Azure",
+    "label": "TOOL",
+    "mentions": 14,
+    "by_category": {
+     "job_market": 14
+    },
+    "document_frequency": 10
+   },
+   {
+    "name": "AWS",
+    "label": "TOOL",
+    "mentions": 13,
+    "by_category": {
+     "job_market": 13
+    },
+    "document_frequency": 10
+   },
+   {
+    "name": "PostgreSQL",
+    "label": "TOOL",
+    "mentions": 15,
+    "by_category": {
+     "job_market": 15
+    },
+    "document_frequency": 9
+   },
+   {
+    "name": "Java",
+    "label": "LANGUAGE",
+    "mentions": 15,
+    "by_category": {
+     "job_market": 15
+    },
+    "document_frequency": 8
+   },
+   {
+    "name": "Docker",
+    "label": "TOOL",
+    "mentions": 9,
+    "by_category": {
+     "job_market": 9
+    },
+    "document_frequency": 8
+   },
+   {
+    "name": "Git",
+    "label": "TOOL",
+    "mentions": 9,
+    "by_category": {
+     "job_market": 9
+    },
+    "document_frequency": 8
+   }
+  ],
+  "similarity_basis": "course",
+  "threshold": 0.8,
+  "courses_compared": 86,
+  "courses_excluded": 32,
+  "potential_duplicates": 0,
+  "max_similarity_range": [
+   0.446649,
+   0.734683
+  ],
+  "top_keywords_overall": [
+   {
+    "term": "digital",
+    "score": 0.031951,
+    "passage_count": 115
+   },
+   {
+    "term": "support",
+    "score": 0.025519,
+    "passage_count": 134
+   },
+   {
+    "term": "development",
+    "score": 0.022755,
+    "passage_count": 115
+   },
+   {
+    "term": "technology",
+    "score": 0.022589,
+    "passage_count": 107
+   },
+   {
+    "term": "system",
+    "score": 0.021977,
+    "passage_count": 96
+   },
+   {
+    "term": "security",
+    "score": 0.021456,
+    "passage_count": 90
+   },
+   {
+    "term": "economy",
+    "score": 0.021442,
+    "passage_count": 70
+   },
+   {
+    "term": "management",
+    "score": 0.021058,
+    "passage_count": 106
+   },
+   {
+    "term": "product",
+    "score": 0.019899,
+    "passage_count": 73
+   },
+   {
+    "term": "design",
+    "score": 0.019,
+    "passage_count": 72
+   },
+   {
+    "term": "service",
+    "score": 0.018865,
+    "passage_count": 86
+   },
+   {
+    "term": "digital economy",
+    "score": 0.018842,
+    "passage_count": 62
+   },
+   {
+    "term": "platform",
+    "score": 0.018037,
+    "passage_count": 82
+   },
+   {
+    "term": "datum",
+    "score": 0.017912,
+    "passage_count": 67
+   },
+   {
+    "term": "infrastructure",
+    "score": 0.017714,
+    "passage_count": 77
+   },
+   {
+    "term": "technical",
+    "score": 0.017246,
+    "passage_count": 72
+   },
+   {
+    "term": "business",
+    "score": 0.016915,
+    "passage_count": 73
+   },
+   {
+    "term": "engineering",
+    "score": 0.015301,
+    "passage_count": 61
+   },
+   {
+    "term": "data",
+    "score": 0.015175,
+    "passage_count": 53
+   },
+   {
+    "term": "environment",
+    "score": 0.014158,
+    "passage_count": 65
+   }
+  ]
+ },
+ "decisions": {
+  "accepted": 7,
+  "Not reviewed yet": 13
+ },
+ "courses_designed_in_session13": [],
+ "database_counts": {
+  "users": 3,
+  "documents": 57,
+  "passages": 1417,
+  "nuc_courses": 118,
+  "analysis_sessions": 6,
+  "recommendations": 120,
+  "curriculum_maps": 1,
+  "reports": 2,
+  "audit_log": 171,
+  "skill_patterns": 302,
+  "stop_words": 116
+ },
+ "users_by_role": {
+  "viewer": 1,
+  "planner": 1,
+  "admin": 1
+ },
+ "sessions": [
+  {
+   "id": 8,
+   "name": "Real corpus: CCMAS + NDEPS + 55 adverts",
+   "status": "completed",
+   "created_at": "2026-09-25T20:36:39.163958+00:00"
+  },
+  {
+   "id": 9,
+   "name": "Real corpus: document-weighted strength + course-level overlap",
+   "status": "completed",
+   "created_at": "2026-09-27T15:32:42.587277+00:00"
+  },
+  {
+   "id": 10,
+   "name": "Real corpus (final): specificity scoring, course overlap, exclusions",
+   "status": "completed",
+   "created_at": "2026-09-27T18:10:17.090361+00:00"
+  },
+  {
+   "id": 11,
+   "name": "course for 100l Computer Science",
+   "status": "completed",
+   "created_at": "2026-09-27T18:33:21.766920+00:00"
+  },
+  {
+   "id": 12,
+   "name": "Real corpus: plain-language topics (merged, named)",
+   "status": "completed",
+   "created_at": "2026-09-27T21:59:05.065724+00:00"
+  },
+  {
+   "id": 13,
+   "name": "Real corpus: plain-language topics (merged, named)",
+   "status": "completed",
+   "created_at": "2026-09-27T22:13:16.446750+00:00"
+  }
+ ],
+ "alembic_version": "0005_document_source",
+ "postgres_version": "PostgreSQL 16.15 (Debian 16.15-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+ "pgvector_version": "0.8.6"
+}

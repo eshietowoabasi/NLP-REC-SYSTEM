@@ -1,0 +1,361 @@
+{
+ "note": "Sessions 14 and 15 were temporary re-runs of session 13's 56 documents with the same settings (created for screenshot 07, then deleted).",
+ "runs": {
+  "13": {
+   "status": "completed",
+   "stage_timings": {
+    "skills": 9.214,
+    "themes": 123.207,
+    "loading": 45.01,
+    "overlap": 0.058,
+    "scoring": 0.022,
+    "keywords": 0.281,
+    "embeddings": 0.042,
+    "validating": 0.275
+   },
+   "wall_seconds": 178.2,
+   "topics": "28",
+   "outliers": "67",
+   "ranking": [
+    [
+     1,
+     "IT Support and Help Desk Operations",
+     0.7903
+    ],
+    [
+     2,
+     "Threat Intelligence and Vulnerability Management",
+     0.7276
+    ],
+    [
+     3,
+     "Testing Tools, Communication and Agile Methodologies",
+     0.7171
+    ],
+    [
+     4,
+     "Data Analysis, Education Business and Impact",
+     0.6404
+    ],
+    [
+     5,
+     "Full-Stack Web Development",
+     0.614
+    ],
+    [
+     6,
+     "IT Service Management (ITIL)",
+     0.5872
+    ],
+    [
+     7,
+     "Cloud Infrastructure and Services",
+     0.5698
+    ],
+    [
+     8,
+     "DevOps and Continuous Delivery",
+     0.5615
+    ],
+    [
+     9,
+     "Computer Science, System and Linux",
+     0.5554
+    ],
+    [
+     10,
+     "Data Engineering and Data Pipelines",
+     0.5352
+    ],
+    [
+     11,
+     "Mobile Application Development",
+     0.5287
+    ],
+    [
+     12,
+     "Agile Software Development",
+     0.5255
+    ],
+    [
+     13,
+     "Project, English and Problem",
+     0.5176
+    ],
+    [
+     14,
+     "Cloud, Container and Security DevOps",
+     0.5042
+    ],
+    [
+     15,
+     "Linux System Administration",
+     0.4792
+    ],
+    [
+     16,
+     "Data Engineering, Pl Pgsql and PostgreSQL",
+     0.4641
+    ],
+    [
+     17,
+     "Software Testing and Quality Assurance",
+     0.3142
+    ],
+    [
+     18,
+     "Digital Marketing",
+     0.278
+    ],
+    [
+     19,
+     "Digital Economy and Policy",
+     0.2743
+    ],
+    [
+     20,
+     "Cyber Law and Data Protection",
+     0.2738
+    ]
+   ]
+  },
+  "14": {
+   "status": "completed",
+   "stage_timings": {
+    "skills": 9.01,
+    "themes": 86.361,
+    "loading": 53.196,
+    "overlap": 0.12,
+    "scoring": 0.017,
+    "keywords": 1.006,
+    "embeddings": 0.031,
+    "validating": 0.235
+   },
+   "wall_seconds": 150.0,
+   "topics": "28",
+   "outliers": "67",
+   "ranking": [
+    [
+     1,
+     "IT Support and Help Desk Operations",
+     0.7903
+    ],
+    [
+     2,
+     "Threat Intelligence and Vulnerability Management",
+     0.7276
+    ],
+    [
+     3,
+     "Testing Tools, Communication and Agile Methodologies",
+     0.7171
+    ],
+    [
+     4,
+     "Data Analysis, Education Business and Impact",
+     0.6404
+    ],
+    [
+     5,
+     "Full-Stack Web Development",
+     0.614
+    ],
+    [
+     6,
+     "IT Service Management (ITIL)",
+     0.5872
+    ],
+    [
+     7,
+     "Cloud Infrastructure and Services",
+     0.5698
+    ],
+    [
+     8,
+     "DevOps and Continuous Delivery",
+     0.5615
+    ],
+    [
+     9,
+     "Computer Science, System and Linux",
+     0.5554
+    ],
+    [
+     10,
+     "Data Engineering and Data Pipelines",
+     0.5352
+    ],
+    [
+     11,
+     "Mobile Application Development",
+     0.5287
+    ],
+    [
+     12,
+     "Agile Software Development",
+     0.5255
+    ],
+    [
+     13,
+     "Project, English and Problem",
+     0.5176
+    ],
+    [
+     14,
+     "Cloud, Container and Security DevOps",
+     0.5042
+    ],
+    [
+     15,
+     "Linux System Administration",
+     0.4792
+    ],
+    [
+     16,
+     "Data Engineering, Pl Pgsql and PostgreSQL",
+     0.4641
+    ],
+    [
+     17,
+     "Software Testing and Quality Assurance",
+     0.3142
+    ],
+    [
+     18,
+     "Digital Marketing",
+     0.278
+    ],
+    [
+     19,
+     "Digital Economy and Policy",
+     0.2743
+    ],
+    [
+     20,
+     "Cyber Law and Data Protection",
+     0.2738
+    ]
+   ]
+  },
+  "15": {
+   "status": "completed",
+   "stage_timings": {
+    "skills": 6.202,
+    "themes": 8.973,
+    "loading": 8.274,
+    "overlap": 0.03,
+    "scoring": 0.01,
+    "keywords": 0.099,
+    "embeddings": 0.083,
+    "validating": 0.255
+   },
+   "wall_seconds": 24.0,
+   "topics": "28",
+   "outliers": "67",
+   "ranking": [
+    [
+     1,
+     "IT Support and Help Desk Operations",
+     0.7903
+    ],
+    [
+     2,
+     "Threat Intelligence and Vulnerability Management",
+     0.7276
+    ],
+    [
+     3,
+     "Testing Tools, Communication and Agile Methodologies",
+     0.7171
+    ],
+    [
+     4,
+     "Data Analysis, Education Business and Impact",
+     0.6404
+    ],
+    [
+     5,
+     "Full-Stack Web Development",
+     0.614
+    ],
+    [
+     6,
+     "IT Service Management (ITIL)",
+     0.5872
+    ],
+    [
+     7,
+     "Cloud Infrastructure and Services",
+     0.5698
+    ],
+    [
+     8,
+     "DevOps and Continuous Delivery",
+     0.5615
+    ],
+    [
+     9,
+     "Computer Science, System and Linux",
+     0.5554
+    ],
+    [
+     10,
+     "Data Engineering and Data Pipelines",
+     0.5352
+    ],
+    [
+     11,
+     "Mobile Application Development",
+     0.5287
+    ],
+    [
+     12,
+     "Agile Software Development",
+     0.5255
+    ],
+    [
+     13,
+     "Project, English and Problem",
+     0.5176
+    ],
+    [
+     14,
+     "Cloud, Container and Security DevOps",
+     0.5042
+    ],
+    [
+     15,
+     "Linux System Administration",
+     0.4792
+    ],
+    [
+     16,
+     "Data Engineering, Pl Pgsql and PostgreSQL",
+     0.4641
+    ],
+    [
+     17,
+     "Software Testing and Quality Assurance",
+     0.3142
+    ],
+    [
+     18,
+     "Digital Marketing",
+     0.278
+    ],
+    [
+     19,
+     "Digital Economy and Policy",
+     0.2743
+    ],
+    [
+     20,
+     "Cyber Law and Data Protection",
+     0.2738
+    ]
+   ]
+  }
+ },
+ "identical_ranking_14": true,
+ "identical_ranking_15": true
+}
