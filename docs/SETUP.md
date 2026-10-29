@@ -1,246 +1,357 @@
-# Setup
+﻿# Setup
 
-Three ways to run NLP-RS in development:
+The recommended SkillBridge development setup is now **Docker-free**.
 
-1. **Full Docker stack**: every service in containers, the same layout as production.
-2. **Lightweight mode**: only PostgreSQL and Redis in Docker; Flask, the worker and Vite run
-   natively. Faster on slower laptops, especially on Windows.
-3. **Everything native**: no Docker; you provide PostgreSQL 16 + pgvector and Redis 7.
+The application runs locally while PostgreSQL and Redis are provided by managed services:
 
-All modes read settings from `.env` at the repository root:
+- **PostgreSQL + pgvector:** Neon or another compatible PostgreSQL provider
+- **Redis:** Upstash or another Redis-compatible provider
+- **Flask API:** local
+- **RQ worker:** local
+- **React/Vite frontend:** local
+- **NLP models:** local
+- **Uploaded files / reports:** local `STORAGE_DIR`
+
+Docker Compose remains available as an optional legacy/full-container setup, but Docker is not required for normal development.
+
+## Requirements
+
+- Windows, macOS or Linux
+- Python 3.11+ (the recovered Windows environment has been verified on Python 3.13)
+- Node.js 22+ (Node 24 is supported)
+- npm
+- Git
+- PostgreSQL with the `vector` extension
+- Redis reachable through a normal Redis/TLS connection URL
+
+## 1. Environment file
+
+Copy the example:
 
 ```bash
 cp .env.example .env
-# Edit .env: set SECRET_KEY, POSTGRES_PASSWORD (and the password inside DATABASE_URL),
-# and the ADMIN_* values for the first administrator account.
-python -c "import secrets; print(secrets.token_hex(32))"   # a value for SECRET_KEY
 ```
 
-## First run: database and first admin
+On Windows Command Prompt:
 
-The database schema is created by migrations, and the initial data by `flask seed`:
-
-- the first **admin** user, from `ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` and
-  `ADMIN_FULL_NAME` in `.env` (only created if no admin exists yet);
-- the default settings (score weights, similarity threshold, passage size, models, ...);
-- the starter skill patterns (172 skills, tools, languages and certifications) and domain stop
-  words.
-
-The seed never overwrites existing rows, so it is safe to run again. After the first sign-in,
-change the admin password from the **Profile** page. Additional accounts are created by the
-admin under **Administration → Users**; there is no public sign-up.
-
-| Mode | Migrations | Seed |
-|---|---|---|
-| Full Docker stack | Applied automatically when the `backend` container starts | `docker compose exec backend flask --app wsgi seed` |
-| Lightweight / native (from `backend/`) | `flask --app wsgi db upgrade` | `flask --app wsgi seed` |
-
-## 1. Full Docker stack
-
-Prerequisites: Docker Engine 24+ with Compose v2.20+ (`docker compose version`). On Windows or
-macOS, use Docker Desktop. Free host ports: 8080 (Nginx), 5000 (backend), 5432 (Postgres),
-6379 (Redis). All of them can be changed in `.env`.
-
-```bash
-docker compose up --build
+```cmd
+copy .env.example .env
 ```
 
-Open **http://localhost:8080**. The dashboard's *System status* card and the dot in the top bar
-should both show the API as connected, with PostgreSQL and Redis available.
-
-| Service | Purpose | Reachable at |
-|---|---|---|
-| `nginx` | Single entry point: `/api` → backend, everything else → frontend | http://localhost:8080 |
-| `frontend` | Vite dev server with hot reload | via Nginx |
-| `backend` | Flask API (debug server with auto-reload) | http://localhost:5000/api/health |
-| `worker` | RQ worker for background jobs | — |
-| `postgres` | PostgreSQL 16 + pgvector (volume `nlprs_postgres-data`) | localhost:5432 |
-| `redis` | Job queue | localhost:6379 |
-
-Source folders are bind-mounted, so code changes reload automatically. The worker does not
-reload itself: after changing job code, run `docker compose restart worker`. When
-`frontend/package-lock.json` changes, the frontend container reinstalls its packages
-automatically on the next start (`docker compose up -d`). After Python dependency changes,
-rebuild with `docker compose up --build -d`.
+Generate a secret key:
 
 ```bash
-docker compose ps                          # service state
-docker compose logs -f backend worker      # follow logs
-docker compose exec backend pytest         # backend tests inside the container
-docker compose down                        # stop (data volumes are kept)
-docker compose down -v                     # stop and DELETE the database and uploaded files
+python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-## 2. Lightweight mode (services in Docker, app native)
+Set:
 
-`docker-compose.services.yml` defines only PostgreSQL (pgvector) and Redis. The full stack
-includes the same file, so both modes use the same containers and the same data volume.
+- `SECRET_KEY`
+- `DATABASE_URL`
+- `REDIS_URL`
+- `ADMIN_USERNAME`
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD`
+- `ADMIN_FULL_NAME`
 
-Requires Python 3.11+ and Node.js 22+ (24 recommended) on the host.
+Never commit `.env`.
+
+### PostgreSQL URL
+
+For SQLAlchemy + psycopg v3, use:
+
+```text
+postgresql+psycopg://USER:PASSWORD@HOST/DATABASE?sslmode=require
+```
+
+For Neon, copy the provided PostgreSQL URL and change the scheme from:
+
+```text
+postgresql://
+```
+
+to:
+
+```text
+postgresql+psycopg://
+```
+
+Keep Neon SSL query parameters.
+
+### Redis URL
+
+Use a standard Redis/TLS URL:
+
+```text
+rediss://default:TOKEN@HOST:6379
+```
+
+For Upstash, use the TCP connection string, not the REST URL.
+
+## 2. PostgreSQL / pgvector
+
+The database must have pgvector enabled:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+Verify:
+
+```sql
+SELECT extversion FROM pg_extension WHERE extname = 'vector';
+```
+
+## 3. Backend environment
+
+From `backend/`:
 
 ```bash
-docker compose -f docker-compose.services.yml up -d --wait   # Postgres + Redis
-
-# Backend (terminal 1)
-cd backend
 python -m venv .venv
-source .venv/bin/activate            # Windows: .venv\Scripts\activate
-pip install -r requirements-dev.txt
-flask --app wsgi run --debug         # http://localhost:5000
-
-# Worker (terminal 2, same virtualenv)
-cd backend && python -m app.worker
-
-# Frontend (terminal 3)
-cd frontend
-npm ci
-npm run dev                          # http://localhost:5173 (proxies /api to :5000)
 ```
 
-In this mode, open **http://localhost:5173**. The `DATABASE_URL` and `REDIS_URL` values in
-`.env` already point at `localhost`, which is where the services are published.
+Windows:
 
-Stop the services with `docker compose -f docker-compose.services.yml down`.
+```cmd
+.venv\Scripts\pip install -r requirements-dev.txt
+```
 
-## 3. Everything native
-
-Follow section 2, but provide PostgreSQL 16 with the pgvector extension and Redis 7 yourself,
-and set `DATABASE_URL` and `REDIS_URL` in `.env` to match.
-
-## Tests and the test database
-
-Backend tests run against a **separate database** on the same PostgreSQL server: the
-development database name with `_test` appended (`nlprs_test` by default). The test suite
-creates it automatically on first run and never touches the development database. As a
-safeguard, it refuses to run against any database whose name does not end in `_test`. To use a
-different database, set `TEST_DATABASE_URL`. Tests that need Redis use logical database 15.
+macOS/Linux:
 
 ```bash
-# Backend (from backend/, with Postgres running)
-pytest --cov=app
-ruff check . && black --check .
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+```
 
-# Frontend (from frontend/)
+## 4. Frontend packages
+
+From `frontend/`:
+
+```bash
+npm ci
+```
+
+## 5. First database initialization
+
+From `backend/`:
+
+```bash
+flask --app wsgi db upgrade
+flask --app wsgi seed
+```
+
+`seed` creates the first admin only if no admin exists and also loads:
+
+- application settings
+- skill patterns
+- domain stop words
+
+Additional users are created by an administrator under **Administration â†’ Users**.
+
+## 6. Recommended one-command startup
+
+From the repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start-demo.ps1
+```
+
+The launcher:
+
+1. checks `.env`
+2. checks the backend virtual environment
+3. checks frontend packages
+4. verifies PostgreSQL
+5. verifies Redis
+6. applies migrations
+7. opens Flask on port 5000
+8. opens the RQ worker
+9. opens Vite on port 5173
+10. waits for the API and frontend
+11. opens the browser
+
+Open:
+
+```text
+http://localhost:5173
+```
+
+Backend health:
+
+```text
+http://localhost:5000/api/health
+```
+
+A healthy response reports both database and Redis as `ok`.
+
+## 7. Manual startup
+
+If you want to run each process yourself:
+
+### Terminal 1 â€” Flask
+
+```cmd
+cd backend
+.venv\Scripts\flask.exe --app wsgi run --port 5000
+```
+
+### Terminal 2 â€” RQ worker
+
+```cmd
+cd backend
+.venv\Scripts\python.exe -m app.worker
+```
+
+The worker should show:
+
+```text
+Listening on default...
+```
+
+### Terminal 3 â€” Vite
+
+```cmd
+cd frontend
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:5173
+```
+
+## 8. Core first-run workflow
+
+Before analyses can run:
+
+1. Sign in as administrator.
+2. Go to **Administration â†’ NUC core curriculum**.
+3. Upload the complete NUC CCMAS Computing curriculum.
+4. Wait for it to become **Ready** and **Active**.
+5. Upload job adverts, policy documents, university documents or academic papers.
+6. Wait for source documents to become **Ready**.
+7. Create an analysis session.
+8. Review suggested topics.
+9. Accept, reject or discuss topics later.
+10. Design courses from accepted topics.
+11. Generate and download the report.
+
+## 9. NLP models
+
+- spaCy `en_core_web_sm` is installed as a Python dependency.
+- SBERT `all-MiniLM-L6-v2` is downloaded from Hugging Face when first needed and cached locally.
+- The first ingestion or analysis after starting a fresh worker can be slower.
+- The RQ worker keeps models loaded between jobs.
+
+If HTTPS interception by antivirus causes model-download certificate failures, set:
+
+```text
+USE_SYSTEM_CERTS=true
+```
+
+and restart Flask and the worker.
+
+## 10. Reports
+
+DOCX reports work natively.
+
+PDF reports use WeasyPrint and require Pango on Windows. If native PDF generation fails, install MSYS2/Pango and configure:
+
+```text
+WEASYPRINT_DLL_DIRECTORIES=C:\msys64\ucrt64\bin
+```
+
+Generated reports are stored below:
+
+```text
+STORAGE_DIR/reports/
+```
+
+## 11. Tests
+
+Frontend:
+
+```bash
+cd frontend
 npm test
-npm run lint && npm run typecheck && npm run format:check
+npm run lint
+npm run typecheck
 npm run build
 ```
 
-On Windows, run the backend tests natively (lightweight mode). They also work with
-`docker compose exec backend pytest`, but Docker Desktop's file sharing makes them about ten
-times slower.
+Backend tests require a separate test database whose database name ends in `_test`.
 
-## Database migrations
+If using a managed PostgreSQL provider, create a dedicated test database and set:
 
-Models live in `backend/app/models/`; every schema change needs a migration (from `backend/`,
-with the dev database running):
-
-```bash
-flask --app wsgi db migrate -m "Describe the change"   # generates migrations/versions/<id>_*.py
-# Review the generated file, then:
-flask --app wsgi db upgrade                            # apply it to the dev database
-flask --app wsgi db check                              # confirms models and migrations match
+```text
+TEST_DATABASE_URL=postgresql+psycopg://...
 ```
 
-The test suite always builds the test database from these migrations, so a broken migration
-fails the tests.
+Do not point automated tests at the normal development database.
 
-## Dependencies and lockfiles
+## 12. Troubleshooting
 
-Every dependency is pinned to an exact version, and the lockfiles are committed.
+### API unreachable
 
-- **Frontend:** `package.json` lists exact versions (no `^`/`~`), `package-lock.json` is
-  committed, and `.npmrc` sets `save-exact=true` so that `npm install <pkg>` adds exact versions.
-  Always install with `npm ci`.
-- **Backend:** direct dependencies are listed in `requirements.in` (runtime) and
-  `requirements-dev.in` (tools). The lockfiles `requirements.txt` and `requirements-dev.txt` pin
-  every transitive package. They are generated for the Docker target (Linux, Python 3.11) with
-  PyTorch taken from its CPU-only index, so no CUDA libraries are installed.
+Make sure Flask is running on port 5000.
 
-### Updating Python dependencies
+Check:
 
-1. Edit `requirements.in` or `requirements-dev.in`.
-2. Regenerate both lockfiles (from `backend/`, inside the virtualenv; no Docker needed):
-
-   ```bash
-   python scripts/lock.py
-   ```
-
-   The script uses uv to resolve for Linux / Python 3.11 whatever machine it runs on.
-3. Reinstall: `pip install -r requirements-dev.txt` (native) or `docker compose build backend worker`.
-
-## NLP models
-
-- **spaCy** `en_core_web_sm` is installed as a normal dependency (from `requirements.txt`).
-- **SBERT** `all-MiniLM-L6-v2` (about 90 MB) is downloaded from Hugging Face the first time a
-  document is processed, then cached (natively in `~/.cache/huggingface`; in Docker on the
-  `nlprs_models-data` volume). The first ingestion job therefore takes longer (around 40 s
-  including model loading); later jobs take about a second per document.
-- The worker keeps both models loaded between jobs. After changing the SBERT model in the
-  settings, restart the worker.
-
-## Reports and WeasyPrint
-
-DOCX reports work everywhere. PDF reports use WeasyPrint, which needs the Pango text-layout
-libraries. The Docker image installs them, so PDFs work in the Docker stack. Natively on
-Windows they are missing: WeasyPrint prints an import warning, PDF reports fail with "PDF
-generation is not available on this server", and the real-PDF test is skipped. To generate
-PDFs natively on Windows, install MSYS2 and its Pango package
-(`pacman -S mingw-w64-ucrt-x86_64-pango`), then set
-`WEASYPRINT_DLL_DIRECTORIES=C:\msys64\ucrt64\bin` before starting the worker.
-
-Report files are stored in `STORAGE_DIR/reports/` under UUID names.
-
-## Benchmark
-
-The pipeline benchmark times ingestion and a session analysis on 20 synthetic documents of about
-3,000 words each (target: analysis within 60 s). From `backend/`, in the virtualenv:
-
-```bash
-python -m evaluation.benchmark_pipeline                    # defaults: 20 documents, 3,000 words
-python -m evaluation.benchmark_pipeline --documents 10 --words 2000
+```cmd
+curl http://localhost:5000/api/health
 ```
 
-Results are printed and saved to `backend/evaluation/results/benchmark_<timestamp>.json`
-(git-ignored). The first analysis in a fresh process includes one-off compilation by UMAP; the
-second run shows the steady-state time of a running worker.
+### API degraded
 
-## Troubleshooting
+The API is running but PostgreSQL or Redis is unavailable. Check `DATABASE_URL`, `REDIS_URL`, internet access and provider status.
 
-- **Top bar shows "API unreachable"**: the backend is not running, or Nginx cannot reach it.
-  Check `docker compose logs backend`.
-- **"API degraded"**: the API is up but Postgres or Redis is not. The System status card shows
-  which one; check `docker compose ps`.
-- **`flask seed` says no admin exists**: set `ADMIN_USERNAME`, `ADMIN_EMAIL` and
-  `ADMIN_PASSWORD` in `.env` (for Docker, recreate the backend so it sees them:
-  `docker compose up -d backend`), then run the seed again.
-- **Signed out unexpectedly**: sessions last 8 hours, and changing or resetting a password
-  or deactivating the account ends all sessions of that user.
-- **Tests stop with "Cannot connect to PostgreSQL"**: start the services with
-  `docker compose -f docker-compose.services.yml up -d --wait`.
-- **Model download fails with `CERTIFICATE_VERIFY_FAILED`** (native runs): antivirus software
-  that inspects HTTPS (for example Avast Web Shield) re-signs connections with its own
-  certificate, which Windows trusts but Python does not. Set `USE_SYSTEM_CERTS=true` in `.env`
-  so Python uses the Windows certificate store, then restart Flask and the worker.
-- **Docker: uploads hang or fail while the worker loads the model** (antivirus HTTPS scanning,
-  or no internet): even with the model cached, sentence-transformers checks Hugging Face
-  online and retries for minutes when that fails. Once the model is in the `models-data`
-  volume (after the first upload with a working connection), set `HF_HUB_OFFLINE=1` in `.env`
-  and recreate the containers (`docker compose up -d backend worker`). With `HF_HUB_OFFLINE=1`
-  a newly chosen SBERT model cannot be downloaded; set it back to 0 for that first download.
-- **Docker builds fail with `CERTIFICATE_VERIFY_FAILED`**: containers do not trust
-  antivirus certificates. Turn off HTTPS scanning (e.g. Avast Web Shield, "until restart")
-  while building; cached layers rebuild without the network.
-- **"libmagic is not available" warning** (native Windows): harmless. Uploads are still checked
-  by their file signatures; the Docker image includes libmagic for the full check.
-- **A session fails with "Too little text to discover themes"**: theme discovery needs at least
-  10 passages (roughly 3–4 pages of text in total). Add more documents to the session.
-- **The first analysis after starting the worker is slow**: UMAP compiles its code the first
-  time it runs in a process (about 30 s); later sessions are much faster.
-- **Documents stay "Queued"**: the worker is not running or cannot reach Postgres/Redis. Start
-  it (`python -m app.worker`, or `docker compose up -d worker`); queued documents are processed
-  as soon as it starts.
-- **Port already in use**: change `HTTP_PORT`, `BACKEND_HOST_PORT`, `POSTGRES_HOST_PORT` or
-  `REDIS_HOST_PORT` in `.env`.
-- **Hot reload misses changes on Windows or macOS**: polling is already enabled in compose
-  (`VITE_USE_POLLING=true`). Make sure the repository is on a local disk.
+### Documents stay queued
+
+The RQ worker is not running or cannot reach Redis/PostgreSQL.
+
+Start:
+
+```cmd
+cd backend
+.venv\Scripts\python.exe -m app.worker
+```
+
+### Cannot sign in after moving databases
+
+User accounts live in PostgreSQL. A new empty database contains no old users until they are recreated or restored from a database backup. Running `flask seed` creates only the configured initial admin when no admin exists.
+
+### pgvector errors
+
+Run:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+### Certificate errors
+
+Set:
+
+```text
+USE_SYSTEM_CERTS=true
+```
+
+and restart the app processes.
+
+### First analysis is slow
+
+UMAP and NLP models may perform one-time initialization in a fresh worker. Later analyses are normally faster.
+
+### Port already in use
+
+The default local ports are:
+
+- Flask: `5000`
+- Vite: `5173`
+
+Stop the existing process or change the relevant local configuration.
+
+## Optional Docker setup
+
+The repository still contains Docker Compose files for the older containerized setup. They may be useful for reproducible deployment or isolated testing, but they are no longer the recommended day-to-day development path.
