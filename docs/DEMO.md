@@ -72,6 +72,32 @@ Economy Policy and Strategy, and 55 job adverts, with a completed session.
     audit log with its CSV export. Sign in as the viewer to show that edit controls disappear
     and the API refuses changes.
 
+## Sharing the demo online (ngrok)
+
+The app can be opened from anywhere through an https link while it runs on this laptop. The
+script builds the frontend and serves it with `vite preview` on port 4173 (the dev server's
+many small files are too slow through a tunnel); preview proxies /api to Flask, so sign-in,
+uploads, analyses and downloads all work through the one link.
+
+One-time setup:
+
+1. Create a free account at https://ngrok.com and install ngrok:
+   `winget install --id Ngrok.Ngrok -e` (then reopen PowerShell).
+2. Copy your authtoken from dashboard.ngrok.com and run
+   `ngrok config add-authtoken <token>`.
+3. In the dashboard, open **Domains** and claim your free static domain.
+
+Then start everything with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start-online-demo.ps1
+```
+
+The first run asks for the static domain and remembers it in `.ngrok-domain`. The link works
+while the laptop is on, online and the ngrok window is open. Visitors see ngrok's one-time
+"You are about to visit" page; they click **Visit Site**. Give supervisors planner or viewer
+accounts rather than the admin login, and close the ngrok window after the defence.
+
 ## Troubleshooting
 
 - **"Docker Desktop is not running"**: start Docker Desktop, wait for "Engine running", re-run.

@@ -97,7 +97,8 @@ function RecommendationReview({
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="max-w-3xl text-sm leading-relaxed text-body-soft">
-          Suggested topics, best first. Each has a score out of 100: employer demand{' '}
+          Suggested topics, ranked by score (best first; each topic keeps its rank in every tab).
+          Each has a score out of 100: employer demand{' '}
           <span className="font-bold text-ink">{formatWeight(weights.ner)}</span>, how often it
           comes up <span className="font-bold text-ink">{formatWeight(weights.topic)}</span> and how
           new it is <span className="font-bold text-ink">{formatWeight(weights.novelty)}</span>.
@@ -181,10 +182,14 @@ function RecommendationCard({
     <article className="flex flex-col gap-5 rounded-[20px] border border-line bg-white px-[22px] py-[18px] lg:flex-row lg:items-center lg:gap-[22px]">
       <div className="flex min-w-0 flex-1 gap-4 lg:gap-[22px]">
         <span
-          className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-sand-deep font-extrabold text-ink tabular-nums"
+          className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-[10px] bg-sand-deep text-ink tabular-nums"
           aria-label={`Rank ${recommendation.rank}`}
+          title="Rank by score among all suggested topics. It stays the same in every tab."
         >
-          {recommendation.rank}
+          <span className="text-[9px] leading-none font-bold tracking-[0.08em] text-muted-ink uppercase">
+            Rank
+          </span>
+          <span className="mt-0.5 text-lg leading-none font-extrabold">#{recommendation.rank}</span>
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <div className="flex flex-col gap-1">

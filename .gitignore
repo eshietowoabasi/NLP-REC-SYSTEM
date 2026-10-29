@@ -39,3 +39,6 @@ tools/corpus_collector/out/
 .idea/
 .DS_Store
 Thumbs.db
+
+# ngrok static domain used by start-online-demo.ps1
+.ngrok-domain
