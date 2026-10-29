@@ -41,3 +41,5 @@ nltk==3.10.3
 weasyprint==70.0
 # Phase 6: login rate limiting (counters stored in Redis)
 Flask-Limiter==4.1.1
+# Production object storage
+vercel-blob==0.5.0

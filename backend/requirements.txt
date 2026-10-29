@@ -386,6 +386,8 @@ umap-learn==0.5.12
     # via
     #   -r requirements.in
     #   bertopic
+vercel-blob==0.5.0
+    # via -r requirements.in
 urllib3==2.8.0
     # via requests
 wasabi==1.1.3

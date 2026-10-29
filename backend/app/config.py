@@ -66,6 +66,7 @@ class BaseConfig:
     STORAGE_DIR: str = _absolute_dir(
         _env("STORAGE_DIR", str(BACKEND_DIR / "storage")) or str(BACKEND_DIR / "storage")
     )
+    STORAGE_BACKEND: str = (_env("STORAGE_BACKEND", "local") or "local").lower()
 
     # Upper bound for a whole multipart request. The per-file limit (25 MB) is enforced
     # separately during upload validation.
@@ -138,6 +139,15 @@ class ProductionConfig(BaseConfig):
         secret = _env("SECRET_KEY") or ""
         if len(secret) < 32 or secret.startswith("change-me"):
             raise RuntimeError("SECRET_KEY must be a random string of at least 32 characters.")
+        backend = (_env("STORAGE_BACKEND", "local") or "local").lower()
+        if backend not in {"local", "vercel_blob"}:
+            raise RuntimeError("STORAGE_BACKEND must be 'local' or 'vercel_blob'.")
+        if backend == "vercel_blob" and not (
+            _env("BLOB_STORE_ID") or _env("BLOB_READ_WRITE_TOKEN")
+        ):
+            raise RuntimeError(
+                "Vercel Blob storage requires BLOB_STORE_ID for OIDC or BLOB_READ_WRITE_TOKEN."
+            )
 
 
 CONFIGS: dict[str, type[BaseConfig]] = {

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from io import BytesIO
 from flask import Blueprint, Response, request, send_file
 from flask_login import current_user
 from sqlalchemy import func, or_, select
@@ -260,11 +261,11 @@ def list_passages(document_id: int) -> tuple[Response, int]:
 def download_document(document_id: int) -> Response:
     """Download the original file (never served from a public path)."""
     document = get_document_or_404(document_id)
-    path = get_storage().path(document.stored_filename)
-    if not path.exists():
+    storage = get_storage()
+    if not storage.exists(document.stored_filename):
         raise ApiError("NOT_FOUND", "The stored file is missing.", 404)
     return send_file(
-        path,
+        BytesIO(storage.read(document.stored_filename)),
         mimetype=MIME_TYPES[FileType(document.file_type)],
         as_attachment=True,
         download_name=document.original_filename,
