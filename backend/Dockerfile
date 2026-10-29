@@ -33,4 +33,6 @@ RUN mkdir -p /data/storage /data/models && chown -R appuser:appuser /app /data
 USER appuser
 EXPOSE 5000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "3", "--timeout", "120", "--access-logfile", "-", "wsgi:app"]
+# Vercel container services provide PORT dynamically. Local/Docker development keeps
+# the historical port 5000 when PORT is unset.
+CMD ["sh", "-c", "exec gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 3 --timeout 120 --access-logfile - wsgi:app"]
