@@ -416,3 +416,6 @@ wtforms==3.2.2
     # via flask-wtf
 zopfli==0.4.3
     # via fonttools
+
+beautifulsoup4==4.15.0
+    # via -r requirements.in

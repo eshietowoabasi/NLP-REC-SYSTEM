@@ -29,6 +29,11 @@ class Document(db.Model):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     uploaded_by_id: Mapped[int] = mapped_column(sa.ForeignKey("users.id"), index=True)
+    programme_id: Mapped[int | None] = mapped_column(
+        sa.ForeignKey("programmes.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
     title: Mapped[str] = mapped_column(sa.String(255))
     original_filename: Mapped[str] = mapped_column(sa.String(255))
     stored_filename: Mapped[str] = mapped_column(sa.String(64), unique=True)
@@ -56,6 +61,7 @@ class Document(db.Model):
     parsed_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
 
     uploaded_by: Mapped[User] = relationship()
+    programme: Mapped[Programme | None] = relationship()
     passages: Mapped[list[Passage]] = relationship(
         back_populates="document", order_by="Passage.position", cascade="all, delete-orphan"
     )

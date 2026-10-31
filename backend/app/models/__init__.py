@@ -3,6 +3,7 @@
 from app.models.audit import AuditLog
 from app.models.configuration import Setting, SkillPattern, StopWord
 from app.models.document import Document, NucCoreVersion, NucCourse, Passage
+from app.models.harvest import JobHarvestRun
 from app.models.enums import (
     DocumentStatus,
     FileType,
@@ -30,6 +31,7 @@ __all__ = [
     "DocumentSession",
     "DocumentStatus",
     "FileType",
+    "JobHarvestRun",
     "NLPResult",
     "NLPResultType",
     "NucCoreVersion",

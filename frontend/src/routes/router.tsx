@@ -162,6 +162,17 @@ export const routes: RouteObject[] = [
                 handle: title('Users', 'Administration'),
               },
               {
+                path: 'labour-market',
+                ...page(
+                  () => import('@/features/admin/labour-market/LabourMarketPage'),
+                  (m) => m.LabourMarketPage,
+                ),
+                handle: title(
+                  'Labour market',
+                  'Administration',
+                ),
+              },
+              {
                 path: 'benchmarks',
                 ...page(
                   () => import('@/features/admin/benchmarks/BenchmarksPage'),

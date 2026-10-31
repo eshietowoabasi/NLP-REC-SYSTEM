@@ -43,3 +43,12 @@ weasyprint==70.0
 Flask-Limiter==4.1.1
 # Production object storage
 vercel-blob==0.5.0
+
+# Labour-market harvester
+requests==2.34.2
+
+# Labour-market harvester
+beautifulsoup4==4.15.0
+
+# Labour-market harvester
+lxml==6.1.3

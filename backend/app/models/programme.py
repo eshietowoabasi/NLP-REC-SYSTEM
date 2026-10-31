@@ -21,6 +21,12 @@ class Programme(db.Model):
     discipline_code: Mapped[str | None] = mapped_column(sa.String(32), unique=True)
     faculty: Mapped[str | None] = mapped_column(sa.String(160))
     description: Mapped[str | None] = mapped_column(sa.Text)
+    job_search_terms: Mapped[list[str]] = mapped_column(
+        sa.JSON, default=list, server_default=sa.text("'[]'::json"), nullable=False
+    )
+    job_field_slugs: Mapped[list[str]] = mapped_column(
+        sa.JSON, default=list, server_default=sa.text("'[]'::json"), nullable=False
+    )
     country: Mapped[str] = mapped_column(sa.String(80), default="Nigeria", server_default="Nigeria")
     is_active: Mapped[bool] = mapped_column(default=True, server_default=sa.true(), index=True)
     created_at: Mapped[datetime] = mapped_column(

@@ -52,15 +52,35 @@ def activate_nuc_core_version(document: Document) -> None:
     )
     if version is None:
         return
-    active = db.session.scalar(select(NucCoreVersion).where(NucCoreVersion.is_active.is_(True)))
+    programme_filter = (
+        NucCoreVersion.programme_id.is_(None)
+        if version.programme_id is None
+        else NucCoreVersion.programme_id == version.programme_id
+    )
+
+    active = db.session.scalar(
+        select(NucCoreVersion).where(
+            NucCoreVersion.is_active.is_(True),
+            programme_filter,
+        )
+    )
+
     if active is not None and active.id > version.id:
         logger.info(
-            "NUC core version %s is ready but newer version %s is active", version.id, active.id
+            "Curriculum benchmark %s is ready but newer version %s is active",
+            version.id,
+            active.id,
         )
         return
-    # Deactivate first: the partial unique index allows only one active row at a time.
+
+    # Only deactivate the active benchmark for this programme.
     db.session.execute(
-        update(NucCoreVersion).where(NucCoreVersion.is_active.is_(True)).values(is_active=False)
+        update(NucCoreVersion)
+        .where(
+            NucCoreVersion.is_active.is_(True),
+            programme_filter,
+        )
+        .values(is_active=False)
     )
     db.session.flush()
     version.is_active = True

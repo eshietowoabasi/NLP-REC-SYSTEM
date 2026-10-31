@@ -839,3 +839,35 @@ export interface UserListParams {
   is_active?: 'true' | 'false'
   search?: string
 }
+
+
+export interface HarvestProfile {
+  search_terms: string[]
+  field_slugs: string[]
+}
+
+export interface HarvestRun {
+  id: number
+  programme_id: number
+  status:
+    | 'queued'
+    | 'running'
+    | 'completed'
+    | 'failed'
+  target_count: number
+  pages_per_field: number
+  examined_count: number
+  found_count: number
+  imported_count: number
+  skipped_count: number
+  error_message: string | null
+  created_at: string
+  started_at: string | null
+  completed_at: string | null
+}
+
+export interface HarvestState {
+  programme: ProgrammeRef
+  profile: HarvestProfile
+  latest_run: HarvestRun | null
+}
