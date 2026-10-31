@@ -41,6 +41,7 @@ import {
   UPLOAD_CATEGORIES,
 } from '@/features/documents/labels'
 import { UploadDialog } from '@/features/documents/UploadDialog'
+import { useProgrammeBenchmarks } from '@/features/programmes/api'
 import { ApiError } from '@/lib/api'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -54,6 +55,7 @@ const WEIGHT_TOLERANCE = 0.001
 function makeSchema(maxDocuments: number) {
   const weight = z.number({ error: 'Enter a number.' }).min(0, 'At least 0.').max(1, 'At most 1.')
   return z.object({
+    programme_id: z.number().int().min(0),
     session_name: z.string().trim().min(1, 'Enter a session name.').max(200),
     document_ids: z
       .array(z.number())
@@ -79,7 +81,7 @@ function makeSchema(maxDocuments: number) {
 type SessionForm = z.infer<ReturnType<typeof makeSchema>>
 
 const STEPS = [
-  { title: 'Name', fields: ['session_name'] },
+  { title: 'Programme & name', fields: ['programme_id', 'session_name'] },
   { title: 'Documents', fields: ['document_ids'] },
   { title: 'Settings', fields: ['weights', 'similarity_threshold', 'max_recommendations'] },
 ] as const
@@ -113,6 +115,10 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
   const [formError, setFormError] = useState<string | null>(null)
   const schema = useMemo(() => makeSchema(defaults.max_documents), [defaults.max_documents])
   const initial: SessionForm = {
+    programme_id:
+      defaults.default_programme_id ??
+      defaults.programmes?.[0]?.id ??
+      0,
     session_name: '',
     document_ids: [],
     weights: defaults.parameters.weights,
@@ -126,8 +132,29 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
     trigger,
     setValue,
     formState: { errors },
-  } = useForm<SessionForm>({ resolver: zodResolver(schema), defaultValues: initial })
-  const noNucCore = defaults.nuc_core_version === null
+  } = useForm<SessionForm>({
+    resolver: zodResolver(schema),
+    defaultValues: initial,
+  })
+
+  const selectedProgrammeId = useWatch({
+    control,
+    name: 'programme_id',
+  })
+
+  const selectedBenchmark =
+    useProgrammeBenchmarks(selectedProgrammeId)
+
+  const benchmarkLoading =
+    selectedProgrammeId > 0 &&
+    selectedBenchmark.isPending
+
+  const noBenchmark =
+    selectedProgrammeId > 0
+      ? selectedBenchmark.isError ||
+        (!selectedBenchmark.isPending &&
+          selectedBenchmark.data?.active == null)
+      : defaults.nuc_core_version === null
 
   const next = async () => {
     if (await trigger([...STEPS[step].fields])) setStep((s) => s + 1)
@@ -139,6 +166,9 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
       create.mutate(
         {
           session_name: values.session_name,
+          ...(values.programme_id > 0
+            ? { programme_id: values.programme_id }
+            : {}),
           document_ids: values.document_ids,
           parameters: {
             weights: values.weights,
@@ -170,7 +200,7 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
       </Link>
       <PageHeader
         title="New analysis session"
-        description="Choose the documents to analyse. The system finds the topics they talk about, compares them with the NUC core and ranks them as possible new courses."
+        description="Choose a programme and the evidence to analyse. SkillBridge discovers the topics they discuss, compares them with that programme's curriculum benchmark and ranks possible curriculum additions."
       />
 
       <ol className="flex flex-wrap items-center gap-3" aria-label="Steps">
@@ -205,13 +235,13 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
         ))}
       </ol>
 
-      {noNucCore && (
+      {noBenchmark && (
         <Alert variant="warning">
           <AlertTriangle aria-hidden="true" />
-          <AlertTitle>No active NUC core reference</AlertTitle>
+          <AlertTitle>No active curriculum benchmark</AlertTitle>
           <AlertDescription>
-            You can create the session now, but it cannot run until an administrator uploads the NUC
-            core reference.
+            You can create the analysis now, but it cannot run until an administrator uploads a
+            benchmark for the selected programme.
           </AlertDescription>
         </Alert>
       )}
@@ -231,7 +261,42 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
                   For example “2026 review — job market and policy”.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-5">
+                {(defaults.programmes?.length ?? 0) > 0 && (
+                  <Field className="max-w-lg">
+                    <FieldLabel htmlFor="programme_id">
+                      Programme
+                    </FieldLabel>
+
+                    <select
+                      id="programme_id"
+                      className="h-11 w-full rounded-xl border border-input bg-white px-3.5 text-sm font-medium text-ink outline-none focus:border-ring focus:ring-3 focus:ring-ring/25"
+                      {...register('programme_id', {
+                        valueAsNumber: true,
+                      })}
+                    >
+                      {defaults.programmes?.map(
+                        (programme) => (
+                          <option
+                            key={programme.id}
+                            value={programme.id}
+                          >
+                            {programme.name}
+                            {programme.discipline_code
+                              ? ` (${programme.discipline_code})`
+                              : ''}
+                          </option>
+                        ),
+                      )}
+                    </select>
+
+                    <FieldDescription>
+                      SkillBridge uses this programme's
+                      curriculum benchmark for comparison.
+                    </FieldDescription>
+                  </Field>
+                )}
+
                 <Field data-invalid={!!errors.session_name} className="max-w-lg">
                   <FieldLabel htmlFor="session_name">Session name</FieldLabel>
                   <Input
@@ -275,7 +340,7 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
                   <WeightsFields control={control} register={register} errors={errors} />
                   <Field data-invalid={!!errors.similarity_threshold}>
                     <FieldLabel htmlFor="similarity_threshold">
-                      “May already be in NUC core” above
+                      “May already be in benchmark” above
                     </FieldLabel>
                     <Input
                       id="similarity_threshold"
@@ -288,8 +353,8 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
                       {...register('similarity_threshold', { valueAsNumber: true })}
                     />
                     <FieldDescription>
-                      A topic more similar than this to a NUC core course is marked “May already be
-                      in NUC core”. 0.80 means 80% similar.
+                      A topic more similar than this to a benchmark course is marked “May already be
+                      in benchmark”. 0.80 means 80% similar.
                     </FieldDescription>
                     <FieldError errors={[errors.similarity_threshold]} />
                   </Field>
@@ -351,7 +416,7 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
                 </Button>
                 <Button
                   type="button"
-                  disabled={create.isPending || noNucCore}
+                  disabled={create.isPending || noBenchmark || benchmarkLoading}
                   onClick={() => void submit(true)()}
                 >
                   {create.isPending ? (
@@ -379,7 +444,24 @@ function AnalysisSummary({
   control: Control<SessionForm>
   defaults: SessionDefaults
 }) {
-  const [name, documentIds] = useWatch({ control, name: ['session_name', 'document_ids'] })
+  const [name, documentIds, programmeId] =
+    useWatch({
+      control,
+      name: [
+        'session_name',
+        'document_ids',
+        'programme_id',
+      ],
+    })
+
+  const benchmark =
+    useProgrammeBenchmarks(programmeId)
+
+  const programme =
+    defaults.programmes?.find(
+      (item) => item.id === programmeId,
+    )
+
   return (
     <aside
       aria-labelledby="analysis-summary"
@@ -394,6 +476,14 @@ function AnalysisSummary({
           <dd className="truncate font-bold text-ink">{name.trim() || '—'}</dd>
         </div>
         <div className="flex justify-between gap-3">
+          <dt className="text-body-soft">
+            Programme
+          </dt>
+          <dd className="truncate font-bold text-ink">
+            {programme?.name ?? '—'}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-3">
           <dt className="text-body-soft">Documents selected</dt>
           <dd className="font-bold text-ink tabular-nums">{documentIds.length}</dd>
         </div>
@@ -401,7 +491,11 @@ function AnalysisSummary({
       <div className="flex flex-col gap-1.5 rounded-xl bg-teal-tint px-3.5 py-3 text-teal-ink">
         <span className="text-[13px] font-extrabold">Compared against</span>
         <span className="text-[13px]">
-          {defaults.nuc_core_version?.version_label ?? 'No NUC core yet'}
+          {benchmark.data?.active?.version_label ??
+            (programmeId > 0
+              ? 'No benchmark yet'
+              : defaults.nuc_core_version?.version_label ??
+                'No benchmark yet')}
         </span>
       </div>
     </aside>

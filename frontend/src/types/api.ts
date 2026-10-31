@@ -129,6 +129,20 @@ export interface UserRef {
   full_name: string
 }
 
+export interface ProgrammeRef {
+  id: number
+  name: string
+  discipline_code: string | null
+}
+
+export interface Programme extends ProgrammeRef {
+  faculty: string | null
+  description: string | null
+  country: string
+  is_active: boolean
+  created_at: string
+}
+
 export interface DocumentSummary {
   id: number
   title: string
@@ -260,6 +274,7 @@ export interface SessionDocument {
 
 /** GET /api/sessions/{id} */
 export interface SessionDetail extends SessionSummary {
+  programme?: ProgrammeRef | null
   parameter_config: SessionParameterConfig
   stage_timings: Partial<Record<SessionStage, number>>
   error_message: string | null
@@ -272,6 +287,8 @@ export interface SessionDetail extends SessionSummary {
 export interface SessionDefaults {
   parameters: SessionParameterConfig
   max_documents: number
+  default_programme_id?: number | null
+  programmes?: ProgrammeRef[]
   nuc_core_version: { id: number; version_label: string } | null
 }
 
@@ -777,6 +794,14 @@ export interface AuditLogParams {
 }
 
 /* -------------------------------------------------------------- NUC core */
+
+export interface ProgrammeBenchmarkState {
+  programme: Programme
+  active: NucCoreVersion | null
+  latest: NucCoreVersion | null
+  versions: NucCoreVersion[]
+}
+
 
 export interface NucCoreVersion {
   id: number

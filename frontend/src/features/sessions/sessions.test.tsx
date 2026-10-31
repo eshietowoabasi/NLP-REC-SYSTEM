@@ -186,7 +186,7 @@ describe('NewSessionPage', () => {
     })
     const { user } = renderApp('/sessions/new')
 
-    expect(await screen.findByText('No active NUC core reference')).toBeInTheDocument()
+    expect(await screen.findByText('No active curriculum benchmark')).toBeInTheDocument()
     await toStep3(user)
     expect(screen.getByRole('button', { name: /Create & run/ })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Create' })).toBeEnabled()

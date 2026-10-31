@@ -162,6 +162,17 @@ export const routes: RouteObject[] = [
                 handle: title('Users', 'Administration'),
               },
               {
+                path: 'benchmarks',
+                ...page(
+                  () => import('@/features/admin/benchmarks/BenchmarksPage'),
+                  (m) => m.BenchmarksPage,
+                ),
+                handle: title(
+                  'Curriculum benchmarks',
+                  'Administration',
+                ),
+              },
+              {
                 path: 'nuc-core',
                 ...page(
                   () => import('@/features/admin/nuc-core/NucCorePage'),

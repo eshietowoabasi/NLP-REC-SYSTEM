@@ -53,7 +53,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Administration',
     roles: ['admin'],
     items: [
-      { label: 'NUC core curriculum', to: '/admin/nuc-core', icon: BookOpen, available: true },
+      { label: 'Curriculum benchmarks', to: '/admin/benchmarks', icon: BookOpen, available: true },
       { label: 'Users', to: '/admin/users', icon: Users, available: true },
       { label: 'Settings', to: '/admin/settings', icon: Settings, available: true },
       { label: 'Activity log', to: '/admin/audit-log', icon: SquareCheckBig, available: true },
