@@ -19,6 +19,7 @@ from app.models import (
     DocumentStatus,
     NLPResult,
     NucCoreVersion,
+    Programme,
     Recommendation,
     SourceCategory,
 )
@@ -38,10 +39,12 @@ SNAPSHOT_KEYS = (
 )
 PARAMETER_ALIASES = {"score_weights": "weights"}
 
-
 def default_parameters() -> dict[str, Any]:
-    """The current default settings, as stored in a session's ``parameter_config``."""
-    return {PARAMETER_ALIASES.get(key, key): get_setting(key) for key in SNAPSHOT_KEYS}
+    # Current default settings copied into each session.
+    return {
+        PARAMETER_ALIASES.get(key, key): get_setting(key)
+        for key in SNAPSHOT_KEYS
+    }
 
 
 def build_parameters(overrides: SessionParameters) -> dict[str, Any]:
@@ -54,9 +57,46 @@ def build_parameters(overrides: SessionParameters) -> dict[str, Any]:
         config["max_recommendations"] = overrides.max_recommendations
     return config
 
+def default_programme() -> Programme:
+    # Return the default programme, recreating it for legacy/test workflows if needed.
+    programme = db.session.scalar(
+        select(Programme).where(Programme.is_active.is_(True)).order_by(Programme.id).limit(1)
+    )
+    if programme is not None:
+        return programme
 
-def active_nuc_core() -> NucCoreVersion | None:
-    return db.session.scalar(select(NucCoreVersion).where(NucCoreVersion.is_active.is_(True)))
+    programme = Programme(
+        name='Computer Science',
+        discipline_code='CSC',
+        faculty='Faculty of Computing',
+        description='Default programme for legacy SkillBridge workflows.',
+        country='Nigeria',
+        is_active=True,
+    )
+    db.session.add(programme)
+    db.session.flush()
+    return programme
+
+
+def active_nuc_core(programme_id: int | None = None) -> NucCoreVersion | None:
+    # Return the active curriculum benchmark for a programme, with legacy fallback.
+    if programme_id is None:
+        legacy = db.session.scalar(
+            select(NucCoreVersion)
+            .where(NucCoreVersion.is_active.is_(True))
+            .order_by(NucCoreVersion.id.desc())
+            .limit(1)
+        )
+        if legacy is not None:
+            return legacy
+        programme_id = default_programme().id
+
+    return db.session.scalar(
+        select(NucCoreVersion).where(
+            NucCoreVersion.programme_id == programme_id,
+            NucCoreVersion.is_active.is_(True),
+        )
+    )
 
 
 def check_documents(document_ids: list[int]) -> list[Document]:

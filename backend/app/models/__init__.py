@@ -16,6 +16,7 @@ from app.models.enums import (
     SourceCategory,
     UserRole,
 )
+from app.models.programme import Programme
 from app.models.recommendation import CurriculumMap, Recommendation, RecommendationEvidence
 from app.models.report import Report
 from app.models.session import AnalysisSession, DocumentSession, NLPResult
@@ -36,6 +37,7 @@ __all__ = [
     "OverlapStatus",
     "Passage",
     "PlannerDecision",
+    "Programme",
     "Recommendation",
     "RecommendationEvidence",
     "Report",

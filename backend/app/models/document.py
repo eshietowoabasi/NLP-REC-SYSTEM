@@ -14,6 +14,7 @@ from app.models.enums import DocumentStatus, FileType, SourceCategory, enum_type
 from app.utils.time import utcnow
 
 if TYPE_CHECKING:
+    from app.models.programme import Programme
     from app.models.user import User
 
 
@@ -65,16 +66,19 @@ class NucCoreVersion(db.Model):
 
     __tablename__ = "nuc_core_versions"
     __table_args__ = (
-        # Partial unique index: only one row may have is_active = true.
+        # Each programme may have one active curriculum benchmark.
         sa.Index(
-            "uq_nuc_core_versions_single_active",
-            "is_active",
+            "uq_nuc_core_versions_programme_active",
+            "programme_id",
             unique=True,
             postgresql_where=sa.text("is_active"),
         ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    programme_id: Mapped[int | None] = mapped_column(
+        sa.ForeignKey("programmes.id", ondelete="RESTRICT"), index=True, nullable=True
+    )
     document_id: Mapped[int] = mapped_column(sa.ForeignKey("documents.id"), unique=True)
     version_label: Mapped[str] = mapped_column(sa.String(64))
     is_active: Mapped[bool] = mapped_column(default=False, server_default=sa.false())
@@ -83,6 +87,7 @@ class NucCoreVersion(db.Model):
         sa.DateTime(timezone=True), default=utcnow, server_default=sa.func.now()
     )
 
+    programme: Mapped[Programme | None] = relationship()
     document: Mapped[Document] = relationship()
     uploaded_by: Mapped[User] = relationship()
 
