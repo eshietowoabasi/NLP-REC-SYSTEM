@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import logging
+import time
 import re
 from datetime import date
 
@@ -47,6 +49,55 @@ def _published_date(
         return date.fromisoformat(value[:10])
     except ValueError:
         return None
+
+
+
+logger = logging.getLogger(__name__)
+
+
+def ingest_harvested_document_with_retry(
+    document_id: int,
+    attempts: int = 3,
+) -> None:
+    """Ingest a harvested advert, retrying transient NLP/worker failures."""
+    from app.tasks.ingestion import ingest_document
+
+    for attempt in range(1, attempts + 1):
+        ingest_document(document_id)
+
+        document = db.session.get(
+            Document,
+            document_id,
+        )
+
+        if document is None:
+            return
+
+        if document.processing_status == DocumentStatus.READY:
+            logger.info(
+                "Harvested document %s ingested successfully on attempt %s.",
+                document_id,
+                attempt,
+            )
+            return
+
+        if document.processing_status != DocumentStatus.FAILED:
+            return
+
+        if attempt < attempts:
+            logger.warning(
+                "Harvested document %s failed ingestion; retrying (%s/%s).",
+                document_id,
+                attempt + 1,
+                attempts,
+            )
+            time.sleep(3)
+
+    logger.error(
+        "Harvested document %s remained failed after %s attempts.",
+        document_id,
+        attempts,
+    )
 
 
 def harvest_programme_jobs(
@@ -192,8 +243,9 @@ def harvest_programme_jobs(
 
         for document_id in imported_ids:
             enqueue(
-                "app.tasks.ingestion.ingest_document",
+                "app.tasks.harvest.ingest_harvested_document_with_retry",
                 document_id,
+                timeout=900,
             )
 
     except Exception as exc:
