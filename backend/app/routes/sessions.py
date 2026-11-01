@@ -16,6 +16,7 @@ from app.models import (
     DocumentSession,
     NLPResult,
     NLPResultType,
+    Passage,
     Recommendation,
     Programme,
     Report,
@@ -130,6 +131,45 @@ def require_nuc_core(programme_id: int) -> None:
         )
 
 
+
+
+MIN_EVIDENCE_PASSAGES = 10
+
+
+def require_evidence(document_ids: list[int]) -> None:
+    """Reject an analysis before queueing when topic discovery cannot run."""
+    if not document_ids:
+        raise ApiError(
+            "INSUFFICIENT_EVIDENCE",
+            "Select evidence documents before running the analysis.",
+            422,
+        )
+
+    passage_count = int(
+        db.session.scalar(
+            select(func.count(Passage.id)).where(
+                Passage.document_id.in_(document_ids)
+            )
+        )
+        or 0
+    )
+
+    if passage_count < MIN_EVIDENCE_PASSAGES:
+        raise ApiError(
+            "INSUFFICIENT_EVIDENCE",
+            (
+                f"Not enough evidence to discover reliable themes yet: "
+                f"{passage_count} of at least {MIN_EVIDENCE_PASSAGES} passages are ready. "
+                "Add more processed documents or collect more labour-market evidence."
+            ),
+            422,
+            {
+                "passage_count": passage_count,
+                "minimum_passages": MIN_EVIDENCE_PASSAGES,
+            },
+        )
+
+
 def queue_run(session: AnalysisSession) -> None:
     """Mark the session as processing and queue the analysis job (the caller commits first)."""
     session.status = SessionStatus.PROCESSING
@@ -206,6 +246,7 @@ def create_session() -> tuple[Response, int]:
         raise ApiError("VALIDATION_ERROR", "Choose an active programme.", 422)
     if data.run:
         require_nuc_core(programme.id)
+        require_evidence(data.document_ids)
     session = AnalysisSession(
         programme_id=programme.id,
         created_by_id=current_user.id,
@@ -247,6 +288,7 @@ def run_session(session_id: int) -> tuple[Response, int]:
         hint = " Use retry for a failed session." if session.status == SessionStatus.FAILED else ""
         raise ApiError("CONFLICT", f"This session is already {session.status}.{hint}", 409)
     require_nuc_core(session.programme_id or default_programme().id)
+    require_evidence([link.document_id for link in session.document_links])
     queue_run(session)
     record_audit(AuditAction.SESSION_RUN, "analysis_session", session.id)
     db.session.commit()
@@ -263,6 +305,7 @@ def retry_session(session_id: int) -> tuple[Response, int]:
     if session.status != SessionStatus.FAILED:
         raise ApiError("CONFLICT", "Only failed sessions can be retried.", 409)
     require_nuc_core(session.programme_id or default_programme().id)
+    require_evidence([link.document_id for link in session.document_links])
     clear_results(session)
     queue_run(session)
     record_audit(AuditAction.SESSION_RUN, "analysis_session", session.id, {"retry": True})

@@ -635,7 +635,7 @@ function DocumentPicker({
         <CardTitle>Select documents</CardTitle>
         <CardDescription>
           Choose the documents to analyse, or upload new ones. Only documents that have finished
-          processing can be selected. The NUC core is always used as the comparison baseline.
+          processing can be selected. The selected programme's curriculum benchmark is used as the comparison baseline.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

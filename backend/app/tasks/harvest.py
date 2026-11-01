@@ -100,6 +100,36 @@ def ingest_harvested_document_with_retry(
     )
 
 
+
+
+def ingest_harvested_batch_with_retry(
+    document_ids: list[int],
+) -> None:
+    """Batch-ingest harvested adverts, then retry only any failures."""
+    from app.tasks.ingestion import ingest_documents_batch
+
+    ids = list(dict.fromkeys(int(document_id) for document_id in document_ids))
+    if not ids:
+        return
+
+    ingest_documents_batch(ids)
+
+    failed_ids = list(
+        db.session.scalars(
+            select(Document.id).where(
+                Document.id.in_(ids),
+                Document.processing_status == DocumentStatus.FAILED,
+            )
+        )
+    )
+
+    for document_id in failed_ids:
+        ingest_harvested_document_with_retry(
+            document_id,
+            attempts=2,
+        )
+
+
 def harvest_programme_jobs(
     run_id: int,
 ) -> None:
@@ -241,11 +271,11 @@ def harvest_programme_jobs(
 
         db.session.commit()
 
-        for document_id in imported_ids:
+        if imported_ids:
             enqueue(
-                "app.tasks.harvest.ingest_harvested_document_with_retry",
-                document_id,
-                timeout=900,
+                "app.tasks.harvest.ingest_harvested_batch_with_retry",
+                imported_ids,
+                timeout=1800,
             )
 
     except Exception as exc:

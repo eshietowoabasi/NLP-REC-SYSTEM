@@ -182,3 +182,155 @@ def ingest_document(document_id: int) -> None:
         _fail(document_id, UNEXPECTED_FAILURE)
     finally:
         db.session.remove()
+
+
+def ingest_documents_batch(document_ids: list[int]) -> None:
+    """Process several non-benchmark documents in one NLP/embedding batch.
+
+    spaCy, stop words and SBERT are loaded once. All prepared passages are
+    embedded together, which is substantially faster for harvested job adverts.
+    """
+    ids = list(dict.fromkeys(int(document_id) for document_id in document_ids))
+    if not ids:
+        return
+
+    documents = []
+    for document_id in ids:
+        document = db.session.get(Document, document_id)
+        if document is None or document.processing_status == DocumentStatus.ARCHIVED:
+            continue
+        # Benchmarks still use the specialised single-document path because
+        # they additionally extract and embed curriculum courses.
+        if document.source_category == SourceCategory.NUC_CORE:
+            ingest_document(document_id)
+            continue
+        document.processing_status = DocumentStatus.PARSING
+        document.error_message = None
+        documents.append(document)
+
+    db.session.commit()
+
+    if not documents:
+        db.session.remove()
+        return
+
+    started = time.perf_counter()
+
+    config = PassageConfig.from_settings(
+        get_setting("passage_sentences"),
+        get_setting("passage_words"),
+    )
+    nlp = get_nlp(get_setting("spacy_model"))
+    stop_words = load_stop_words()
+    encoder = get_encoder(get_setting("sbert_model"))
+
+    prepared = []
+
+    for document in documents:
+        try:
+            content = get_storage().read(document.stored_filename)
+            output = process_document(
+                document.file_type,
+                content,
+                nlp,
+                stop_words,
+                config,
+            )
+            prepared.append((document.id, output))
+        except ParseError as exc:
+            logger.info(
+                "Document %s could not be parsed in batch: %s",
+                document.id,
+                exc,
+            )
+            document.processing_status = DocumentStatus.FAILED
+            document.error_message = str(exc)
+        except Exception:
+            logger.exception(
+                "Unexpected error while preparing document %s in batch",
+                document.id,
+            )
+            document.processing_status = DocumentStatus.FAILED
+            document.error_message = UNEXPECTED_FAILURE
+
+    db.session.commit()
+
+    if not prepared:
+        db.session.remove()
+        return
+
+    texts = [
+        passage.text
+        for _document_id, output in prepared
+        for passage in output.passages
+    ]
+
+    try:
+        vectors = encoder.encode(texts)
+    except Exception:
+        logger.exception("Batch embedding failed for documents %s", ids)
+        for document_id, _output in prepared:
+            document = db.session.get(Document, document_id)
+            if document is not None:
+                document.processing_status = DocumentStatus.FAILED
+                document.error_message = UNEXPECTED_FAILURE
+        db.session.commit()
+        db.session.remove()
+        return
+
+    offset = 0
+
+    for document_id, output in prepared:
+        document = db.session.get(Document, document_id)
+        if document is None:
+            offset += len(output.passages)
+            continue
+
+        count = len(output.passages)
+        document_vectors = vectors[offset : offset + count]
+        offset += count
+
+        db.session.execute(
+            delete(Passage).where(Passage.document_id == document_id)
+        )
+
+        db.session.add_all(
+            Passage(
+                document_id=document_id,
+                position=passage.position,
+                page_number=passage.page_number,
+                text=passage.text,
+                normalised_text=passage.normalised_text,
+                embedding=vector.tolist(),
+                embedding_model=encoder.model_name,
+            )
+            for passage, vector in zip(
+                output.passages,
+                document_vectors,
+                strict=True,
+            )
+        )
+
+        document.page_count = output.page_count
+        document.word_count = output.word_count
+        document.parsed_at = utcnow()
+        document.processing_status = DocumentStatus.READY
+        document.error_message = None
+
+        logger.info(
+            "Prepared harvested document %s: %s passages, %s words",
+            document_id,
+            count,
+            output.word_count,
+        )
+
+    db.session.commit()
+
+    logger.info(
+        "Batch ingested %s documents / %s passages in %.1fs",
+        len(prepared),
+        len(texts),
+        time.perf_counter() - started,
+    )
+
+    db.session.remove()
