@@ -66,6 +66,13 @@ class Progress:
 
     def __init__(self, session: AnalysisSession) -> None:
         self.session = session
+        # Keep primitive values outside the ORM object. SQLAlchemy expires ORM
+        # attributes after commit; reading session.id immediately after a commit
+        # can otherwise issue a SELECT and leave an idle transaction open while
+        # the next CPU-heavy NLP stage runs.
+        self.session_id = session.id
+        self.current_stage = session.current_stage
+        self.current_progress = session.progress_percent
         self.timings: dict[str, float] = {}
         self._started: tuple[str, float] | None = None
 
@@ -74,11 +81,22 @@ class Progress:
         if self._started:
             previous, started = self._started
             self.timings.setdefault(previous, round(now - started, 3))
+
         self._started = (name, now)
+        self.current_stage = name
+        self.current_progress = STAGE_PROGRESS.get(
+            name,
+            self.current_progress,
+        )
+
         self.session.current_stage = name
-        self.session.progress_percent = STAGE_PROGRESS.get(name, self.session.progress_percent)
+        self.session.progress_percent = self.current_progress
+
+        # End the progress transaction before the NLP computation begins.
         db.session.commit()
-        logger.info("Session %s: %s", self.session.id, name)
+
+        # Important: do not read ORM attributes after the commit here.
+        logger.info("Session %s: %s", self.session_id, name)
 
 
 def load_parameters(config: dict[str, Any]) -> AnalysisParameters:
@@ -237,7 +255,7 @@ def validate(session: AnalysisSession) -> tuple[AnalysisParameters, int]:
     ]
     if not_ready:
         raise AnalysisError(f"These documents are not ready: {', '.join(not_ready)}.")
-    version = active_nuc_core()
+    version = active_nuc_core(session.programme_id)
     if version is None:
         raise AnalysisError(
             "There is no active NUC core reference. An administrator must upload one first."
@@ -318,6 +336,22 @@ def run_session(session_id: int) -> None:
         skill_nlp = build_skill_pipeline(model_name, specs)
         canonical = canonical_lookup(specs, get_nlp(model_name))
 
+        text_nlp = get_nlp(model_name)
+        naming = load_naming(
+            config.get("sbert_model")
+            or get_setting("sbert_model")
+        )
+        document_titles = {
+            link.document.id: link.document.title
+            for link in session.document_links
+        }
+
+        # Everything needed by the CPU-heavy pipeline is now in ordinary Python
+        # objects. End any transaction opened while loading DB-backed settings,
+        # passages, courses and document metadata. Neon can then safely keep the
+        # connection idle while BERTopic/SBERT/NER perform long computations.
+        db.session.commit()
+
         output = run_analysis(
             corpus,
             core,
@@ -326,11 +360,9 @@ def run_session(session_id: int) -> None:
             canonical,
             on_stage=progress.stage,
             courses=courses,
-            text_nlp=get_nlp(model_name),
-            naming=load_naming(config.get("sbert_model") or get_setting("sbert_model")),
-            document_titles={
-                link.document.id: link.document.title for link in session.document_links
-            },
+            text_nlp=text_nlp,
+            naming=naming,
+            document_titles=document_titles,
         )
         output.similarity["courses_compared"] = len(courses)
         output.similarity["courses_excluded"] = excluded_courses
@@ -351,11 +383,20 @@ def run_session(session_id: int) -> None:
             output.stage_timings,
         )
     except AnalysisError as exc:
-        logger.info("Session %s failed at %s: %s", session_id, session.current_stage, exc)
+        logger.info(
+            "Session %s failed at %s: %s",
+            session_id,
+            progress.current_stage,
+            exc,
+        )
         _fail(session_id, str(exc))
     except Exception:
-        stage = session.current_stage
-        logger.exception("Session %s failed unexpectedly at %s", session_id, stage)
+        stage = progress.current_stage
+        logger.exception(
+            "Session %s failed unexpectedly at %s",
+            session_id,
+            stage,
+        )
         _fail(session_id, unexpected_failure(stage))
     finally:
         db.session.remove()
