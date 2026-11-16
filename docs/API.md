@@ -273,7 +273,8 @@ not supported.").
   "word_count": 812,
   "uploaded_at": "2026-09-24T10:00:00+00:00",
   "parsed_at": "2026-09-24T10:00:04+00:00",
-  "uploaded_by": { "id": 2, "full_name": "Ada Lovelace" }
+  "uploaded_by": { "id": 2, "full_name": "Ada Lovelace" },
+  "programme": { "id": 1, "name": "Computer Science", "discipline_code": "CSC" }
 }
 ```
 
@@ -291,16 +292,21 @@ Access: any. Paginated, newest first. NUC core documents are excluded unless
 | `category` | One source category |
 | `status` | `uploaded`, `parsing`, `ready`, `failed` or `archived` |
 | `search` | Case-insensitive match on title or original filename |
+| `programme_id` | That programme's documents, plus general ones (no programme) |
+| `include_general` | `false` to leave general documents out of the `programme_id` filter |
 | `page`, `per_page` | Pagination |
 
 **200** `{ "items": [Document, ...], "pagination": {...}, "category_counts": { "job_market": 3, "institutional": 0, "policy": 1, "academic": 2 } }`
 
-`category_counts` counts non-archived library documents per category (ignoring the filters).
+`category_counts` counts non-archived library documents per category (ignoring the filters
+except `programme_id`).
 
 ### `POST /api/documents`
 
 Access: admin, planner. `multipart/form-data` with one or more `files` and exactly one
-`categories` value per file (same order). Each file is checked on its own:
+`categories` value per file (same order), and optionally one `programme_id` for all of them
+(without it they are general documents; an unknown or retired programme gives 422 on
+`programme_id`). Each file is checked on its own:
 
 - extension `.pdf`, `.docx` or `.txt`, and content that really is that type (magic bytes);
 - not empty and at most 25 MB;
@@ -323,9 +329,10 @@ job advert (MyJobMag, Sep 2026)".
 
 ### `PATCH /api/documents/{id}`
 
-Access: admin, planner. Any of `{ "title", "source", "source_url", "published_on" }` (`null`
-clears source, link or date; the title cannot be empty; the link must start with http:// or
-https://). Returns the Document object. Audited as `document.updated`. The collector's manifest
+Access: admin, planner. Any of `{ "title", "source", "source_url", "published_on",
+"programme_id" }` (`null` clears source, link or date, and makes the document general for
+`programme_id`; the title cannot be empty; the link must start with http:// or https://; a NUC
+core document's programme cannot be changed). Returns the Document object. Audited as `document.updated`. The collector's manifest
 can set these for many documents at once: `flask --app wsgi import-manifest <manifest.csv>`.
 
 ### `GET /api/documents/{id}/passages`
@@ -411,15 +418,30 @@ versions) and its own labour-market harvest profile. Sessions take an optional `
 Programme object: `{ "id", "name", "discipline_code", "faculty", "description", "country",
 "is_active", "created_at" }`.
 
+**Documents and programmes.** Every document has a `programme` (`{ "id", "name",
+"discipline_code" }`) or `null`, meaning a general document (e.g. national policy) that any
+programme may use. A session may only use its own programme's documents and general ones;
+others are refused with 422 on `document_ids` ("“…” belongs to Computer Science, not Nursing
+Science."). Migration `0010_document_programmes` gave existing documents the default programme.
+
 ### `GET /api/programmes`
 
-Access: any. Active programmes, ordered by name.
+Access: any. Active programmes, ordered by name. Admins may add `?include_inactive=true` to
+include retired ones.
 
 ### `POST /api/programmes`
 
 Access: admin. JSON `{ "name" (2–160), "discipline_code"?, "faculty"?, "description"?,
 "country"? (default "Nigeria") }`. **201** with the programme; **409** if the name (any case) or
 discipline code is taken.
+
+### `PATCH /api/programmes/{id}`
+
+Access: admin. Any subset of `{ "name", "discipline_code", "faculty", "description",
+"is_active" }`. `is_active: false` retires the programme: it is no longer offered for new
+sessions, uploads, benchmark uploads or collections (409 there), but nothing is deleted.
+**409** if the name or code is taken (with `details.fields`), or when retiring the last active
+programme. Changes are audited (`programme.updated`; creation: `programme.created`).
 
 ### `GET /api/programmes/{id}`
 

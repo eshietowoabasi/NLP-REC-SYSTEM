@@ -77,6 +77,19 @@ def default_programme() -> Programme:
     return programme
 
 
+def active_programme(programme_id: int, field: str = "programme_id") -> Programme:
+    """The active programme with this id, or a 422 ApiError on ``field``."""
+    programme = db.session.get(Programme, programme_id)
+    if programme is None or not programme.is_active:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "Some fields are invalid.",
+            422,
+            {"fields": {field: ["Choose an active programme."]}},
+        )
+    return programme
+
+
 def active_nuc_core(programme_id: int | None = None) -> NucCoreVersion | None:
     # Return the active curriculum benchmark for a programme, with legacy fallback.
     if programme_id is None:
@@ -98,8 +111,12 @@ def active_nuc_core(programme_id: int | None = None) -> NucCoreVersion | None:
     )
 
 
-def check_documents(document_ids: list[int]) -> list[Document]:
-    """The documents, in the given order, if all can be analysed; otherwise a 422 ApiError."""
+def check_documents(document_ids: list[int], programme: Programme) -> list[Document]:
+    """The documents, in the given order, if all can be analysed; otherwise a 422 ApiError.
+
+    A session may use the programme's own documents and general documents (no programme), never
+    another programme's: a Nursing Science analysis must not pick up computing job adverts.
+    """
     limit = int(get_setting("max_documents_per_session"))
     if len(document_ids) > limit:
         raise ApiError(
@@ -120,6 +137,9 @@ def check_documents(document_ids: list[int]) -> list[Document]:
             problems.append(f"“{document.title}” is a NUC core document and cannot be analysed.")
         elif document.processing_status != DocumentStatus.READY:
             problems.append(f"“{document.title}” is not ready ({document.processing_status}).")
+        elif document.programme_id is not None and document.programme_id != programme.id:
+            other = document.programme.name if document.programme else "another programme"
+            problems.append(f"“{document.title}” belongs to {other}, not {programme.name}.")
     if problems:
         raise ApiError(
             "VALIDATION_ERROR",

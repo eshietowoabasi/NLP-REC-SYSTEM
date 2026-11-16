@@ -63,11 +63,14 @@ export function usePassages(id: number, page: number, enabled: boolean) {
 export function uploadDocument(
   file: File,
   category: UploadCategory,
+  programmeId: number | null,
   onProgress?: (fraction: number) => void,
 ): Promise<UploadResult> {
   const form = new FormData()
   form.append('files', file)
   form.append('categories', category)
+  // Without a programme the document is general: every programme's analyses may use it.
+  if (programmeId) form.append('programme_id', String(programmeId))
   return apiUpload<UploadResult>('/documents', form, onProgress)
 }
 
@@ -93,7 +96,7 @@ export function useDeleteDocument() {
 /** Download URL of the original file (served through the authorised API endpoint). */
 export const documentFileUrl = (id: number) => `/api/documents/${id}/file`
 
-/** Change the details shown wherever the document is referenced (title, source, link, date). */
+/** Change a document's details (title, source, link, date, programme). */
 export function useEditDocument(id: number) {
   const queryClient = useQueryClient()
   return useMutation({

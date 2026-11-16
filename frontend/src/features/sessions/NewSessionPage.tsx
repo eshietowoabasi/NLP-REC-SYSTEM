@@ -298,6 +298,10 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
               name="document_ids"
               render={({ field, fieldState }) => (
                 <DocumentPicker
+                  programmeId={selectedProgrammeId}
+                  programmeName={
+                    defaults.programmes?.find((p) => p.id === selectedProgrammeId)?.name ?? null
+                  }
                   selected={field.value}
                   onChange={field.onChange}
                   maxDocuments={defaults.max_documents}
@@ -535,11 +539,16 @@ function WeightsFields({
 }
 
 function DocumentPicker({
+  programmeId,
+  programmeName,
   selected,
   onChange,
   maxDocuments,
   error,
 }: {
+  /** Only this programme's documents and general ones can be chosen. */
+  programmeId: number
+  programmeName: string | null
   selected: number[]
   onChange: (ids: number[]) => void
   maxDocuments: number
@@ -548,11 +557,14 @@ function DocumentPicker({
   const { canEdit } = useAuth()
   const [uploadOpen, setUploadOpen] = useState(false)
   // Newest library documents: shows uploads that are still being processed.
-  const library = useDocuments({ per_page: 100 })
+  const library = useDocuments({
+    per_page: 100,
+    ...(programmeId > 0 ? { programme_id: programmeId } : {}),
+  })
   const processing = (library.data?.items ?? []).filter((d) =>
     IN_PROGRESS.includes(d.processing_status),
   )
-  const documents = useReadyDocuments(processing.length > 0 ? 3000 : false)
+  const documents = useReadyDocuments(programmeId, processing.length > 0 ? 3000 : false)
   // Polling stops when the last upload is ready, possibly just before the ready list would
   // have picked it up, so fetch the list once more at that moment.
   const wasProcessing = useRef(false)
@@ -589,7 +601,8 @@ function DocumentPicker({
   const toggle = (id: number, on: boolean) =>
     onChange(on ? [...selected, id] : selected.filter((existing) => existing !== id))
 
-  // Drop selections that are no longer ready (e.g. archived meanwhile).
+  // Drop selections that can no longer be used: archived meanwhile, or of another programme
+  // after the programme was changed in step 1.
   useEffect(() => {
     if (!documents.data) return
     const ready = new Set(documents.data.map((d) => d.id))
@@ -601,9 +614,10 @@ function DocumentPicker({
       <CardHeader>
         <CardTitle>Select documents</CardTitle>
         <CardDescription>
-          Choose the documents to analyse, or upload new ones. Only documents that have finished
-          processing can be selected. The selected programme's curriculum benchmark is used as the
-          comparison baseline.
+          Choose the documents to analyse, or upload new ones. You can use{' '}
+          {programmeName ? `${programmeName} documents` : "the programme's documents"} and general
+          documents (marked “All programmes”) that have finished processing. The programme's
+          curriculum benchmark is used as the comparison baseline.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -693,7 +707,7 @@ function DocumentPicker({
           <p className="text-sm text-destructive">{documents.error.message}</p>
         ) : documents.data.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-input-line p-6 text-center text-sm text-body-soft">
-            No ready documents yet.{' '}
+            No ready documents for {programmeName ?? 'this programme'} yet.{' '}
             {canEdit ? (
               <>
                 <button type="button" className="font-bold underline" onClick={openUpload}>
@@ -736,7 +750,11 @@ function DocumentPicker({
                       {document.title}
                     </span>
                     <span className="block text-xs text-muted-ink">
-                      {[documentMeta(document), `${formatNumber(document.word_count)} words`]
+                      {[
+                        documentMeta(document),
+                        `${formatNumber(document.word_count)} words`,
+                        document.programme ? null : 'All programmes',
+                      ]
                         .filter(Boolean)
                         .join(' · ')}
                     </span>
@@ -748,7 +766,11 @@ function DocumentPicker({
         )}
         {error && <p className="text-sm text-destructive">{error}</p>}
       </CardContent>
-      <UploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />
+      <UploadDialog
+        open={uploadOpen}
+        onOpenChange={setUploadOpen}
+        defaultProgrammeId={programmeId > 0 ? programmeId : null}
+      />
     </Card>
   )
 }

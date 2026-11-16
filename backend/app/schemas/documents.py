@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, StringConstraints, computed_field, field_
 
 from app.models.enums import DocumentStatus, FileType, SessionStatus, SourceCategory
 from app.schemas.common import PaginationQuery, RequestModel, ResponseModel
+from app.schemas.programmes import ProgrammeRef
 from app.utils.labels import document_label
 
 # Categories a planner can choose when uploading; ``nuc_core`` has its own admin screen.
@@ -42,6 +43,8 @@ class DocumentOut(ResponseModel):
     uploaded_at: datetime
     parsed_at: datetime | None
     uploaded_by: UserRef
+    # None: a general document that any programme's analyses may use.
+    programme: ProgrammeRef | None
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -62,6 +65,8 @@ class DocumentEdit(RequestModel):
         None
     )
     published_on: date | None = None
+    # null makes the document general (usable by every programme).
+    programme_id: int | None = Field(default=None, ge=1)
 
     @field_validator("source_url")
     @classmethod
@@ -98,6 +103,9 @@ class DocumentListQuery(PaginationQuery):
     # Archived documents are hidden unless status=archived is requested.
     status: DocumentStatus | None = None
     search: str | None = Field(default=None, max_length=100)
+    # Documents of this programme; general documents too unless include_general is false.
+    programme_id: int | None = Field(default=None, ge=1)
+    include_general: bool = True
 
 
 class PassageListQuery(PaginationQuery):

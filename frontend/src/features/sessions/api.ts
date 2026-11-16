@@ -51,13 +51,14 @@ export function useSessionDefaults() {
 }
 
 /**
- * Every ready library document (fetched page by page), for choosing a session's inputs.
- * ``refetchInterval`` polls while newly uploaded documents are still being processed.
+ * Every ready library document a session for this programme may use: the programme's own and
+ * general ones (fetched page by page). ``refetchInterval`` polls while newly uploaded documents
+ * are still being processed.
  */
-export function useReadyDocuments(refetchInterval: number | false = false) {
+export function useReadyDocuments(programmeId: number, refetchInterval: number | false = false) {
   return useQuery({
     refetchInterval,
-    queryKey: ['documents', 'ready', 'all'],
+    queryKey: ['documents', 'ready', 'all', programmeId],
     queryFn: async () => {
       const documents: DocumentSummary[] = []
       for (let page = 1; ; page += 1) {
@@ -65,6 +66,7 @@ export function useReadyDocuments(refetchInterval: number | false = false) {
           status: 'ready',
           per_page: 100,
           page,
+          ...(programmeId > 0 ? { programme_id: programmeId } : {}),
         })
         documents.push(...data.items)
         if (page >= data.pagination.pages) return documents

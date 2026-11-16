@@ -20,6 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useProgrammes } from '@/features/programmes/api'
+import { ProgrammeSelect } from '@/features/programmes/ProgrammeSelect'
 import { ApiError } from '@/lib/api'
 import { formatBytes } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -56,9 +58,15 @@ function rejectionReason(error: unknown): string {
 interface UploadDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Programme the files are for until the user picks another; null = general documents. */
+  defaultProgrammeId?: number | null
 }
 
-export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
+export function UploadDialog({ open, onOpenChange, defaultProgrammeId = null }: UploadDialogProps) {
+  const programmes = useProgrammes()
+  // undefined until the user chooses, so the dialog follows the page's current programme.
+  const [chosenProgramme, setChosenProgramme] = useState<number | null | undefined>(undefined)
+  const programmeId = chosenProgramme === undefined ? defaultProgrammeId : chosenProgramme
   const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement>(null)
   const inputId = useId()
@@ -101,7 +109,7 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
       if (!row.category) continue
       update(row.key, { status: 'uploading', progress: 0 })
       try {
-        const result = await uploadDocument(row.file, row.category, (progress) =>
+        const result = await uploadDocument(row.file, row.category, programmeId, (progress) =>
           update(row.key, { progress }),
         )
         const rejected = result.rejected[0]
@@ -121,7 +129,10 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
 
   const close = (next: boolean) => {
     if (uploading) return
-    if (!next) setRows([])
+    if (!next) {
+      setRows([])
+      setChosenProgramme(undefined)
+    }
     onOpenChange(next)
   }
 
@@ -135,6 +146,22 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
             reference is uploaded by an administrator on its own screen.
           </DialogDescription>
         </DialogHeader>
+
+        <div className="grid gap-1.5">
+          <Label htmlFor="upload-programme">Programme</Label>
+          <ProgrammeSelect
+            id="upload-programme"
+            programmes={programmes.data ?? []}
+            value={programmeId}
+            onChange={setChosenProgramme}
+            noneLabel="All programmes (general document)"
+            disabled={uploading}
+          />
+          <p className="text-xs text-muted-foreground">
+            Analyses for a programme use its own documents and general ones, such as national
+            policy.
+          </p>
+        </div>
 
         <div
           onDragOver={(event) => {

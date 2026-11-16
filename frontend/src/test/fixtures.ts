@@ -1,5 +1,12 @@
 /** Synthetic test data. Not real people or accounts. */
-import type { DocumentDetail, DocumentSummary, HealthStatus, Paginated, User } from '@/types/api'
+import type {
+  DocumentDetail,
+  DocumentSummary,
+  HealthStatus,
+  Paginated,
+  ProgrammeRef,
+  User,
+} from '@/types/api'
 
 export function makeUser(overrides: Partial<User> = {}): User {
   return {
@@ -31,6 +38,13 @@ export const viewerUser = makeUser({
   role: 'viewer',
 })
 
+/** The default programme in synthetic fixtures. */
+export const syntheticComputing: ProgrammeRef = {
+  id: 1,
+  name: 'Synthetic Computer Science',
+  discipline_code: 'CSC',
+}
+
 export function makeDocument(overrides: Partial<DocumentSummary> = {}): DocumentSummary {
   return {
     id: 10,
@@ -50,6 +64,7 @@ export function makeDocument(overrides: Partial<DocumentSummary> = {}): Document
     uploaded_at: '2026-09-20T10:00:00Z',
     parsed_at: '2026-09-20T10:00:05Z',
     uploaded_by: { id: 2, full_name: 'Test Planner' },
+    programme: syntheticComputing,
     ...overrides,
   }
 }

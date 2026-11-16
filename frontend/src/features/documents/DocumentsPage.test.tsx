@@ -118,4 +118,30 @@ describe('DocumentsPage', () => {
 
     expect(await screen.findByText('Could not load documents')).toBeInTheDocument()
   })
+
+  it("shows each document's programme and filters by programme", async () => {
+    const nursing = { id: 2, name: 'Synthetic Nursing Science', discipline_code: 'NSC' }
+    const server = libraryApi(plannerUser, {
+      'GET /programmes': ok([nursing]),
+      'GET /documents': (request: MockRequest) => {
+        const items = request.params.programme_id
+          ? [makeDocument({ id: 9, title: 'Nurse advert', programme: nursing })]
+          : [makeDocument({ id: 8, title: 'National policy', programme: null })]
+        return ok({ ...page(items), category_counts: counts })
+      },
+    })
+    const { user } = renderApp('/documents')
+
+    const table = await screen.findByRole('table', { name: 'Documents' })
+    expect(await within(table).findByText('National policy')).toBeInTheDocument()
+    expect(within(table).getByText('All programmes')).toBeInTheDocument()
+
+    await user.click(screen.getByLabelText('Programme'))
+    await user.click(await screen.findByRole('option', { name: 'Synthetic Nursing Science (NSC)' }))
+
+    expect(await within(table).findByText('Nurse advert')).toBeInTheDocument()
+    expect(within(table).getByText('Synthetic Nursing Science')).toBeInTheDocument()
+    const lastList = server.calls('GET', '/documents').at(-1)
+    expect(lastList?.params.programme_id).toBe(2)
+  })
 })

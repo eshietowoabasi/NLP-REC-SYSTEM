@@ -138,7 +138,9 @@ def upload_version() -> tuple[Response, int]:
             {"fields": {"file": ["Choose the NUC core document to upload."]}},
         )
     try:
-        document = store_upload(upload, SourceCategory.NUC_CORE, current_user)
+        document = store_upload(
+            upload, SourceCategory.NUC_CORE, current_user, default_programme().id
+        )
     except UploadRejectedError as exc:
         raise ApiError("VALIDATION_ERROR", str(exc), 422, {"fields": {"file": [str(exc)]}}) from exc
     try:

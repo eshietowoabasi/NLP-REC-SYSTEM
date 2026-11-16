@@ -148,6 +148,9 @@ def start_harvest(
 ) -> tuple[Response, int]:
     programme = get_programme(programme_id)
 
+    if not programme.is_active:
+        raise ApiError("CONFLICT", "This programme has been retired.", 409)
+
     if not programme.job_search_terms:
         raise ApiError(
             "VALIDATION_ERROR",

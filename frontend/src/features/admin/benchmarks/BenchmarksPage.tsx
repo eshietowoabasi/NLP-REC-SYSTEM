@@ -25,11 +25,15 @@ import {
 } from '@/features/programmes/api'
 import { formatDateTime } from '@/lib/format'
 
+import { ProgrammeDetailsCard } from './ProgrammeDetailsCard'
+
 export function BenchmarksPage() {
-  const programmes = useProgrammes()
+  // Admins manage retired programmes here too (to restore them).
+  const programmes = useProgrammes({ includeInactive: true })
   const [chosenProgrammeId, setProgrammeId] = useState(0)
   // Until the admin picks one, show the first programme.
   const programmeId = chosenProgrammeId || programmes.data?.[0]?.id || 0
+  const selected = programmes.data?.find((programme) => programme.id === programmeId)
 
   if (programmes.isPending) {
     return <Skeleton className="h-72 w-full" />
@@ -78,6 +82,7 @@ export function BenchmarksPage() {
                   <option key={programme.id} value={programme.id}>
                     {programme.name}
                     {programme.discipline_code ? ` (${programme.discipline_code})` : ''}
+                    {programme.is_active ? '' : ' (retired)'}
                   </option>
                 ))}
               </select>
@@ -87,6 +92,8 @@ export function BenchmarksPage() {
 
         <CreateProgrammeCard />
       </div>
+
+      {selected && <ProgrammeDetailsCard programme={selected} />}
 
       {programmeId > 0 && <ProgrammeBenchmark programmeId={programmeId} />}
     </div>
