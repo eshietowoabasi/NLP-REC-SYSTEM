@@ -53,6 +53,10 @@ class Document(db.Model):
     source: Mapped[str | None] = mapped_column(sa.String(128))
     source_url: Mapped[str | None] = mapped_column(sa.String(1024))
     published_on: Mapped[date | None] = mapped_column(sa.Date)
+    # The labour-market collection that imported this advert (None for uploads).
+    harvest_run_id: Mapped[int | None] = mapped_column(
+        sa.ForeignKey("job_harvest_runs.id", ondelete="SET NULL"), index=True
+    )
     page_count: Mapped[int | None]
     word_count: Mapped[int | None]
     uploaded_at: Mapped[datetime] = mapped_column(

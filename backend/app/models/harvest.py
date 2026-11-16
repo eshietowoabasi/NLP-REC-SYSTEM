@@ -66,6 +66,8 @@ class JobHarvestRun(db.Model):
     )
 
     error_message: Mapped[str | None] = mapped_column(sa.Text)
+    # The RQ job doing the collection, so a run whose job died can be detected.
+    rq_job_id: Mapped[str | None] = mapped_column(sa.String(64))
 
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True),

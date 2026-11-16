@@ -6,11 +6,13 @@ from flask import Blueprint, Response
 from flask_login import current_user
 from sqlalchemy import select
 
+from app.audit import AuditAction, record_audit
 from app.auth.decorators import (
     login_required,
     role_required,
 )
 from app.extensions import db
+from app.harvesting import HARVEST_JOB_TIMEOUT, expire_stopped_runs, run_progress
 from app.models import (
     JobHarvestRun,
     Programme,
@@ -56,16 +58,22 @@ def run_json(
     if run is None:
         return None
 
+    progress = run_progress(run)
+
     return {
         "id": run.id,
         "programme_id": run.programme_id,
         "status": run.status,
+        "phase": progress.phase,
         "target_count": run.target_count,
         "pages_per_field": run.pages_per_field,
         "examined_count": run.examined_count,
         "found_count": run.found_count,
         "imported_count": run.imported_count,
         "skipped_count": run.skipped_count,
+        "documents_ready": progress.documents_ready,
+        "documents_processing": progress.documents_processing,
+        "documents_failed": progress.documents_failed,
         "error_message": run.error_message,
         "created_at": run.created_at.isoformat(),
         "started_at": (run.started_at.isoformat() if run.started_at else None),
@@ -79,6 +87,7 @@ def harvest_state(
     programme_id: int,
 ) -> tuple[Response, int]:
     programme = get_programme(programme_id)
+    expire_stopped_runs(programme.id)
 
     latest = db.session.scalar(
         select(JobHarvestRun)
@@ -116,6 +125,12 @@ def update_harvest_profile(
 
     programme.job_field_slugs = data.field_slugs
 
+    record_audit(
+        AuditAction.HARVEST_PROFILE_UPDATED,
+        "programme",
+        programme.id,
+        {"search_terms": data.search_terms, "field_slugs": data.field_slugs},
+    )
     db.session.commit()
 
     return success(
@@ -147,6 +162,8 @@ def start_harvest(
             422,
         )
 
+    expire_stopped_runs(programme.id)
+
     latest_running = db.session.scalar(
         select(JobHarvestRun.id)
         .where(
@@ -174,14 +191,29 @@ def start_harvest(
     )
 
     db.session.add(run)
+    db.session.flush()
+    record_audit(
+        AuditAction.HARVEST_STARTED,
+        "job_harvest_run",
+        run.id,
+        {
+            "programme_id": programme.id,
+            "target_count": run.target_count,
+            "pages_per_field": run.pages_per_field,
+        },
+    )
     db.session.commit()
-    db.session.refresh(run)
 
-    enqueue(
+    job_id = enqueue(
         "app.tasks.harvest.harvest_programme_jobs",
         run.id,
-        timeout=900,
+        timeout=HARVEST_JOB_TIMEOUT,
     )
+    run = db.session.get(JobHarvestRun, run.id)
+    if job_id is not None:
+        run.rq_job_id = job_id
+        db.session.commit()
+    db.session.refresh(run)
 
     return success(
         run_json(run),
