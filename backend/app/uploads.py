@@ -42,7 +42,12 @@ def find_duplicate(content_hash: str) -> Document | None:
     )
 
 
-def store_upload(upload: UploadedFile, category: SourceCategory, uploader: User) -> Document:
+def store_upload(
+    upload: UploadedFile,
+    category: SourceCategory,
+    uploader: User,
+    programme_id: int | None = None,
+) -> Document:
     """Validate and save one uploaded file and add its Document row (the caller commits).
 
     Raises UploadRejectedError with a message for the uploader. The file is written to storage
@@ -70,6 +75,7 @@ def store_upload(upload: UploadedFile, category: SourceCategory, uploader: User)
         content_hash=content_hash,
         source_category=category,
         processing_status=DocumentStatus.UPLOADED,
+        programme_id=programme_id,
     )
     db.session.add(document)
     db.session.flush()

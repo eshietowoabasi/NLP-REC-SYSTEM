@@ -33,6 +33,7 @@ from app.schemas.documents import (
 )
 from app.services.ingestion.validation import UploadRejectedError
 from app.services.storage import get_storage
+from app.sessions import active_programme
 from app.tasks.queue import enqueue
 from app.uploads import discard, store_upload
 from app.utils.errors import ApiError
@@ -77,6 +78,9 @@ def sessions_using(document_id: int) -> list[AnalysisSession]:
 def list_documents() -> tuple[Response, int]:
     """List documents with filters, plus per-category counts of active documents.
 
+    ``programme_id`` keeps that programme's documents and (unless ``include_general=false``)
+    general ones; the category counts follow the same programme filter.
+
     NUC core documents are excluded unless ``category=nuc_core`` is requested; archived
     documents unless ``status=archived`` is requested.
     """
@@ -90,6 +94,15 @@ def list_documents() -> tuple[Response, int]:
         query = query.where(Document.processing_status == params.status)
     else:
         query = query.where(Document.processing_status != DocumentStatus.ARCHIVED)
+    programme_filter = None
+    if params.programme_id is not None:
+        in_programme = Document.programme_id == params.programme_id
+        programme_filter = (
+            or_(in_programme, Document.programme_id.is_(None))
+            if params.include_general
+            else in_programme
+        )
+        query = query.where(programme_filter)
     if params.search:
         pattern = f"%{params.search}%"
         query = query.where(
@@ -103,6 +116,7 @@ def list_documents() -> tuple[Response, int]:
         .where(
             Document.processing_status != DocumentStatus.ARCHIVED,
             Document.source_category != SourceCategory.NUC_CORE,
+            *([programme_filter] if programme_filter is not None else []),
         )
         .group_by(Document.source_category)
     )
@@ -123,7 +137,9 @@ def list_documents() -> tuple[Response, int]:
 def upload_documents() -> tuple[Response, int]:
     """Upload one or more files (multipart ``files``) with one ``categories`` value each.
 
-    Each file is accepted or rejected on its own. Accepted files are queued for ingestion.
+    An optional ``programme_id`` assigns every file to that programme; without it the files are
+    general documents that any programme may analyse. Each file is accepted or rejected on its
+    own. Accepted files are queued for ingestion.
     Returns 201 when at least one file was accepted, otherwise 422.
     """
     files = request.files.getlist("files")
@@ -132,6 +148,13 @@ def upload_documents() -> tuple[Response, int]:
         raise ApiError("VALIDATION_ERROR", "Choose at least one file to upload.", 422)
     if len(categories) != len(files):
         raise ApiError("VALIDATION_ERROR", "Provide one category for each uploaded file.", 422)
+    raw_programme = (request.form.get("programme_id") or "").strip()
+    # Not a number: id 0 never exists, so the standard "choose an active programme" 422 follows.
+    programme_id = (
+        active_programme(int(raw_programme) if raw_programme.isdigit() else 0).id
+        if raw_programme
+        else None
+    )
 
     allowed = {category.value for category in UPLOAD_CATEGORIES}
     accepted: list[Document] = []
@@ -143,7 +166,9 @@ def upload_documents() -> tuple[Response, int]:
                 rejected.append({"filename": name, "reason": "Choose a valid category."})
                 continue
             try:
-                document = store_upload(upload, SourceCategory(category), current_user)
+                document = store_upload(
+                    upload, SourceCategory(category), current_user, programme_id
+                )
             except UploadRejectedError as exc:
                 rejected.append({"filename": name, "reason": str(exc)})
                 continue
@@ -156,6 +181,7 @@ def upload_documents() -> tuple[Response, int]:
                     "filename": document.original_filename,
                     "category": category,
                     "size": document.file_size,
+                    "programme_id": programme_id,
                 },
             )
         if accepted:
@@ -206,9 +232,11 @@ def get_document(document_id: int) -> tuple[Response, int]:
 @bp.patch("/<int:document_id>")
 @role_required(*EDITOR_ROLES)
 def edit_document(document_id: int) -> tuple[Response, int]:
-    """Change the details used wherever the document is referenced: title, source, link, date.
+    """Change a document's details: title, source, link, date and programme.
 
-    Only the fields sent are changed; ``null`` clears source, link or date.
+    Only the fields sent are changed; ``null`` clears source, link or date, and makes the
+    document general (any programme) for ``programme_id``. Sessions already created keep their
+    documents.
     """
     document = get_document_or_404(document_id)
     data = parse_body(DocumentEdit)
@@ -224,6 +252,16 @@ def edit_document(document_id: int) -> tuple[Response, int]:
             )
         if field == "source":
             value = value or None
+        if field == "programme_id":
+            if document.source_category == SourceCategory.NUC_CORE:
+                raise ApiError(
+                    "VALIDATION_ERROR",
+                    "A NUC core document always belongs to its benchmark's programme.",
+                    422,
+                    {"fields": {"programme_id": ["This cannot be changed."]}},
+                )
+            if value is not None:
+                active_programme(value)
         if getattr(document, field) != value:
             changes[field] = {"from": getattr(document, field), "to": value}
             setattr(document, field, value)

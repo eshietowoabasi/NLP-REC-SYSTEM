@@ -34,6 +34,7 @@ from app.schemas.sessions import (
 from app.services.storage import get_storage
 from app.sessions import (
     active_nuc_core,
+    active_programme,
     build_parameters,
     check_documents,
     clear_results,
@@ -232,14 +233,12 @@ def session_defaults() -> tuple[Response, int]:
 def create_session() -> tuple[Response, int]:
     """Create a session; with ``"run": true`` it is queued for analysis straight away."""
     data = parse_body(SessionCreate)
-    documents = check_documents(data.document_ids)
     programme = (
-        db.session.get(Programme, data.programme_id)
+        active_programme(data.programme_id)
         if data.programme_id is not None
         else default_programme()
     )
-    if programme is None or not programme.is_active:
-        raise ApiError("VALIDATION_ERROR", "Choose an active programme.", 422)
+    documents = check_documents(data.document_ids, programme)
     if data.run:
         require_nuc_core(programme.id)
         require_evidence(data.document_ids)
