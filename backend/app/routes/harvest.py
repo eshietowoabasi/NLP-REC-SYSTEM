@@ -6,6 +6,7 @@ from flask import Blueprint, Response
 from flask_login import current_user
 from sqlalchemy import select
 
+from app.access import require_programme
 from app.audit import AuditAction, record_audit
 from app.auth.decorators import (
     EDITOR_ROLES,
@@ -49,6 +50,8 @@ def get_programme(
             "Programme not found.",
             404,
         )
+    # Planners and viewers only reach their own programmes.
+    require_programme(programme.id)
 
     return programme
 

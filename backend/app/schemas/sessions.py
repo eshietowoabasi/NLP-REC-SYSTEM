@@ -56,6 +56,7 @@ class SessionCreate(RequestModel):
 class SessionListQuery(PaginationQuery):
     status: SessionStatus | None = None
     search: str | None = Field(default=None, max_length=100)
+    programme_id: int | None = Field(default=None, ge=1)
 
 
 class SessionDocumentOut(ResponseModel):

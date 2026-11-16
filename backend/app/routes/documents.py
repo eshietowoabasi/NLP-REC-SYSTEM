@@ -8,6 +8,7 @@ from flask import Blueprint, Response, request, send_file
 from flask_login import current_user
 from sqlalchemy import func, or_, select
 
+from app.access import document_condition, get_visible_document, session_condition
 from app.audit import AuditAction, record_audit
 from app.auth.decorators import EDITOR_ROLES, login_required, role_required
 from app.extensions import db
@@ -56,27 +57,28 @@ def document_json(document: Document) -> dict:
 
 
 def get_document_or_404(document_id: int) -> Document:
-    document = db.session.get(Document, document_id)
-    if document is None:
-        raise ApiError("NOT_FOUND", "Document not found.", 404)
-    return document
+    """The document, or 404 if it does not exist or belongs to a programme the user cannot see."""
+    return get_visible_document(document_id)
 
 
-def sessions_using(document_id: int) -> list[AnalysisSession]:
-    return list(
-        db.session.scalars(
-            select(AnalysisSession)
-            .join(DocumentSession, DocumentSession.session_id == AnalysisSession.id)
-            .where(DocumentSession.document_id == document_id)
-            .order_by(AnalysisSession.created_at.desc())
-        )
+def sessions_using(document_id: int, visible_only: bool = False) -> list[AnalysisSession]:
+    """Sessions that analysed the document; ``visible_only`` keeps the user's programmes'."""
+    query = (
+        select(AnalysisSession)
+        .join(DocumentSession, DocumentSession.session_id == AnalysisSession.id)
+        .where(DocumentSession.document_id == document_id)
+        .order_by(AnalysisSession.created_at.desc())
     )
+    if visible_only:
+        query = query.where(session_condition())
+    return list(db.session.scalars(query))
 
 
 @bp.get("")
 @login_required
 def list_documents() -> tuple[Response, int]:
-    """List documents with filters, plus per-category counts of active documents.
+    """List the documents the user may see (their programmes' and general ones) with filters,
+    plus per-category counts of active documents.
 
     ``programme_id`` keeps that programme's documents and (unless ``include_general=false``)
     general ones; the category counts follow the same programme filter.
@@ -85,7 +87,11 @@ def list_documents() -> tuple[Response, int]:
     documents unless ``status=archived`` is requested.
     """
     params = parse_query(DocumentListQuery)
-    query = select(Document).order_by(Document.uploaded_at.desc(), Document.id.desc())
+    query = (
+        select(Document)
+        .where(document_condition())
+        .order_by(Document.uploaded_at.desc(), Document.id.desc())
+    )
     if params.category is not None:
         query = query.where(Document.source_category == params.category)
     else:
@@ -116,6 +122,7 @@ def list_documents() -> tuple[Response, int]:
         .where(
             Document.processing_status != DocumentStatus.ARCHIVED,
             Document.source_category != SourceCategory.NUC_CORE,
+            document_condition(),
             *([programme_filter] if programme_filter is not None else []),
         )
         .group_by(Document.source_category)
@@ -222,7 +229,7 @@ def get_document(document_id: int) -> tuple[Response, int]:
             **DocumentOut.model_validate(document).model_dump(),
             "passage_count": passage_count or 0,
             "preview": [PassageOut.model_validate(p) for p in preview],
-            "sessions": [SessionRef.model_validate(s) for s in sessions_using(document.id)],
+            "sessions": [SessionRef.model_validate(s) for s in sessions_using(document.id, True)],
             "is_nuc_core": document.source_category == SourceCategory.NUC_CORE,
         }
     )
@@ -346,13 +353,19 @@ def delete_document(document_id: int) -> tuple[Response, int]:
     document = get_document_or_404(document_id)
     _reject_nuc_core(document, "deleted")
     used_by = sessions_using(document.id)
+    visible = sessions_using(document.id, True)
     if used_by:
         raise ApiError(
             "CONFLICT",
             "This document is used by an analysis session and cannot be deleted. "
             "Archive it instead.",
             409,
-            {"sessions": [{"id": s.id, "session_name": s.session_name} for s in used_by]},
+            # Other programmes' sessions block deletion too but are not named.
+            {
+                "sessions": [
+                    {"id": s.id, "session_name": s.session_name} for s in used_by if s in visible
+                ]
+            },
         )
     if db.session.scalar(
         select(NucCoreVersion.id).where(NucCoreVersion.document_id == document.id)

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from flask import Blueprint, Response
-from sqlalchemy import func, select
+from pydantic import Field
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
+from app.access import document_condition, require_programme, session_condition
 from app.auth.decorators import login_required
 from app.extensions import db
 from app.models import (
@@ -13,18 +15,25 @@ from app.models import (
     CurriculumMap,
     Document,
     DocumentStatus,
+    Programme,
     Recommendation,
     Report,
     SessionStatus,
     SourceCategory,
 )
 from app.routes.sessions import session_counts, summary_json
-from app.sessions import active_nuc_core
+from app.schemas.common import RequestModel
+from app.sessions import active_nuc_core, default_programme_for_user
 from app.utils.responses import success
+from app.utils.validation import parse_query
 
 bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 
 RECENT_SESSIONS = 5
+
+
+class DashboardQuery(RequestModel):
+    programme_id: int | None = Field(default=None, ge=1)
 
 
 def _grouped(column, *where) -> dict[str, int]:  # type: ignore[no-untyped-def]
@@ -40,16 +49,31 @@ def _grouped(column, *where) -> dict[str, int]:  # type: ignore[no-untyped-def]
 def summary() -> tuple[Response, int]:
     """Counts of documents, sessions, recommendations awaiting review and mapped courses.
 
-    Library documents exclude archived ones and the NUC core; recommendation counts cover
-    completed sessions.
+    Everything is limited to the user's programmes; ``programme_id`` narrows it to one of them
+    (its documents plus general ones). Library documents exclude archived ones and the NUC
+    core; recommendation counts cover completed sessions.
     """
+    params = parse_query(DashboardQuery)
+    in_sessions = [session_condition()]
+    in_documents = [document_condition()]
+    if params.programme_id is not None:
+        require_programme(params.programme_id)
+        in_sessions.append(AnalysisSession.programme_id == params.programme_id)
+        in_documents.append(
+            or_(
+                Document.programme_id == params.programme_id,
+                Document.programme_id.is_(None),
+            )
+        )
     library = (
         Document.processing_status != DocumentStatus.ARCHIVED,
         Document.source_category != SourceCategory.NUC_CORE,
+        *in_documents,
     )
     document_status = _grouped(Document.processing_status, *library)
-    session_status = _grouped(AnalysisSession.status)
-    completed = select(AnalysisSession.id).where(AnalysisSession.status == SessionStatus.COMPLETED)
+    session_status = _grouped(AnalysisSession.status, *in_sessions)
+    visible_sessions = select(AnalysisSession.id).where(*in_sessions)
+    completed = visible_sessions.where(AnalysisSession.status == SessionStatus.COMPLETED)
     in_completed = Recommendation.session_id.in_(completed)
     decisions = {
         ("undecided" if value == "None" else value): count
@@ -58,19 +82,26 @@ def summary() -> tuple[Response, int]:
     recent = list(
         db.session.scalars(
             select(AnalysisSession)
+            .where(*in_sessions)
             .options(selectinload(AnalysisSession.created_by))
             .order_by(AnalysisSession.created_at.desc(), AnalysisSession.id.desc())
             .limit(RECENT_SESSIONS)
         )
     )
     documents, recommendations = session_counts([s.id for s in recent])
-    version = active_nuc_core()
+    programme = (
+        db.session.get(Programme, params.programme_id)
+        if params.programme_id is not None
+        else default_programme_for_user()
+    )
+    version = active_nuc_core(programme.id) if programme else None
     # Where the dashboard cards lead: the latest completed session that still has undecided
     # recommendations, and the latest session with courses mapped.
     review_session = db.session.execute(
         select(AnalysisSession.id, AnalysisSession.session_name, func.count(Recommendation.id))
         .join(Recommendation, Recommendation.session_id == AnalysisSession.id)
         .where(
+            *in_sessions,
             AnalysisSession.status == SessionStatus.COMPLETED,
             Recommendation.planner_decision.is_(None),
         )
@@ -82,6 +113,7 @@ def summary() -> tuple[Response, int]:
         select(AnalysisSession.id, AnalysisSession.session_name)
         .join(Recommendation, Recommendation.session_id == AnalysisSession.id)
         .join(CurriculumMap, CurriculumMap.recommendation_id == Recommendation.id)
+        .where(*in_sessions)
         .order_by(CurriculumMap.updated_at.desc(), AnalysisSession.id.desc())
         .limit(1)
     ).first()
@@ -117,13 +149,21 @@ def summary() -> tuple[Response, int]:
                     else None
                 ),
             },
-            "courses_mapped": db.session.scalar(select(func.count(CurriculumMap.id))) or 0,
+            "courses_mapped": db.session.scalar(
+                select(func.count(CurriculumMap.id))
+                .join(Recommendation, Recommendation.id == CurriculumMap.recommendation_id)
+                .where(Recommendation.session_id.in_(visible_sessions))
+            )
+            or 0,
             "curriculum_session": (
                 {"id": curriculum_session[0], "session_name": curriculum_session[1]}
                 if curriculum_session
                 else None
             ),
-            "reports": db.session.scalar(select(func.count(Report.id))) or 0,
+            "reports": db.session.scalar(
+                select(func.count(Report.id)).where(Report.session_id.in_(visible_sessions))
+            )
+            or 0,
             "nuc_core_version": (
                 {"id": version.id, "version_label": version.version_label} if version else None
             ),

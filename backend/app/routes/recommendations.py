@@ -14,6 +14,7 @@ from flask_login import current_user
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from app.access import can_see_session, get_visible_session
 from app.audit import AuditAction, record_audit
 from app.auth.decorators import EDITOR_ROLES, login_required, role_required
 from app.extensions import db
@@ -91,7 +92,7 @@ def recommendation_json(rec: Recommendation) -> dict[str, Any]:
 
 def get_recommendation_or_404(recommendation_id: int) -> Recommendation:
     rec = db.session.get(Recommendation, recommendation_id)
-    if rec is None:
+    if rec is None or not can_see_session(rec.session_id):
         raise ApiError("NOT_FOUND", "Recommendation not found.", 404)
     return rec
 
@@ -104,8 +105,7 @@ def list_recommendations(session_id: int) -> tuple[Response, int]:
     Filters: ``decision`` (all, undecided, accepted, rejected, flagged) and ``hide_duplicates``.
     The list is bounded by the session's ``max_recommendations`` (≤ 100), so it is not paginated.
     """
-    if db.session.get(AnalysisSession, session_id) is None:
-        raise ApiError("NOT_FOUND", "Analysis session not found.", 404)
+    get_visible_session(session_id)
     params = parse_query(RecommendationListQuery)
     all_recs = list(
         db.session.scalars(
@@ -161,9 +161,7 @@ def session_progress(session_id: int) -> tuple[Response, int]:
     Counts cover every recommendation of the session; ``latest_report`` is the most recent
     report of any status (null when none has been requested).
     """
-    session = db.session.get(AnalysisSession, session_id)
-    if session is None:
-        raise ApiError("NOT_FOUND", "Analysis session not found.", 404)
+    session = get_visible_session(session_id)
     rows = db.session.execute(
         select(Recommendation.planner_decision, CurriculumMap.id)
         .outerjoin(CurriculumMap, CurriculumMap.recommendation_id == Recommendation.id)
@@ -211,9 +209,7 @@ def _points(value: float) -> int:
 @login_required
 def export_recommendations(session_id: int) -> Response:
     """Every recommendation as CSV, with scores both out of 100 and as exact 0-1 decimals."""
-    session = db.session.get(AnalysisSession, session_id)
-    if session is None:
-        raise ApiError("NOT_FOUND", "Analysis session not found.", 404)
+    get_visible_session(session_id)
     recs = db.session.scalars(
         select(Recommendation)
         .where(Recommendation.session_id == session_id)

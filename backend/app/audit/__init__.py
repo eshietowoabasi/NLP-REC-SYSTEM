@@ -36,6 +36,7 @@ class AuditAction(StrEnum):
     DOCUMENT_ARCHIVED = "document.archived"
     DOCUMENT_DELETED = "document.deleted"
     NUC_CORE_UPLOADED = "nuc_core.uploaded"
+    USER_PROGRAMMES_CHANGED = "user.programmes_changed"
     PROGRAMME_CREATED = "programme.created"
     PROGRAMME_UPDATED = "programme.updated"
     HARVEST_PROFILE_UPDATED = "harvest.profile_updated"

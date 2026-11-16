@@ -11,6 +11,7 @@ from typing import Any
 
 from sqlalchemy import delete, select
 
+from app.access import can_see_programme, programme_scope
 from app.extensions import db
 from app.models import (
     AnalysisSession,
@@ -77,10 +78,28 @@ def default_programme() -> Programme:
     return programme
 
 
+def default_programme_for_user() -> Programme | None:
+    """The programme a new session or upload uses when none is chosen.
+
+    The default programme if the user may see it, else the first of their own programmes
+    (by id); None for a planner or viewer with no programmes.
+    """
+    programme = default_programme()
+    if can_see_programme(programme.id):
+        return programme
+    scope = programme_scope() or set()
+    return db.session.scalar(
+        select(Programme)
+        .where(Programme.is_active.is_(True), Programme.id.in_(scope))
+        .order_by(Programme.id)
+        .limit(1)
+    )
+
+
 def active_programme(programme_id: int, field: str = "programme_id") -> Programme:
-    """The active programme with this id, or a 422 ApiError on ``field``."""
+    """The active programme with this id that the user may work on, or a 422 on ``field``."""
     programme = db.session.get(Programme, programme_id)
-    if programme is None or not programme.is_active:
+    if programme is None or not programme.is_active or not can_see_programme(programme.id):
         raise ApiError(
             "VALIDATION_ERROR",
             "Some fields are invalid.",

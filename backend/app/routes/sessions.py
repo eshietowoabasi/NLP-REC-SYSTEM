@@ -8,6 +8,7 @@ from flask import Blueprint, Response
 from flask_login import current_user
 from sqlalchemy import func, select
 
+from app.access import get_visible_session, programme_condition, session_condition
 from app.audit import AuditAction, record_audit
 from app.auth.decorators import EDITOR_ROLES, login_required, role_required
 from app.extensions import db
@@ -40,6 +41,7 @@ from app.sessions import (
     clear_results,
     default_parameters,
     default_programme,
+    default_programme_for_user,
     link_documents,
 )
 from app.settings import get_setting
@@ -116,10 +118,8 @@ def detail_json(session: AnalysisSession) -> dict[str, Any]:
 
 
 def get_session_or_404(session_id: int) -> AnalysisSession:
-    session = db.session.get(AnalysisSession, session_id)
-    if session is None:
-        raise ApiError("NOT_FOUND", "Analysis session not found.", 404)
-    return session
+    """The session, or 404 if it does not exist or is outside the user's programmes."""
+    return get_visible_session(session_id)
 
 
 def require_nuc_core(programme_id: int) -> None:
@@ -181,11 +181,18 @@ def queue_run(session: AnalysisSession) -> None:
 @bp.get("")
 @login_required
 def list_sessions() -> tuple[Response, int]:
-    """Sessions, newest first. Filters: ``status``, ``search`` (name)."""
+    """Sessions of the user's programmes, newest first.
+
+    Filters: ``status``, ``search`` (name), ``programme_id``.
+    """
     params = parse_query(SessionListQuery)
-    query = select(AnalysisSession).order_by(
-        AnalysisSession.created_at.desc(), AnalysisSession.id.desc()
+    query = (
+        select(AnalysisSession)
+        .where(session_condition())
+        .order_by(AnalysisSession.created_at.desc(), AnalysisSession.id.desc())
     )
+    if params.programme_id is not None:
+        query = query.where(AnalysisSession.programme_id == params.programme_id)
     if params.status is not None:
         query = query.where(AnalysisSession.status == params.status)
     if params.search:
@@ -207,10 +214,12 @@ def list_sessions() -> tuple[Response, int]:
 @login_required
 def session_defaults() -> tuple[Response, int]:
     """Default parameters for a new session, the document limit and the NUC core status."""
-    programme = default_programme()
-    version = active_nuc_core(programme.id)
+    programme = default_programme_for_user()
+    version = active_nuc_core(programme.id) if programme else None
     programmes = db.session.scalars(
-        select(Programme).where(Programme.is_active.is_(True)).order_by(Programme.name)
+        select(Programme)
+        .where(Programme.is_active.is_(True), programme_condition())
+        .order_by(Programme.name)
     ).all()
     return success(
         {
@@ -236,8 +245,15 @@ def create_session() -> tuple[Response, int]:
     programme = (
         active_programme(data.programme_id)
         if data.programme_id is not None
-        else default_programme()
+        else default_programme_for_user()
     )
+    if programme is None:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "You have no programmes yet. Ask an admin to add you to one.",
+            422,
+            {"fields": {"programme_id": ["Choose an active programme."]}},
+        )
     documents = check_documents(data.document_ids, programme)
     if data.run:
         require_nuc_core(programme.id)

@@ -11,6 +11,7 @@ from typing import Any
 from flask import Blueprint, Response, request
 from sqlalchemy import select
 
+from app.access import get_visible_session
 from app.auth.decorators import login_required
 from app.extensions import db
 from app.models import (
@@ -32,9 +33,7 @@ bp = Blueprint("results", __name__, url_prefix="/sessions")
 
 
 def completed_session(session_id: int) -> AnalysisSession:
-    session = db.session.get(AnalysisSession, session_id)
-    if session is None:
-        raise ApiError("NOT_FOUND", "Analysis session not found.", 404)
+    session = get_visible_session(session_id)
     if session.status != SessionStatus.COMPLETED:
         raise ApiError(
             "RESULTS_NOT_READY",

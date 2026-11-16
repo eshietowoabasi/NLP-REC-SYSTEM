@@ -26,6 +26,12 @@ Email = Annotated[EmailStr, AfterValidator(_lower)]
 FullName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=128)]
 
 
+class UserProgramme(ResponseModel):
+    id: int
+    name: str
+    discipline_code: str | None
+
+
 class UserOut(ResponseModel):
     id: int
     username: str
@@ -35,6 +41,8 @@ class UserOut(ResponseModel):
     is_active: bool
     created_at: datetime
     last_login_at: datetime | None
+    # Programmes a planner or viewer works on; admins see every programme ([] here).
+    programmes: list[UserProgramme]
 
 
 class UserCreate(RequestModel):
@@ -43,6 +51,8 @@ class UserCreate(RequestModel):
     full_name: FullName
     role: UserRole
     password: NewPassword
+    # Programmes a planner or viewer works on (ignored for admins, who see all).
+    programme_ids: list[int] = Field(default_factory=list, max_length=300)
 
 
 class UserUpdate(RequestModel):
@@ -55,6 +65,7 @@ class UserUpdate(RequestModel):
     new_password: NewPassword | None = Field(
         default=None, description="Reset the user's password to this value."
     )
+    programme_ids: list[int] | None = Field(default=None, max_length=300)
 
 
 class UserListQuery(PaginationQuery):
