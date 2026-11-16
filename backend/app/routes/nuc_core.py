@@ -1,7 +1,10 @@
 """NUC CCMAS core reference: the baseline every candidate topic is compared against.
 
-Exactly one version is active at a time. A new version becomes active automatically once its
-document has been parsed successfully; until then the previous version stays active.
+These routes serve the original single-curriculum screen and work on the default programme
+(Computer Science); other programmes manage their benchmarks under ``/api/programmes``.
+Exactly one version is active at a time per programme. A new version becomes active
+automatically once its document has been parsed successfully; until then the previous version
+stays active.
 Everyone can see which version is active (planners need to know before running a session);
 only admins can upload.
 """
@@ -20,6 +23,7 @@ from app.models import NucCoreVersion, NucCourse, SourceCategory, UserRole
 from app.schemas.documents import NucCoreUploadForm, NucCoreVersionOut, NucCourseOut
 from app.services.ingestion.courses import CourseExclusions
 from app.services.ingestion.validation import UploadRejectedError
+from app.sessions import default_programme
 from app.settings import get_setting
 from app.tasks.queue import enqueue
 from app.uploads import discard, store_upload
@@ -40,8 +44,18 @@ def version_json(version: NucCoreVersion | None) -> dict | None:
 @login_required
 def current_nuc_core() -> tuple[Response, int]:
     """The active version (null if none) and the most recent upload (may still be processing)."""
-    active = db.session.scalar(select(NucCoreVersion).where(NucCoreVersion.is_active.is_(True)))
-    latest = db.session.scalar(select(NucCoreVersion).order_by(NucCoreVersion.id.desc()).limit(1))
+    programme_id = default_programme().id
+    active = db.session.scalar(
+        select(NucCoreVersion).where(
+            NucCoreVersion.programme_id == programme_id, NucCoreVersion.is_active.is_(True)
+        )
+    )
+    latest = db.session.scalar(
+        select(NucCoreVersion)
+        .where(NucCoreVersion.programme_id == programme_id)
+        .order_by(NucCoreVersion.id.desc())
+        .limit(1)
+    )
     return success({"active": version_json(active), "latest": version_json(latest)})
 
 
@@ -49,7 +63,11 @@ def current_nuc_core() -> tuple[Response, int]:
 @login_required
 def list_versions() -> tuple[Response, int]:
     """Every uploaded version, newest first."""
-    versions = db.session.scalars(select(NucCoreVersion).order_by(NucCoreVersion.id.desc()))
+    versions = db.session.scalars(
+        select(NucCoreVersion)
+        .where(NucCoreVersion.programme_id == default_programme().id)
+        .order_by(NucCoreVersion.id.desc())
+    )
     return success([version_json(version) for version in versions])
 
 
@@ -61,7 +79,12 @@ def list_courses() -> tuple[Response, int]:
     Courses matching the ``nuc_course_exclusions`` setting are listed but excluded from the
     overlap comparison.
     """
-    active = db.session.scalar(select(NucCoreVersion).where(NucCoreVersion.is_active.is_(True)))
+    active = db.session.scalar(
+        select(NucCoreVersion).where(
+            NucCoreVersion.programme_id == default_programme().id,
+            NucCoreVersion.is_active.is_(True),
+        )
+    )
     setting = get_setting("nuc_course_exclusions")
     exclusions = CourseExclusions.from_setting(setting)
     courses = (
@@ -120,6 +143,7 @@ def upload_version() -> tuple[Response, int]:
         raise ApiError("VALIDATION_ERROR", str(exc), 422, {"fields": {"file": [str(exc)]}}) from exc
     try:
         version = NucCoreVersion(
+            programme_id=default_programme().id,
             document_id=document.id,
             version_label=form.version_label,
             is_active=False,

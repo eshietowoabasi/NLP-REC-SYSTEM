@@ -21,6 +21,7 @@ from app.models import (
     RecommendationEvidence,
     User,
 )
+from app.sessions import default_programme
 
 
 @dataclass
@@ -90,6 +91,7 @@ def build_review_session(owner: User, session_name: str = "Synthetic review") ->
     db.session.add(nuc_passage)
     db.session.flush()
     version = NucCoreVersion(
+        programme_id=default_programme().id,
         document_id=core_document.id,
         version_label="Synthetic core",
         is_active=True,

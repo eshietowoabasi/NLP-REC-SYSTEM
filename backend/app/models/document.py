@@ -82,8 +82,8 @@ class NucCoreVersion(db.Model):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    programme_id: Mapped[int | None] = mapped_column(
-        sa.ForeignKey("programmes.id", ondelete="RESTRICT"), index=True, nullable=True
+    programme_id: Mapped[int] = mapped_column(
+        sa.ForeignKey("programmes.id", ondelete="RESTRICT"), index=True
     )
     document_id: Mapped[int] = mapped_column(sa.ForeignKey("documents.id"), unique=True)
     version_label: Mapped[str] = mapped_column(sa.String(64))
@@ -93,7 +93,7 @@ class NucCoreVersion(db.Model):
         sa.DateTime(timezone=True), default=utcnow, server_default=sa.func.now()
     )
 
-    programme: Mapped[Programme | None] = relationship()
+    programme: Mapped[Programme] = relationship()
     document: Mapped[Document] = relationship()
     uploaded_by: Mapped[User] = relationship()
 

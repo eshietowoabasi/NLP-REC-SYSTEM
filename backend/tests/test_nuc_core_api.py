@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from app.extensions import db
 from app.models import AuditLog, Document, NucCoreVersion
+from app.sessions import default_programme
 from app.tasks import ingestion
 from tests.conftest import ApiClient
 from tests.documents import JOB_AD_TEXT, SECURITY_TEXT, make_blank_pdf, make_pdf
@@ -92,7 +93,10 @@ def test_an_older_version_finishing_late_does_not_replace_a_newer_active_one(log
     db.session.add(older_document)
     db.session.flush()
     older = NucCoreVersion(
-        document_id=older_document.id, version_label="v1", uploaded_by_id=admin.user.id
+        programme_id=default_programme().id,
+        document_id=older_document.id,
+        version_label="v1",
+        uploaded_by_id=admin.user.id,
     )
     db.session.add(older)
     db.session.commit()

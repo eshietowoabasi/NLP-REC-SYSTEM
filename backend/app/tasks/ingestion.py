@@ -52,11 +52,8 @@ def activate_nuc_core_version(document: Document) -> None:
     )
     if version is None:
         return
-    programme_filter = (
-        NucCoreVersion.programme_id.is_(None)
-        if version.programme_id is None
-        else NucCoreVersion.programme_id == version.programme_id
-    )
+    # Each programme has its own active benchmark; only this programme's one is replaced.
+    programme_filter = NucCoreVersion.programme_id == version.programme_id
 
     active = db.session.scalar(
         select(NucCoreVersion).where(
@@ -259,11 +256,7 @@ def ingest_documents_batch(document_ids: list[int]) -> None:
         db.session.remove()
         return
 
-    texts = [
-        passage.text
-        for _document_id, output in prepared
-        for passage in output.passages
-    ]
+    texts = [passage.text for _document_id, output in prepared for passage in output.passages]
 
     try:
         vectors = encoder.encode(texts)
@@ -290,9 +283,7 @@ def ingest_documents_batch(document_ids: list[int]) -> None:
         document_vectors = vectors[offset : offset + count]
         offset += count
 
-        db.session.execute(
-            delete(Passage).where(Passage.document_id == document_id)
-        )
+        db.session.execute(delete(Passage).where(Passage.document_id == document_id))
 
         db.session.add_all(
             Passage(
