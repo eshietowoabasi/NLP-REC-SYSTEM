@@ -36,6 +36,8 @@ class AuditAction(StrEnum):
     DOCUMENT_ARCHIVED = "document.archived"
     DOCUMENT_DELETED = "document.deleted"
     NUC_CORE_UPLOADED = "nuc_core.uploaded"
+    HARVEST_PROFILE_UPDATED = "harvest.profile_updated"
+    HARVEST_STARTED = "harvest.started"
 
     SESSION_CREATED = "session.created"
     SESSION_RUN = "session.run"

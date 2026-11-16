@@ -449,9 +449,19 @@ usual, so it can be picked for a session.
 Access: any. `{ "programme": { "id", "name", "discipline_code" }, "profile": { "search_terms",
 "field_slugs" }, "latest_run": Run | null }`.
 
-Run object: `{ "id", "programme_id", "status" (queued|running|completed|failed),
+Run object: `{ "id", "programme_id", "status" (queued|running|completed|failed), "phase",
 "target_count", "pages_per_field", "examined_count", "found_count", "imported_count",
-"skipped_count", "error_message", "created_at", "started_at", "completed_at" }`.
+"skipped_count", "documents_ready", "documents_processing", "documents_failed",
+"error_message", "created_at", "started_at", "completed_at" }`.
+
+`status` is the collection itself. `phase` is what users see: `queued` → `collecting` →
+`preparing` (collection finished, some imported adverts are still being processed) → `ready`;
+or `failed`. The `documents_*` counts are the run's imported adverts by processing state; only
+ready ones can be picked for a session.
+
+Before a programme's state is returned or a run is started, queued/running runs whose background
+job has ended or disappeared, or that have been going for over 20 minutes, are marked `failed`
+("The collection stopped unexpectedly…"), so a crashed collection never blocks new ones.
 
 ### `PATCH /api/harvest/programmes/{id}`
 
@@ -463,7 +473,9 @@ slugs) }`. **200** with the saved profile.
 Access: admin. JSON `{ "target_count" (1–30, default 10), "pages_per_field" (1–5, default 2) }`.
 **202** with the queued run. **422** if the profile has no search terms or fields; **409** if a
 run for this programme is already queued or running. Clients poll `GET
-/api/harvest/programmes/{id}` while the latest run is queued or running.
+/api/harvest/programmes/{id}` while the latest run's `phase` is `queued`, `collecting` or
+`preparing`. Starting a run and changing the profile are audited (`harvest.started`,
+`harvest.profile_updated`).
 
 ---
 

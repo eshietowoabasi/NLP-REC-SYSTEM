@@ -151,6 +151,10 @@ def harvest_programme_jobs(
         db.session.commit()
         return
 
+    if run.status != "queued":
+        # Already handled, e.g. marked as stopped while it waited in the queue.
+        return
+
     run.status = "running"
     run.started_at = utcnow()
     run.error_message = None
@@ -215,6 +219,7 @@ def harvest_programme_jobs(
                 source="MyJobMag",
                 source_url=advert.url,
                 published_on=_published_date(advert.date_posted),
+                harvest_run_id=run.id,
             )
 
             db.session.add(document)
