@@ -17,6 +17,7 @@ from app.models import (
     NucCoreVersion,
     OverlapStatus,
     Passage,
+    Programme,
     Recommendation,
     User,
 )
@@ -126,28 +127,50 @@ def test_scores_must_be_between_0_and_1(owner: User) -> None:
     )
 
 
-def test_only_one_nuc_core_version_can_be_active(owner: User) -> None:
+def test_only_one_nuc_core_version_per_programme_can_be_active(owner: User) -> None:
+    computing = Programme(name="Computer Science", discipline_code="CSC")
+    nursing = Programme(name="Nursing Science", discipline_code="NSC")
+    db.session.add_all([computing, nursing])
+    db.session.flush()
     first = make_document(owner, "nuc1", source_category="nuc_core")
     second = make_document(owner, "nuc2", source_category="nuc_core")
-    db.session.add(
-        NucCoreVersion(
-            document_id=first.id, version_label="v1", is_active=True, uploaded_by_id=owner.id
+    third = make_document(owner, "nuc3", source_category="nuc_core")
+
+    def version(document: Document, label: str, programme: Programme, active: bool):
+        return NucCoreVersion(
+            programme_id=programme.id,
+            document_id=document.id,
+            version_label=label,
+            is_active=active,
+            uploaded_by_id=owner.id,
         )
+
+    db.session.add(version(first, "v1", computing, True))
+    db.session.commit()
+
+    # Inactive versions are unlimited, and each programme has its own active version...
+    db.session.add_all(
+        [version(second, "v2", computing, False), version(third, "n1", nursing, True)]
     )
     db.session.commit()
 
-    # Inactive versions are unlimited...
-    db.session.add(
-        NucCoreVersion(
-            document_id=second.id, version_label="v2", is_active=False, uploaded_by_id=owner.id
-        )
-    )
-    db.session.commit()
-
-    # ...but a second active one is rejected.
+    # ...but a second active one for the same programme is rejected.
     assert_rejected(
         lambda: db.session.execute(
             text("UPDATE nuc_core_versions SET is_active = true WHERE version_label = 'v2'")
+        )
+    )
+
+
+def test_a_nuc_core_version_must_belong_to_a_programme(owner: User) -> None:
+    document = make_document(owner, "nuc", source_category="nuc_core")
+    assert_rejected(
+        lambda: db.session.execute(
+            text(
+                "INSERT INTO nuc_core_versions (document_id, version_label, is_active, "
+                "uploaded_by_id) VALUES (:d, 'orphan', false, :u)"
+            ),
+            {"d": document.id, "u": owner.id},
         )
     )
 

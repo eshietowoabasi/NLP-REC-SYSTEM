@@ -10,35 +10,35 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
+
+from app.utils.labels import document_label, document_type
 
 # Section keys in report order, with their headings. Planners choose any non-empty subset.
 REPORT_SECTIONS: dict[str, str] = {
-    "corpus_summary": "Corpus summary",
-    "nlp_findings": "NLP findings",
-    "overlap": "Overlap with the NUC core",
-    "recommendations": "Recommendations",
-    "decisions": "Planner decisions",
+    "corpus_summary": "Documents analysed",
+    "nlp_findings": "What the documents talk about",
+    "overlap": "Comparison with the NUC core",
+    "recommendations": "Recommended topics",
+    "decisions": "Decisions",
     "proposed_courses": "Proposed courses",
 }
 
-CATEGORY_LABELS = {
-    "job_market": "Job market",
-    "institutional": "Institutional",
-    "policy": "Policy",
-    "academic": "Academic",
+STATUS_LABELS = {
+    "Potential Duplicate": "May already be in NUC core",
+    "No Significant Overlap": "Not in NUC core",
 }
-DECISION_LABELS = {"accepted": "Accepted", "rejected": "Rejected", "flagged": "Flagged"}
+DECISION_LABELS = {"accepted": "Accepted", "rejected": "Rejected", "flagged": "Discuss later"}
 
 TOP_TERMS = 20
 TOP_SKILLS = 20
 EXCERPT_CHARS = 300
 
 DISCLAIMER = (
-    "NLP-RS proposes candidate topics as decision support. The recommendations, scores and "
-    "overlap flags are produced automatically from the uploaded documents; curriculum decisions "
-    "rest with the department's planners and the relevant university bodies."
+    "NLP-RS suggests topics to help the department decide. The suggestions and scores are "
+    "worked out automatically from the documents; the decisions are made by the department's "
+    "planners and the relevant university bodies."
 )
 
 
@@ -107,6 +107,12 @@ class DocumentRow:
     page_count: int | None
     word_count: int | None
     passage_count: int
+    source: str | None = None
+    published_on: date | None = None
+
+    @property
+    def label(self) -> str:
+        return document_label(self.title, self.category, self.source, self.published_on)
 
 
 @dataclass(frozen=True)
@@ -161,8 +167,34 @@ class ReportData:
 # --------------------------------------------------------------------------- helpers
 
 
-def fmt_score(value: float) -> str:
-    return f"{value:.2f}"
+def points(value: float) -> int:
+    """A 0-1 score as whole points out of 100."""
+    return round(min(max(value, 0.0), 1.0) * 100)
+
+
+def score_level(value: float) -> str:
+    """High (70+), Medium (40-69) or Low (below 40), as on screen."""
+    score = points(value)
+    return "High" if score >= 70 else "Medium" if score >= 40 else "Low"
+
+
+def fmt_points(value: float) -> str:
+    """0.8492 -> "85/100"."""
+    return f"{points(value)}/100"
+
+
+def fmt_level(value: float) -> str:
+    """0.9 -> "90 High"."""
+    return f"{points(value)} {score_level(value)}"
+
+
+def fmt_percent(value: float) -> str:
+    """A similarity or threshold: 0.576 -> "58%"."""
+    return f"{points(value)}%"
+
+
+def fmt_weight(value: float) -> str:
+    return f"counts for {round(value * 100)}%"
 
 
 def fmt_number(value: int | None) -> str:
@@ -192,22 +224,21 @@ def corpus_summary(data: ReportData) -> list[Block]:
     blocks: list[Block] = [
         Paragraph(
             f"The analysis used {plural(len(data.documents), 'document')} "
-            f"({fmt_number(words)} words, {plural(passages, 'passage')}). "
-            "Each document was split into passages of 3–5 sentences, which are the unit of "
-            "analysis."
+            f"({fmt_number(words)} words). Each document was split into short extracts of 3 to "
+            f"5 sentences ({plural(passages, 'extract')} in all), which are what the system "
+            "compares."
         ),
         KeyValues(
             [
-                (CATEGORY_LABELS.get(category, category), plural(count, "document"))
+                (document_type(category, plural=True).capitalize(), str(count))
                 for category, count in sorted(per_category.items())
             ]
         ),
         Table(
-            columns=["Document", "Category", "Type", "Pages", "Words", "Passages"],
+            columns=["Document", "File", "Pages", "Words", "Extracts"],
             rows=[
                 [
-                    d.title,
-                    CATEGORY_LABELS.get(d.category, d.category),
+                    d.label,
                     d.file_type.upper(),
                     fmt_number(d.page_count),
                     fmt_number(d.word_count),
@@ -215,20 +246,20 @@ def corpus_summary(data: ReportData) -> list[Block]:
                 ]
                 for d in data.documents
             ],
-            numeric=(3, 4, 5),
-            widths=(40, 14, 8, 10, 14, 14),
+            numeric=(2, 3, 4),
+            widths=(52, 8, 10, 15, 15),
         ),
     ]
     return blocks
 
 
 def nlp_findings(data: ReportData) -> list[Block]:
-    blocks: list[Block] = [Subheading("Most characteristic terms (TF-IDF)")]
+    blocks: list[Block] = [Subheading("Words that stand out")]
     terms = data.keywords.get("overall", [])[:TOP_TERMS]
     if terms:
         blocks.append(
             Table(
-                columns=["Term", "Mean TF-IDF", "Passages"],
+                columns=["Word", "Weight", "Extracts"],
                 rows=[
                     [t["term"], f"{t['score']:.3f}", fmt_number(t.get("passage_count"))]
                     for t in terms
@@ -238,16 +269,16 @@ def nlp_findings(data: ReportData) -> list[Block]:
             )
         )
     else:
-        blocks.append(Paragraph("No terms were extracted.", muted=True))
+        blocks.append(Paragraph("No words stood out.", muted=True))
 
-    blocks.append(Subheading("Skills in demand"))
+    blocks.append(Subheading("Skills employers ask for"))
     skills = data.entities.get("skills", [])[:TOP_SKILLS]
     if skills:
         blocks.append(
             Paragraph(
                 f"{fmt_number(data.entities.get('passages_with_skills'))} of "
-                f"{fmt_number(data.entities.get('passage_count'))} passages mention at least one "
-                "recognised skill, tool, language or certification."
+                f"{fmt_number(data.entities.get('passage_count'))} extracts mention at least one "
+                "known skill, tool, programming language or certification."
             )
         )
         blocks.append(
@@ -267,28 +298,28 @@ def nlp_findings(data: ReportData) -> list[Block]:
             )
         )
     else:
-        blocks.append(Paragraph("No skill patterns matched the documents.", muted=True))
+        blocks.append(Paragraph("No known skills were found in the documents.", muted=True))
 
-    blocks.append(Subheading("Themes discovered (BERTopic)"))
+    blocks.append(Subheading("Topics found"))
     topics = data.topics.get("topics", [])
     blocks.append(
         Paragraph(
-            f"{plural(len(topics), 'theme')} found in "
-            f"{fmt_number(data.topics.get('modelled_passages'))} passages; "
-            f"{fmt_number(data.topics.get('outlier_passages'))} passages fitted no theme."
+            f"{plural(len(topics), 'topic')} found in "
+            f"{fmt_number(data.topics.get('modelled_passages'))} extracts; "
+            f"{fmt_number(data.topics.get('outlier_passages'))} extracts did not fit any topic."
         )
     )
     if topics:
         blocks.append(
             Table(
-                columns=["Theme", "Passages", "Documents", "Strength", "Keywords"],
+                columns=["Topic", "Extracts", "Documents", "How often it comes up", "Keywords"],
                 rows=[
                     [
                         t["title"],
                         fmt_number(t["size"]),
                         fmt_number(t["document_count"]),
-                        fmt_score(t["strength"]),
-                        ", ".join(k["term"] for k in t.get("keywords", [])[:8]),
+                        fmt_level(t["strength"]),
+                        ", ".join(k.get("label") or k["term"] for k in t.get("keywords", [])[:8]),
                     ]
                     for t in topics
                 ],
@@ -305,23 +336,35 @@ def overlap(data: ReportData) -> list[Block]:
     )
     candidates = data.similarity.get("candidates", [])
     duplicates = sum(c["overlap_status"] == "Potential Duplicate" for c in candidates)
+    by_course = data.similarity.get("basis") == "course"
+    compared_with = "every course" if by_course else "every extract"
     return [
         Paragraph(
-            "Each theme was compared with every passage of the NUC core reference "
-            f"({data.nuc_core_version or 'unknown version'}) by cosine similarity of sentence "
-            f"embeddings. Themes with a highest similarity above {fmt_score(threshold)} are "
-            f"flagged as potential duplicates of existing core content: {duplicates} of "
+            f"Each topic was compared, by meaning, with {compared_with} of the NUC core "
+            f"({data.nuc_core_version or 'unknown version'}). Topics more than "
+            f"{fmt_percent(threshold)} similar to it are marked “May already be in NUC core”: "
+            f"{duplicates} of "
             f"{len(candidates)}."
         ),
         Table(
-            columns=["Theme", "Max similarity", "Novelty", "Status", "Closest NUC core passage"],
+            columns=[
+                "Topic",
+                "Similarity",
+                "How new it is (/100)",
+                "NUC core",
+                "Closest NUC course" if by_course else "Closest NUC core extract",
+            ],
             rows=[
                 [
                     c["title"],
-                    fmt_score(c["max_similarity"]),
-                    fmt_score(c["novelty"]),
-                    c["overlap_status"],
-                    excerpt(c.get("closest_nuc_passage", {}).get("text", ""), 220),
+                    fmt_percent(c["max_similarity"]),
+                    fmt_level(c["novelty"]),
+                    STATUS_LABELS.get(c["overlap_status"], c["overlap_status"]),
+                    (
+                        f"{course['code']} – {course['title']}"
+                        if by_course and (course := c.get("closest_nuc_course"))
+                        else excerpt(c.get("closest_nuc_passage", {}).get("text", ""), 220)
+                    ),
                 ]
                 for c in candidates
             ],
@@ -335,31 +378,32 @@ def recommendations(data: ReportData) -> list[Block]:
     weights = data.parameters.get("weights", {})
     blocks: list[Block] = [
         Paragraph(
-            "Composite score = "
-            f"{weights.get('ner', 0):.2f} × skill demand + "
-            f"{weights.get('topic', 0):.2f} × theme strength + "
-            f"{weights.get('novelty', 0):.2f} × novelty; each score is scaled to 0–1 across "
-            "the session's themes."
+            "Each topic has a score out of 100 made of three parts, each out of 100 and compared "
+            "with the session's other topics: employer demand "
+            f"{fmt_weight(weights.get('ner', 0))}, how often it comes up "
+            f"{fmt_weight(weights.get('topic', 0))} and how new it is compared with the NUC core "
+            f"{fmt_weight(weights.get('novelty', 0))}. High = 70 or more, Medium = 40–69, "
+            "Low = below 40."
         ),
         Table(
             columns=[
                 "#",
                 "Recommended topic",
-                "Composite",
-                "Skill demand",
-                "Theme strength",
-                "Novelty",
-                "Overlap",
+                "Score (/100)",
+                "Employer demand",
+                "How often it comes up",
+                "How new it is",
+                "NUC core",
             ],
             rows=[
                 [
                     str(r.rank),
                     r.title,
-                    fmt_score(r.composite),
-                    fmt_score(r.ner),
-                    fmt_score(r.topic),
-                    fmt_score(r.novelty),
-                    "Potential duplicate" if r.overlap_status == "Potential Duplicate" else "New",
+                    str(points(r.composite)),
+                    fmt_level(r.ner),
+                    fmt_level(r.topic),
+                    fmt_level(r.novelty),
+                    STATUS_LABELS.get(r.overlap_status, r.overlap_status),
                 ]
                 for r in data.recommendations
             ],
@@ -369,6 +413,13 @@ def recommendations(data: ReportData) -> list[Block]:
     ]
     for r in data.recommendations:
         blocks.append(Subheading(f"{r.rank}. {r.title}"))
+        blocks.append(
+            Paragraph(
+                f"Score {fmt_points(r.composite)}: employer demand {fmt_level(r.ner)}, how often "
+                f"it comes up {fmt_level(r.topic)}, how new it is {fmt_level(r.novelty)}.",
+                muted=True,
+            )
+        )
         blocks.append(Paragraph(r.description))
         if r.skills:
             blocks.append(Paragraph("Skills: " + ", ".join(r.skills), muted=True))
@@ -383,7 +434,7 @@ def decisions(data: ReportData) -> list[Block]:
             [
                 ("Accepted", str(counts["accepted"])),
                 ("Rejected", str(counts["rejected"])),
-                ("Flagged", str(counts["flagged"])),
+                ("Discuss later", str(counts["flagged"])),
                 ("Not yet reviewed", str(counts["undecided"])),
             ]
         )
@@ -415,7 +466,7 @@ def decisions(data: ReportData) -> list[Block]:
 def proposed_courses(data: ReportData) -> list[Block]:
     if not data.mappings:
         return [
-            Paragraph("No accepted recommendation has been mapped to a course yet.", muted=True)
+            Paragraph("No course has been designed for an accepted recommendation yet.", muted=True)
         ]
     total = sum(m.credit_units for m in data.mappings)
     if data.credit_unit_allowance is None:
@@ -480,12 +531,14 @@ def build_report(data: ReportData, sections: list[str]) -> ReportDocument:
         ("NUC core reference", data.nuc_core_version or "—"),
         (
             "Score weights",
-            f"skill demand {weights.get('ner', 0):.2f} · theme strength "
-            f"{weights.get('topic', 0):.2f} · novelty {weights.get('novelty', 0):.2f}",
+            f"employer demand {fmt_weight(weights.get('ner', 0))} · how often it comes up "
+            f"{fmt_weight(weights.get('topic', 0))} · how new it is "
+            f"{fmt_weight(weights.get('novelty', 0))}",
         ),
         (
-            "Duplicate threshold",
-            fmt_score(float(data.parameters.get("similarity_threshold", 0.8))),
+            "“May already be in NUC core” when",
+            f"more than {fmt_percent(float(data.parameters.get('similarity_threshold', 0.8)))}"
+            " similar",
         ),
         ("Generated", f"{fmt_datetime(data.generated_at)} by {data.generated_by}"),
     ]

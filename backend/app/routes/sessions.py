@@ -16,6 +16,8 @@ from app.models import (
     DocumentSession,
     NLPResult,
     NLPResultType,
+    Passage,
+    Programme,
     Recommendation,
     Report,
     SessionStatus,
@@ -36,6 +38,7 @@ from app.sessions import (
     check_documents,
     clear_results,
     default_parameters,
+    default_programme,
     link_documents,
 )
 from app.settings import get_setting
@@ -98,6 +101,7 @@ def detail_json(session: AnalysisSession) -> dict[str, Any]:
         **SessionSummaryOut.model_validate(
             summary_json(session, documents.get(session.id, 0), recommendations.get(session.id, 0))
         ).model_dump(),
+        programme=session.programme,
         parameter_config=session.parameter_config or {},
         stage_timings=session.stage_timings or {},
         error_message=session.error_message,
@@ -117,13 +121,48 @@ def get_session_or_404(session_id: int) -> AnalysisSession:
     return session
 
 
-def require_nuc_core() -> None:
-    if active_nuc_core() is None:
+def require_nuc_core(programme_id: int) -> None:
+    if active_nuc_core(programme_id) is None:
         raise ApiError(
             "NO_NUC_CORE",
-            "There is no active NUC core reference. An administrator must upload one before "
-            "sessions can run.",
+            "There is no active curriculum benchmark for this programme. "
+            "An administrator must upload one before sessions can run.",
             409,
+        )
+
+
+MIN_EVIDENCE_PASSAGES = 10
+
+
+def require_evidence(document_ids: list[int]) -> None:
+    """Reject an analysis before queueing when topic discovery cannot run."""
+    if not document_ids:
+        raise ApiError(
+            "INSUFFICIENT_EVIDENCE",
+            "Select evidence documents before running the analysis.",
+            422,
+        )
+
+    passage_count = int(
+        db.session.scalar(
+            select(func.count(Passage.id)).where(Passage.document_id.in_(document_ids))
+        )
+        or 0
+    )
+
+    if passage_count < MIN_EVIDENCE_PASSAGES:
+        raise ApiError(
+            "INSUFFICIENT_EVIDENCE",
+            (
+                f"Not enough evidence to discover reliable themes yet: "
+                f"{passage_count} of at least {MIN_EVIDENCE_PASSAGES} passages are ready. "
+                "Add more processed documents or collect more labour-market evidence."
+            ),
+            422,
+            {
+                "passage_count": passage_count,
+                "minimum_passages": MIN_EVIDENCE_PASSAGES,
+            },
         )
 
 
@@ -167,11 +206,20 @@ def list_sessions() -> tuple[Response, int]:
 @login_required
 def session_defaults() -> tuple[Response, int]:
     """Default parameters for a new session, the document limit and the NUC core status."""
-    version = active_nuc_core()
+    programme = default_programme()
+    version = active_nuc_core(programme.id)
+    programmes = db.session.scalars(
+        select(Programme).where(Programme.is_active.is_(True)).order_by(Programme.name)
+    ).all()
     return success(
         {
             "parameters": default_parameters(),
             "max_documents": int(get_setting("max_documents_per_session")),
+            "default_programme_id": programme.id if programme else None,
+            "programmes": [
+                {"id": p.id, "name": p.name, "discipline_code": p.discipline_code}
+                for p in programmes
+            ],
             "nuc_core_version": (
                 NucCoreRef.model_validate(version).model_dump() if version else None
             ),
@@ -185,9 +233,18 @@ def create_session() -> tuple[Response, int]:
     """Create a session; with ``"run": true`` it is queued for analysis straight away."""
     data = parse_body(SessionCreate)
     documents = check_documents(data.document_ids)
+    programme = (
+        db.session.get(Programme, data.programme_id)
+        if data.programme_id is not None
+        else default_programme()
+    )
+    if programme is None or not programme.is_active:
+        raise ApiError("VALIDATION_ERROR", "Choose an active programme.", 422)
     if data.run:
-        require_nuc_core()
+        require_nuc_core(programme.id)
+        require_evidence(data.document_ids)
     session = AnalysisSession(
+        programme_id=programme.id,
         created_by_id=current_user.id,
         session_name=data.session_name,
         parameter_config=build_parameters(data.parameters),
@@ -226,7 +283,8 @@ def run_session(session_id: int) -> tuple[Response, int]:
     if session.status != SessionStatus.PENDING:
         hint = " Use retry for a failed session." if session.status == SessionStatus.FAILED else ""
         raise ApiError("CONFLICT", f"This session is already {session.status}.{hint}", 409)
-    require_nuc_core()
+    require_nuc_core(session.programme_id or default_programme().id)
+    require_evidence([link.document_id for link in session.document_links])
     queue_run(session)
     record_audit(AuditAction.SESSION_RUN, "analysis_session", session.id)
     db.session.commit()
@@ -242,7 +300,8 @@ def retry_session(session_id: int) -> tuple[Response, int]:
     session = get_session_or_404(session_id)
     if session.status != SessionStatus.FAILED:
         raise ApiError("CONFLICT", "Only failed sessions can be retried.", 409)
-    require_nuc_core()
+    require_nuc_core(session.programme_id or default_programme().id)
+    require_evidence([link.document_id for link in session.document_links])
     clear_results(session)
     queue_run(session)
     record_audit(AuditAction.SESSION_RUN, "analysis_session", session.id, {"retry": True})

@@ -1,0 +1,64 @@
+{
+  "session": 10,
+  "documents": 56,
+  "words": 30822,
+  "passages": 417,
+  "courses_compared": 86,
+  "courses_excluded": 32,
+  "loading_seconds": 11.85,
+  "cold_seconds": 104.6,
+  "warm_seconds_median": 13.920000000000002,
+  "runs": [
+    {
+      "run": 1,
+      "seconds": 104.6,
+      "stages": {
+        "keywords": 0.699,
+        "skills": 11.309,
+        "embeddings": 0.01,
+        "themes": 92.531,
+        "overlap": 0.025,
+        "scoring": 0.001
+      }
+    },
+    {
+      "run": 2,
+      "seconds": 17.12,
+      "stages": {
+        "keywords": 0.081,
+        "skills": 11.135,
+        "embeddings": 0.035,
+        "themes": 5.805,
+        "overlap": 0.03,
+        "scoring": 0.0
+      }
+    },
+    {
+      "run": 3,
+      "seconds": 10.72,
+      "stages": {
+        "keywords": 0.203,
+        "skills": 7.282,
+        "embeddings": 0.004,
+        "themes": 3.181,
+        "overlap": 0.021,
+        "scoring": 0.0
+      }
+    }
+  ],
+  "recorded_by_worker": {
+    "skills": 6.221,
+    "themes": 92.562,
+    "loading": 5.402,
+    "overlap": 0.136,
+    "scoring": 0.017,
+    "keywords": 0.14,
+    "embeddings": 0.023,
+    "validating": 0.192
+  },
+  "machine": {
+    "platform": "Windows-11-10.0.26100-SP0",
+    "processor": "Intel64 Family 6 Model 142 Stepping 9, GenuineIntel",
+    "python": "3.13.15"
+  }
+}

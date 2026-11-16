@@ -4,16 +4,16 @@ import type { SessionStage, SessionStatus } from '@/types/api'
 export const PIPELINE_STAGES: { id: SessionStage; label: string; description: string }[] = [
   {
     id: 'validating',
-    label: 'Validating',
-    description: 'Checking documents, NUC core and weights',
+    label: 'Checking',
+    description: 'Checking the documents, the NUC core and the settings',
   },
-  { id: 'loading', label: 'Loading', description: 'Collecting passages and the NUC core' },
-  { id: 'keywords', label: 'Keywords', description: 'TF-IDF keywords overall and per category' },
-  { id: 'skills', label: 'Skills', description: 'Skills, tools and certifications (NER)' },
-  { id: 'embeddings', label: 'Embeddings', description: 'Reusing stored SBERT embeddings' },
-  { id: 'themes', label: 'Themes', description: 'Discovering themes with BERTopic' },
-  { id: 'overlap', label: 'Overlap', description: 'Comparing themes with the NUC core' },
-  { id: 'scoring', label: 'Scoring', description: 'Scoring and ranking recommendations' },
+  { id: 'loading', label: 'Loading', description: 'Collecting the extracts and the NUC core' },
+  { id: 'keywords', label: 'Keywords', description: 'Finding the words that stand out' },
+  { id: 'skills', label: 'Skills', description: 'Finding skills, tools and certifications' },
+  { id: 'embeddings', label: 'Meaning', description: 'Preparing the meaning of each extract' },
+  { id: 'themes', label: 'Topics', description: 'Grouping extracts into topics and naming them' },
+  { id: 'overlap', label: 'NUC core', description: 'Comparing topics with the NUC core' },
+  { id: 'scoring', label: 'Scoring', description: 'Scoring and ranking the topics' },
 ]
 
 export type StageState = 'done' | 'current' | 'failed' | 'waiting'

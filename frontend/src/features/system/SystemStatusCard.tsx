@@ -16,7 +16,7 @@ const SERVICES: { key: 'database' | 'redis'; label: string; purpose: string }[] 
 
 function ServiceBadge({ state }: { state: ServiceState }) {
   return state === 'ok' ? (
-    <Badge variant="secondary" className="gap-1 text-emerald-700 dark:text-emerald-400">
+    <Badge variant="success" className="gap-1">
       <CheckCircle2 aria-hidden="true" /> Available
     </Badge>
   ) : (
@@ -73,7 +73,7 @@ export function SystemStatusCard() {
                 </AlertDescription>
               </Alert>
             )}
-            <ul className="divide-y rounded-lg border">
+            <ul className="divide-y divide-divider rounded-2xl border border-line">
               {SERVICES.map((service) => (
                 <li key={service.key} className="flex items-center justify-between gap-4 p-3">
                   <div>

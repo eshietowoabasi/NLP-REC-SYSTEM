@@ -1,0 +1,655 @@
+[
+ {
+  "method": "GET",
+  "path": "/api/admin/audit-logs",
+  "module": "admin",
+  "function": "list_audit_logs",
+  "roles": [
+   "admin"
+  ],
+  "purpose": "The audit trail, newest first. Filters: ``user_id``, ``action`` (an action such as"
+ },
+ {
+  "method": "GET",
+  "path": "/api/admin/audit-logs/export",
+  "module": "admin",
+  "function": "export_audit_logs",
+  "roles": [
+   "admin"
+  ],
+  "purpose": "The filtered audit trail as CSV (at most 100,000 rows, newest first)."
+ },
+ {
+  "method": "GET",
+  "path": "/api/admin/settings",
+  "module": "admin",
+  "function": "get_settings",
+  "roles": [
+   "admin"
+  ],
+  "purpose": "Every setting with its current value, default and description."
+ },
+ {
+  "method": "PUT",
+  "path": "/api/admin/settings",
+  "module": "admin",
+  "function": "update_settings",
+  "roles": [
+   "admin"
+  ],
+  "purpose": "Change any subset of the settings. New values apply to sessions created afterwards"
+ },
+ {
+  "method": "GET",
+  "path": "/api/admin/skill-patterns",
+  "module": "admin",
+  "function": "list_skill_patterns",
+  "roles": [
+   "admin"
+  ],
+  "purpose": "Skill patterns by canonical name. Filters: ``label``, ``is_active``, ``search``."
+ },
+ {
+  "method": "POST",
+  "path": "/api/admin/skill-patterns",
+  "module": "admin",
+  "function": "create_skill_pattern",
+  "roles": [
+   "admin"
+  ],
+  "purpose": "Add a pattern; it is used by sessions run afterwards."
+ },
+ {
+  "method": "PATCH",
+  "path": "/api/admin/skill-patterns/<int:pattern_id>",
+  "module": "admin",
+  "function": "update_skill_pattern",
+  "roles": [
+   "admin"
+  ],
+  "purpose": "Edit a pattern or (de)activate it."
+ },
+ {
+  "method": "GET",
+  "path": "/api/admin/stop-words",
+  "module": "admin",
+  "function": "list_stop_words",
+  "roles": [
+   "admin"
+  ],
+  "purpose": "Domain stop words, alphabetically. Filters: ``is_active``, ``search``."
+ },
+ {
+  "method": "POST",
+  "path": "/api/admin/stop-words",
+  "module": "admin",
+  "function": "create_stop_word",
+  "roles": [
+   "admin"
+  ],
+  "purpose": "Add a stop word; sessions run afterwards leave it out of keywords and theme words."
+ },
+ {
+  "method": "PATCH",
+  "path": "/api/admin/stop-words/<int:word_id>",
+  "module": "admin",
+  "function": "update_stop_word",
+  "roles": [
+   "admin"
+  ],
+  "purpose": "Activate or deactivate a stop word."
+ },
+ {
+  "method": "GET",
+  "path": "/api/admin/users",
+  "module": "admin",
+  "function": "list_users",
+  "roles": [
+   "admin"
+  ],
+  "purpose": "List users. Filters: ``role``, ``is_active`` (true/false), ``search``."
+ },
+ {
+  "method": "POST",
+  "path": "/api/admin/users",
+  "module": "admin",
+  "function": "add_user",
+  "roles": [
+   "admin"
+  ],
+  "purpose": "Create a user with an initial password."
+ },
+ {
+  "method": "PATCH",
+  "path": "/api/admin/users/<int:user_id>",
+  "module": "admin",
+  "function": "edit_user",
+  "roles": [
+   "admin"
+  ],
+  "purpose": "Change a user's name, email, role or active flag, or reset their password."
+ },
+ {
+  "method": "POST",
+  "path": "/api/auth/change-password",
+  "module": "auth",
+  "function": "change_password",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "Change the logged-in user's password. Other sessions of this user are ended."
+ },
+ {
+  "method": "GET",
+  "path": "/api/auth/csrf",
+  "module": "auth",
+  "function": "csrf_token",
+  "roles": "public",
+  "purpose": "Return a CSRF token; send it as ``X-CSRFToken`` on every state-changing request."
+ },
+ {
+  "method": "POST",
+  "path": "/api/auth/login",
+  "module": "auth",
+  "function": "login",
+  "roles": "public",
+  "purpose": "Log in with username or email + password; sets the session cookie."
+ },
+ {
+  "method": "POST",
+  "path": "/api/auth/logout",
+  "module": "auth",
+  "function": "logout",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "End the current session. Returns a fresh CSRF token for the anonymous session."
+ },
+ {
+  "method": "GET",
+  "path": "/api/auth/me",
+  "module": "auth",
+  "function": "me",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "The logged-in user."
+ },
+ {
+  "method": "GET",
+  "path": "/api/dashboard/summary",
+  "module": "dashboard",
+  "function": "summary",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "Counts of documents, sessions, recommendations awaiting review and mapped courses."
+ },
+ {
+  "method": "GET",
+  "path": "/api/documents",
+  "module": "documents",
+  "function": "list_documents",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "List documents with filters, plus per-category counts of active documents."
+ },
+ {
+  "method": "POST",
+  "path": "/api/documents",
+  "module": "documents",
+  "function": "upload_documents",
+  "roles": [
+   "admin",
+   "planner"
+  ],
+  "purpose": "Upload one or more files (multipart ``files``) with one ``categories`` value each."
+ },
+ {
+  "method": "DELETE",
+  "path": "/api/documents/<int:document_id>",
+  "module": "documents",
+  "function": "delete_document",
+  "roles": [
+   "admin",
+   "planner"
+  ],
+  "purpose": "Permanently delete a document that no analysis session has used."
+ },
+ {
+  "method": "GET",
+  "path": "/api/documents/<int:document_id>",
+  "module": "documents",
+  "function": "get_document",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "Document metadata, a short text preview and the sessions that use it."
+ },
+ {
+  "method": "PATCH",
+  "path": "/api/documents/<int:document_id>",
+  "module": "documents",
+  "function": "edit_document",
+  "roles": [
+   "admin",
+   "planner"
+  ],
+  "purpose": "Change the details used wherever the document is referenced: title, source, link, date."
+ },
+ {
+  "method": "POST",
+  "path": "/api/documents/<int:document_id>/archive",
+  "module": "documents",
+  "function": "archive_document",
+  "roles": [
+   "admin",
+   "planner"
+  ],
+  "purpose": "Hide a document from the library and from new sessions; past sessions keep it."
+ },
+ {
+  "method": "GET",
+  "path": "/api/documents/<int:document_id>/file",
+  "module": "documents",
+  "function": "download_document",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "Download the original file (never served from a public path)."
+ },
+ {
+  "method": "GET",
+  "path": "/api/documents/<int:document_id>/passages",
+  "module": "documents",
+  "function": "list_passages",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "All extracted passages of a document, in order (paginated)."
+ },
+ {
+  "method": "GET",
+  "path": "/api/health",
+  "module": "health",
+  "function": "health",
+  "roles": "public",
+  "purpose": "Report API liveness and the reachability of Postgres and Redis."
+ },
+ {
+  "method": "DELETE",
+  "path": "/api/mappings/<int:mapping_id>",
+  "module": "mappings",
+  "function": "delete_mapping",
+  "roles": [
+   "admin",
+   "planner"
+  ],
+  "purpose": ""
+ },
+ {
+  "method": "PUT",
+  "path": "/api/mappings/<int:mapping_id>",
+  "module": "mappings",
+  "function": "update_mapping",
+  "roles": [
+   "admin",
+   "planner"
+  ],
+  "purpose": "Replace the course details of a mapping."
+ },
+ {
+  "method": "GET",
+  "path": "/api/nuc-core",
+  "module": "nuc_core",
+  "function": "current_nuc_core",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "The active version (null if none) and the most recent upload (may still be processing)."
+ },
+ {
+  "method": "POST",
+  "path": "/api/nuc-core",
+  "module": "nuc_core",
+  "function": "upload_version",
+  "roles": [
+   "admin"
+  ],
+  "purpose": "Upload a new version (multipart: ``file`` and ``version_label``)."
+ },
+ {
+  "method": "GET",
+  "path": "/api/nuc-core/courses",
+  "module": "nuc_core",
+  "function": "list_courses",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "The courses found in the active version, and whether each is compared with themes."
+ },
+ {
+  "method": "GET",
+  "path": "/api/nuc-core/versions",
+  "module": "nuc_core",
+  "function": "list_versions",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "Every uploaded version, newest first."
+ },
+ {
+  "method": "GET",
+  "path": "/api/recommendations/<int:recommendation_id>",
+  "module": "recommendations",
+  "function": "get_recommendation",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "Full detail: scores, evidence passages, the closest NUC passage and the mapping."
+ },
+ {
+  "method": "PATCH",
+  "path": "/api/recommendations/<int:recommendation_id>",
+  "module": "recommendations",
+  "function": "edit_recommendation",
+  "roles": [
+   "admin",
+   "planner"
+  ],
+  "purpose": "Change the title and/or description (the machine title stays in ``auto_title``)."
+ },
+ {
+  "method": "PATCH",
+  "path": "/api/recommendations/<int:recommendation_id>/decision",
+  "module": "recommendations",
+  "function": "decide",
+  "roles": [
+   "admin",
+   "planner"
+  ],
+  "purpose": "Accept, reject or mark for later discussion (``null`` clears the decision)."
+ },
+ {
+  "method": "GET",
+  "path": "/api/recommendations/<int:recommendation_id>/mapping",
+  "module": "mappings",
+  "function": "get_mapping_for",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": ""
+ },
+ {
+  "method": "POST",
+  "path": "/api/recommendations/<int:recommendation_id>/mapping",
+  "module": "mappings",
+  "function": "create_mapping",
+  "roles": [
+   "admin",
+   "planner"
+  ],
+  "purpose": "Map an accepted recommendation to a proposed course (one course per recommendation)."
+ },
+ {
+  "method": "GET",
+  "path": "/api/reports",
+  "module": "reports",
+  "function": "list_reports",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "Reports, newest first. Filters: ``session_id``, ``status``, ``format``."
+ },
+ {
+  "method": "DELETE",
+  "path": "/api/reports/<int:report_id>",
+  "module": "reports",
+  "function": "delete_report",
+  "roles": [
+   "admin",
+   "planner"
+  ],
+  "purpose": "Delete a report and its file (not while it is being generated)."
+ },
+ {
+  "method": "GET",
+  "path": "/api/reports/<int:report_id>",
+  "module": "reports",
+  "function": "get_report",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": ""
+ },
+ {
+  "method": "GET",
+  "path": "/api/reports/<int:report_id>/download",
+  "module": "reports",
+  "function": "download_report",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "Download a generated report file."
+ },
+ {
+  "method": "GET",
+  "path": "/api/sessions",
+  "module": "sessions",
+  "function": "list_sessions",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "Sessions, newest first. Filters: ``status``, ``search`` (name)."
+ },
+ {
+  "method": "POST",
+  "path": "/api/sessions",
+  "module": "sessions",
+  "function": "create_session",
+  "roles": [
+   "admin",
+   "planner"
+  ],
+  "purpose": "Create a session; with ``\"run\": true`` it is queued for analysis straight away."
+ },
+ {
+  "method": "DELETE",
+  "path": "/api/sessions/<int:session_id>",
+  "module": "sessions",
+  "function": "delete_session",
+  "roles": [
+   "admin",
+   "planner"
+  ],
+  "purpose": "Delete a session, its results and its report files (documents are kept)."
+ },
+ {
+  "method": "GET",
+  "path": "/api/sessions/<int:session_id>",
+  "module": "sessions",
+  "function": "get_session",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "Status, stage, progress, documents, parameters and NUC core version of a session."
+ },
+ {
+  "method": "GET",
+  "path": "/api/sessions/<int:session_id>/curriculum",
+  "module": "mappings",
+  "function": "proposed_curriculum",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "Every proposed course of a session, the total credit units and the allowance."
+ },
+ {
+  "method": "GET",
+  "path": "/api/sessions/<int:session_id>/entities",
+  "module": "results",
+  "function": "entities",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "Skills, tools, languages and certifications: mentions and document frequency."
+ },
+ {
+  "method": "GET",
+  "path": "/api/sessions/<int:session_id>/keywords",
+  "module": "results",
+  "function": "keywords",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "Top TF-IDF terms overall and per category. ``?category=`` limits to one category."
+ },
+ {
+  "method": "GET",
+  "path": "/api/sessions/<int:session_id>/progress",
+  "module": "recommendations",
+  "function": "session_progress",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "Where a session stands in the review workflow: review \u2192 design courses \u2192 report."
+ },
+ {
+  "method": "GET",
+  "path": "/api/sessions/<int:session_id>/recommendations",
+  "module": "recommendations",
+  "function": "list_recommendations",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "All recommendations of a session in rank order, with review progress."
+ },
+ {
+  "method": "GET",
+  "path": "/api/sessions/<int:session_id>/recommendations/export",
+  "module": "recommendations",
+  "function": "export_recommendations",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "Every recommendation as CSV, with scores both out of 100 and as exact 0-1 decimals."
+ },
+ {
+  "method": "POST",
+  "path": "/api/sessions/<int:session_id>/reports",
+  "module": "reports",
+  "function": "create_report",
+  "roles": [
+   "admin",
+   "planner"
+  ],
+  "purpose": "Queue a report of a completed session (202 Accepted; poll the report for its status)."
+ },
+ {
+  "method": "POST",
+  "path": "/api/sessions/<int:session_id>/retry",
+  "module": "sessions",
+  "function": "retry_session",
+  "roles": [
+   "admin",
+   "planner"
+  ],
+  "purpose": "Run a failed session again from the start (202 Accepted)."
+ },
+ {
+  "method": "POST",
+  "path": "/api/sessions/<int:session_id>/run",
+  "module": "sessions",
+  "function": "run_session",
+  "roles": [
+   "admin",
+   "planner"
+  ],
+  "purpose": "Queue a pending session for analysis (202 Accepted; poll the session for progress)."
+ },
+ {
+  "method": "GET",
+  "path": "/api/sessions/<int:session_id>/similarity",
+  "module": "results",
+  "function": "similarity",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "Overlap of every theme with the NUC core, with the closest NUC passage."
+ },
+ {
+  "method": "GET",
+  "path": "/api/sessions/<int:session_id>/topics",
+  "module": "results",
+  "function": "topics",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "Every discovered theme with keywords, size, strength and sample passages."
+ },
+ {
+  "method": "GET",
+  "path": "/api/sessions/defaults",
+  "module": "sessions",
+  "function": "session_defaults",
+  "roles": [
+   "admin",
+   "planner",
+   "viewer"
+  ],
+  "purpose": "Default parameters for a new session, the document limit and the NUC core status."
+ }
+]

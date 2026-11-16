@@ -6,3 +6,5 @@ pytest-cov==7.1.0
 ruff==0.16.8
 black==26.5.1
 uv==0.12.18
+# Evaluation only (LDA baseline and C_v coherence); never imported by the app.
+gensim==4.4.0

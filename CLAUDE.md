@@ -1,6 +1,6 @@
 # CLAUDE.md — NLP-RS project context
 
-NLP-Driven Curriculum Recommendation System: a B.Sc. Computer Science final-year project
+NLP-Driven Curriculum Recommendation System (branded **SkillBridge** in the UI): a B.Sc. Computer Science final-year project
 (University of Uyo, Dept. of Computer Science). Planners upload job adverts, policy,
 institutional and academic documents; an NLP pipeline proposes candidate course topics for the
 university-designed **30%** of the NUC CCMAS curriculum, scored against the fixed NUC **70%** core.
@@ -56,10 +56,11 @@ Web only (Chrome, Firefox, Edge). Pre-trained models only.
 9. Novelty = `1 − max cosine(candidate, NUC core passages)`, clipped to [0,1].
    `max_sim > threshold` (default 0.80, strictly greater) → "Potential Duplicate", else
    "No Significant Overlap". Store closest NUC passage id.
-10. Skill (NER) score: per candidate, sum over its top skills of the number of distinct documents
-    mentioning each skill → `log1p` → min-max across candidates (all equal → 1.0).
-11. Theme (topic) score: `(topic_passages / total_non_outlier_passages) × mean_topic_probability`
-    → min-max across candidates.
+10. Skill (NER) score: per candidate, sum over its top skills of (distinct documents mentioning
+    the skill × share of the skill's mentions in this theme) → `log1p` → min-max over the
+    candidates that have skills; no skills → 0 (Phase 6, see `docs/SCORING_COMPARISON.md`).
+11. Theme (topic) score: `(document-weighted topic passages / non-outlier total) ×
+    mean_topic_probability` → square root → min-max across candidates (Phase 6).
 12. `composite = w_ner·ner + w_topic·topic + w_novelty·novelty`, defaults 0.40/0.35/0.25, weights
     must sum to 1.0 ± 0.001. Rank descending, keep top `max_recommendations` (default 20).
     Duplicates stay in the list, badged.
@@ -71,7 +72,8 @@ Web only (Chrome, Firefox, Edge). Pre-trained models only.
     authorised endpoints.
 17. Documents used by a session cannot be hard-deleted (409) — archive instead. Users are
     deactivated, never deleted.
-18. Exactly one active NUC core version (admin-only upload). Sessions record the version used and
+18. Exactly one active NUC core version **per programme** (admin-only upload; `/api/nuc-core` =
+    default programme, Computer Science). Sessions record the programme and version used and
     cannot run without one.
 19. 30% credit-unit allowance: admin setting, null until set.
 
@@ -128,9 +130,11 @@ cosmetic.
   document builders live in `tests/documents.py`. Uploaded files go to a per-test tmp storage dir.
 - This laptop: `USE_SYSTEM_CERTS=true` in `.env` (Avast re-signs HTTPS); libmagic is missing
   natively, so validation falls back to signature checks (libmagic tests are skipped locally).
-- Docker image builds on this laptop currently fail (Avast HTTPS scanning breaks pip inside
-  containers); develop in lightweight mode. The backend image has not been rebuilt with the NLP
-  or report packages yet.
+- Disk: the C: drive has about 48 GB free (September 2026).
+- Avast HTTPS scanning (Web Shield) breaks downloads inside containers (pip, npm, Hugging Face)
+  because containers do not trust Avast's certificate. Docker builds that need the network, and
+  a container's first SBERT download, need Web Shield off; cached layers and the `models-data`
+  volume work with it on. Native runs are fine with it on (`USE_SYSTEM_CERTS=true`).
 
 ## Reports and admin conventions (established in Phase 5)
 
@@ -171,8 +175,24 @@ cosmetic.
   query client, utils), `types/api.ts`, `test/` (setup + render helpers).
 - Every data screen has loading, empty and error states. Accessible: labelled inputs,
   keyboard navigation, sufficient contrast. Responsive to tablet width.
-- Charts (Recharts): colours from the `--viz-*` tokens in `index.css` (validated palette; one
-  hue for magnitude, amber only for "Potential Duplicate" with icon + label), a table beside
+- Plain language (Phase 6, see docs/PLAIN_LANGUAGE.md): on screen and in reports say topic,
+  extract, employer demand, how often it comes up, how new it is, "Not in NUC core" / "May
+  already be in NUC core", "Discuss later", "Design course"; technical terms only in "Show
+  calculation", admin "(advanced)" settings and docs. Reference documents by their `label`
+  ("Title, job advert (MyJobMag, Sep 2026)"), never the file name.
+- Review workflow (Phase 6): decisions go through `DecisionControl` (review/DecisionControl.tsx);
+  session pages show `SessionProgress` (Review → Design courses → Report); reports download in one
+  click via `DownloadReportButton` / `generateAndDownload` (reports/download.ts). Scores are shown
+  out of 100 with the helpers in `review/labels.ts`; "flagged" is displayed as "Discuss later".
+- SkillBridge design (Phase 6, `docs/design/skillbridge-design/DESIGN_SPEC.md`): use the brand tokens in
+  `index.css` (`terracotta`, `amber`, `ink`, `sand`, `line`, `muted-ink` …, shadcn variables mapped onto
+  them; light only), the restyled shadcn primitives (Badge variants success/warning/info/neutral/brand,
+  Alert variants success/warning/info, Toggle `chip`/`segment`, `TableCard`) and the shared pieces in
+  `components/shared/` (`PageHeader`, `EmptyState`, `FilterChip`, `DocumentRef`) and
+  `components/brand/Logo`. Page titles are `h2.page-title`; the top bar's `h1` comes from the route's
+  `handle` (`title`, `crumb`). Never show file names; reference documents with `DocumentRef`.
+- Charts (Recharts): colours from the `--viz-*` tokens in `index.css` (terracotta for
+  magnitude on a divider-coloured track, amber only for "Potential Duplicate" with icon + label), a table beside
   every chart, hover tooltips. Chart-heavy routes are lazy-loaded.
 - Edit files with the Edit/Write tools or Python, not PowerShell `Get-Content`/`Set-Content`
   (they garble UTF-8 and add BOMs).
@@ -184,6 +204,8 @@ cosmetic.
 cp .env.example .env && docker compose up --build
 # Lightweight mode: only Postgres + Redis in Docker, app runs natively
 docker compose -f docker-compose.services.yml up -d --wait
+# One click (Windows): services + API, worker and Vite in their own windows + browser
+powershell -ExecutionPolicy Bypass -File .\start-demo.ps1      # see docs/DEMO.md
 
 # Backend (from backend/)
 python -m venv .venv && .venv/Scripts/activate      # Windows; source .venv/bin/activate on Linux

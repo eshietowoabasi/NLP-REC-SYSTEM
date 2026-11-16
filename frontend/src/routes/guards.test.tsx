@@ -23,7 +23,7 @@ describe('route guards', () => {
 
     renderApp('/')
 
-    expect(await screen.findByText('Cannot reach NLP-RS')).toBeInTheDocument()
+    expect(await screen.findByText('Cannot reach SkillBridge')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
 })

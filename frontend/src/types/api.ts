@@ -129,6 +129,20 @@ export interface UserRef {
   full_name: string
 }
 
+export interface ProgrammeRef {
+  id: number
+  name: string
+  discipline_code: string | null
+}
+
+export interface Programme extends ProgrammeRef {
+  faculty: string | null
+  description: string | null
+  country: string
+  is_active: boolean
+  created_at: string
+}
+
 export interface DocumentSummary {
   id: number
   title: string
@@ -138,11 +152,26 @@ export interface DocumentSummary {
   source_category: SourceCategory
   processing_status: DocumentStatus
   error_message: string | null
+  /** Where the document comes from, e.g. "MyJobMag". */
+  source: string | null
+  source_url: string | null
+  /** ISO date the document (e.g. a job advert) was published. */
+  published_on: string | null
+  /** Readable reference: "Senior QA Engineer – Hydrogen, job advert (MyJobMag, Sep 2026)". */
+  label: string
   page_count: number | null
   word_count: number | null
   uploaded_at: string
   parsed_at: string | null
   uploaded_by: UserRef
+}
+
+/** PATCH /api/documents/{id}: any subset. */
+export interface DocumentEditRequest {
+  title?: string
+  source?: string | null
+  source_url?: string | null
+  published_on?: string | null
 }
 
 export interface PassageSummary {
@@ -245,6 +274,7 @@ export interface SessionDocument {
 
 /** GET /api/sessions/{id} */
 export interface SessionDetail extends SessionSummary {
+  programme?: ProgrammeRef | null
   parameter_config: SessionParameterConfig
   stage_timings: Partial<Record<SessionStage, number>>
   error_message: string | null
@@ -257,6 +287,8 @@ export interface SessionDetail extends SessionSummary {
 export interface SessionDefaults {
   parameters: SessionParameterConfig
   max_documents: number
+  default_programme_id?: number | null
+  programmes?: ProgrammeRef[]
   nuc_core_version: { id: number; version_label: string } | null
 }
 
@@ -314,6 +346,8 @@ export interface EntityResults {
 
 export interface WeightedTerm {
   term: string
+  /** The keyword as written in the documents ("problem solving"); older sessions lack it. */
+  label?: string
   weight: number
 }
 
@@ -321,12 +355,17 @@ export interface TopicSample {
   passage_id: number
   document_id: number
   document_title: string
+  /** Readable reference (title, type, source, date); older API responses may lack it. */
+  document_label?: string
   text: string
 }
 
 export interface TopicResult {
   topic_id: number
+  /** Course-style name, or the keyword title when no name was close enough. */
   title: string
+  keyword_title?: string
+  name_similarity?: number | null
   keywords: WeightedTerm[]
   size: number
   document_count: number
@@ -346,6 +385,15 @@ export interface TopicResults {
 
 export type OverlapStatus = 'Potential Duplicate' | 'No Significant Overlap'
 
+/** A course of the NUC core (course-level overlap). */
+export interface NucCourse {
+  id: number
+  code: string
+  title: string
+  units: number | null
+  page_number: number | null
+}
+
 export interface SimilarityCandidate {
   topic_id: number
   title: string
@@ -353,11 +401,18 @@ export interface SimilarityCandidate {
   novelty: number
   overlap_status: OverlapStatus
   closest_nuc_passage: { id: number; text: string; page_number: number | null }
+  /** Null when the session compared themes with NUC passages. */
+  closest_nuc_course: NucCourse | null
 }
 
 /** GET /api/sessions/{id}/similarity */
 export interface SimilarityResults {
   threshold: number
+  /** "course": themes compared with whole NUC courses; "passage": with NUC passages. */
+  basis: 'course' | 'passage'
+  /** Present for course-based sessions run after course exclusions existed. */
+  courses_compared?: number
+  courses_excluded?: number
   candidates: SimilarityCandidate[]
   nuc_core_version: { id: number; version_label: string } | null
 }
@@ -390,11 +445,14 @@ export interface Recommendation {
   composite_score: number
   max_similarity: number
   overlap_status: OverlapStatus
+  closest_nuc_course: NucCourse | null
   planner_decision: PlannerDecision | null
   planner_notes: string | null
   decided_at: string | null
   decided_by: UserRef | null
   has_mapping: boolean
+  /** The course designed for this (accepted) recommendation, if any. */
+  course: { course_code: string; course_title: string; credit_units: number } | null
 }
 
 export interface ReviewCounts {
@@ -405,6 +463,26 @@ export interface ReviewCounts {
   rejected: number
   flagged: number
   potential_duplicates: number
+  with_courses: number
+  accepted_with_courses: number
+}
+
+/** GET /api/sessions/{id}/progress: review → design courses → report. */
+export interface SessionProgress {
+  session_status: SessionStatus
+  total: number
+  reviewed: number
+  accepted: number
+  rejected: number
+  flagged: number
+  courses: number
+  accepted_with_courses: number
+  latest_report: {
+    id: number
+    status: ReportStatus
+    format: ReportFormat
+    created_at: string
+  } | null
 }
 
 /** GET /api/sessions/{id}/recommendations */
@@ -424,7 +502,16 @@ export interface Evidence {
   text: string
   page_number: number | null
   position: number
-  document: { id: number; title: string; source_category: SourceCategory }
+  document: {
+    id: number
+    title: string
+    source_category: SourceCategory
+    source?: string | null
+    source_url?: string | null
+    published_on?: string | null
+    /** "Senior QA Engineer – Hydrogen, job advert (MyJobMag, Sep 2026)". */
+    label?: string
+  }
 }
 
 export interface NucPassage {
@@ -530,7 +617,8 @@ export interface Report {
 /** POST /api/sessions/{id}/reports */
 export interface CreateReportRequest {
   format: ReportFormat
-  sections: ReportSection[]
+  /** Omitted: every section. */
+  sections?: ReportSection[]
 }
 
 export interface ReportListParams {
@@ -559,8 +647,12 @@ export interface DashboardSummary {
     accepted: number
     rejected: number
     flagged: number
+    /** Latest completed session that still has undecided recommendations. */
+    review_session: { id: number; session_name: string; undecided: number } | null
   }
   courses_mapped: number
+  /** Latest session with courses mapped. */
+  curriculum_session: { id: number; session_name: string } | null
   reports: number
   nuc_core_version: { id: number; version_label: string } | null
   recent_sessions: SessionSummary[]
@@ -579,11 +671,19 @@ export type SettingKey =
   | 'min_topic_size'
   | 'evidence_per_recommendation'
   | 'max_documents_per_session'
+  | 'nuc_course_exclusions'
+  | 'topic_name_catalogue'
   | 'credit_unit_allowance'
 
 export interface NumberRange {
   min: number
   max: number
+}
+
+/** NUC core courses left out of the overlap comparison. */
+export interface CourseExclusions {
+  code_prefixes: string[]
+  title_keywords: string[]
 }
 
 /** Value types of each setting. */
@@ -598,6 +698,8 @@ export interface SettingValues {
   min_topic_size: number
   evidence_per_recommendation: number
   max_documents_per_session: number
+  nuc_course_exclusions: CourseExclusions
+  topic_name_catalogue: string[]
   credit_unit_allowance: number | null
 }
 
@@ -693,6 +795,13 @@ export interface AuditLogParams {
 
 /* -------------------------------------------------------------- NUC core */
 
+export interface ProgrammeBenchmarkState {
+  programme: Programme
+  active: NucCoreVersion | null
+  latest: NucCoreVersion | null
+  versions: NucCoreVersion[]
+}
+
 export interface NucCoreVersion {
   id: number
   version_label: string
@@ -700,6 +809,19 @@ export interface NucCoreVersion {
   created_at: string
   uploaded_by: UserRef
   document: DocumentSummary
+}
+
+export interface NucCoreCourse extends NucCourse {
+  /** Excluded courses are listed but not compared with themes. */
+  excluded: boolean
+}
+
+/** GET /api/nuc-core/courses */
+export interface NucCoreCourses {
+  version: NucCoreVersion | null
+  exclusions: CourseExclusions
+  courses: NucCoreCourse[]
+  excluded_count: number
 }
 
 /** GET /api/nuc-core */
@@ -715,4 +837,31 @@ export interface UserListParams {
   role?: UserRole
   is_active?: 'true' | 'false'
   search?: string
+}
+
+export interface HarvestProfile {
+  search_terms: string[]
+  field_slugs: string[]
+}
+
+export interface HarvestRun {
+  id: number
+  programme_id: number
+  status: 'queued' | 'running' | 'completed' | 'failed'
+  target_count: number
+  pages_per_field: number
+  examined_count: number
+  found_count: number
+  imported_count: number
+  skipped_count: number
+  error_message: string | null
+  created_at: string
+  started_at: string | null
+  completed_at: string | null
+}
+
+export interface HarvestState {
+  programme: ProgrammeRef
+  profile: HarvestProfile
+  latest_run: HarvestRun | null
 }

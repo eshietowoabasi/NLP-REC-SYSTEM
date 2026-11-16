@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Any, Literal
 
 from pydantic import (
@@ -12,14 +12,34 @@ from pydantic import (
     ConfigDict,
     Field,
     StringConstraints,
+    computed_field,
     model_validator,
 )
 
 from app.models.enums import OverlapStatus, PlannerDecision, SourceCategory
 from app.schemas.common import RequestModel, ResponseModel
 from app.schemas.documents import UserRef
+from app.utils.labels import document_label
 
 # --------------------------------------------------------------------- recommendations
+
+
+class NucCourseRef(ResponseModel):
+    """The NUC core course a theme is closest to (course-level overlap)."""
+
+    id: int
+    code: str
+    title: str
+    units: int | None
+    page_number: int | None
+
+
+class CourseRef(BaseModel):
+    """The course designed for an accepted recommendation (its curriculum mapping)."""
+
+    course_code: str
+    course_title: str
+    credit_units: int
 
 
 class RecommendationOut(ResponseModel):
@@ -38,11 +58,14 @@ class RecommendationOut(ResponseModel):
     composite_score: float
     max_similarity: float
     overlap_status: OverlapStatus
+    # Null when the session compared themes with NUC passages (core without courses).
+    closest_nuc_course: NucCourseRef | None
     planner_decision: PlannerDecision | None
     planner_notes: str | None
     decided_at: datetime | None
     decided_by: UserRef | None
     has_mapping: bool
+    course: CourseRef | None
 
 
 class RecommendationListQuery(BaseModel):
@@ -56,6 +79,15 @@ class DocumentRef(ResponseModel):
     id: int
     title: str
     source_category: SourceCategory
+    source: str | None = None
+    source_url: str | None = None
+    published_on: date | None = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def label(self) -> str:
+        """ "Senior QA Engineer – Hydrogen, job advert (MyJobMag, Sep 2026)"."""
+        return document_label(self.title, self.source_category, self.source, self.published_on)
 
 
 class EvidenceOut(BaseModel):

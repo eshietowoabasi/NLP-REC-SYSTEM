@@ -143,8 +143,15 @@ def canonical_lookup(specs: list[SkillPatternSpec], nlp: Language) -> dict[str, 
 
     def register(key: str, canonical: str) -> None:
         key = " ".join(key.split())
-        stripped = re.sub(r"[^a-z0-9 ]+", "", key)
-        for variant in (key, stripped, stem_key(key), stem_key(stripped)):
+        # "node.js" -> "nodejs" is safe, but "+" and "#" carry meaning: stripping them would
+        # map the ordinary word "security" to "CompTIA Security+" (and "c" to "C#").
+        stripped = "" if re.search(r"[+#]", key) else re.sub(r"[^a-z0-9 ]+", "", key)
+        variants = [key, stripped]
+        # Stemmed forms only for phrases ("machine learn" -> Machine Learning): for single words
+        # stemming merges different words ("solidity" and "solid" both become "solid").
+        if " " in key:
+            variants += [stem_key(key), stem_key(stripped) if stripped else ""]
+        for variant in variants:
             if variant:
                 lookup.setdefault(variant, canonical)
 

@@ -27,9 +27,23 @@ export function formatNumber(value: number | null, fallback = '—'): string {
   return value === null ? fallback : value.toLocaleString('en-GB')
 }
 
-/** Up to two initials for an avatar: "Ada Lovelace" → "AL". */
-export function initials(name: string): string {
+const HONORIFICS = /^(mr|mrs|ms|miss|dr|prof|professor|engr|rev|sir|madam)\.?$/i
+
+/** The words of a name without a leading title: "Mr John Okon" → ["John", "Okon"]. */
+function nameParts(name: string): string[] {
   const parts = name.trim().split(/\s+/).filter(Boolean)
+  const firstReal = parts.findIndex((part) => !HONORIFICS.test(part))
+  return firstReal > 0 ? parts.slice(firstReal) : parts
+}
+
+/** The name to greet someone by: "Mr John Okon" → "John". */
+export function firstName(name: string): string {
+  return nameParts(name)[0] ?? name
+}
+
+/** Up to two initials for an avatar: "Ada Lovelace" → "AL", "Mr John Okon" → "JO". */
+export function initials(name: string): string {
+  const parts = nameParts(name)
   const letters = parts.length > 1 ? [parts[0], parts[parts.length - 1]] : parts
   return letters.map((part) => part[0]?.toUpperCase() ?? '').join('') || '?'
 }

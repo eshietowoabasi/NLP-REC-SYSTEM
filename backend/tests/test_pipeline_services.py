@@ -9,6 +9,7 @@ import math
 
 import numpy as np
 import pytest
+import spacy
 
 from app.models.enums import OverlapStatus
 from app.services.ner.skills import (
@@ -25,14 +26,19 @@ from app.services.recommendations.scoring import (
     composite_score,
     min_max,
     rank,
+    scale_skill_demand,
+    scale_theme_strength,
     skill_demand_raw,
     theme_strength_raw,
 )
 from app.services.similarity.overlap import compare_to_core, overlap_status
 from app.services.tfidf.keywords import extract_keywords
-from app.services.topics.modelling import centroid, representative_passages
+from app.services.topics.modelling import centroid, merge_groups, representative_passages
+from app.services.topics.naming import name_topics
+from app.services.topics.surface import SurfaceForms
 from app.services.topics.titles import (
     excerpt,
+    keyword_label,
     make_description,
     make_title,
     pretty_term,
@@ -255,17 +261,55 @@ def test_min_max(values, expected) -> None:
     assert min_max(values) == pytest.approx(expected)
 
 
-def test_skill_demand_uses_log1p_of_summed_document_frequency() -> None:
-    assert skill_demand_raw(["Python", "AWS"], {"Python": 3, "AWS": 2}) == pytest.approx(
-        math.log1p(5)
+def test_skill_demand_weights_document_frequency_by_specificity() -> None:
+    frequency = {"Python": 3, "AWS": 2}
+    # All of Python's mentions are in this theme; a quarter of AWS's.
+    corpus = {"Python": 4, "AWS": 8}
+    assert skill_demand_raw([("Python", 4), ("AWS", 2)], frequency, corpus) == pytest.approx(
+        math.log1p(3 * 1.0 + 2 * 0.25)
     )
-    assert skill_demand_raw([], {}) == 0.0
-    assert skill_demand_raw(["Unknown"], {"Python": 3}) == 0.0
+    assert skill_demand_raw([], {}, {}) == 0.0
+    assert skill_demand_raw([("Unknown", 2)], frequency, corpus) == 0.0
+
+
+def test_a_skill_common_to_every_theme_adds_little() -> None:
+    frequency = {"Agile": 20, "Kubernetes": 5}
+    corpus = {"Agile": 100, "Kubernetes": 10}
+    generic = skill_demand_raw([("Agile", 10)], frequency, corpus)  # 10% of Agile mentions
+    specific = skill_demand_raw([("Kubernetes", 10)], frequency, corpus)  # all of them
+
+    assert specific > generic
+
+
+def test_skill_scaling_leaves_themes_without_skills_at_zero() -> None:
+    # Without the exclusion the zero would set the minimum and push 2.0 and 3.0 up.
+    assert scale_skill_demand([0.0, 2.0, 3.0, 4.0]) == pytest.approx([0.0, 0.0, 0.5, 1.0])
+    assert scale_skill_demand([0.0, 2.0]) == pytest.approx([0.0, 1.0])
+    assert scale_skill_demand([0.0, 0.0]) == [0.0, 0.0]
+
+
+def test_theme_strength_scaling_uses_the_square_root() -> None:
+    # One dominant theme (0.64) no longer squashes the others: sqrt gives 0.2, 0.4, 0.8.
+    assert scale_theme_strength([0.04, 0.16, 0.64]) == pytest.approx([0.0, 1 / 3, 1.0])
+    assert min_max([0.04, 0.16, 0.64]) == pytest.approx([0.0, 0.2, 1.0])
 
 
 def test_theme_strength() -> None:
     assert theme_strength_raw(10, 40, 0.8) == pytest.approx(0.2)
     assert theme_strength_raw(5, 0, 1.0) == 0.0
+
+
+def test_every_document_weighs_the_same_in_theme_strength() -> None:
+    from app.services.recommendations.scoring import document_weights
+
+    # A 4-passage document and two 1-passage documents.
+    weights = document_weights([7, 7, 7, 7, 8, 9])
+
+    assert weights == pytest.approx([0.25, 0.25, 0.25, 0.25, 1.0, 1.0])
+    # A theme holding the whole long document is as strong as one holding a single advert.
+    long_doc = theme_strength_raw(sum(weights[:4]), sum(weights), 1.0)
+    one_advert = theme_strength_raw(weights[4], sum(weights), 1.0)
+    assert long_doc == pytest.approx(one_advert) == pytest.approx(1 / 3)
 
 
 def test_composite_score_is_the_weighted_sum() -> None:
@@ -311,6 +355,46 @@ def test_canonical_lookup_covers_lemmas_and_stripped_punctuation() -> None:
     )
 
 
+def test_plus_and_hash_are_not_stripped_from_skill_names() -> None:
+    from app.services.ner.skills import SkillPatternSpec, canonical_lookup
+    from app.services.preprocessing.spacy_model import get_nlp
+
+    specs = [
+        SkillPatternSpec("CERT", "comptia security+", "CompTIA Security+"),
+        SkillPatternSpec("CERT", "security+", "CompTIA Security+"),
+        SkillPatternSpec("LANGUAGE", "c#", "C#"),
+    ]
+
+    lookup = canonical_lookup(specs, get_nlp("en_core_web_sm"))
+
+    # The real corpus titled a theme "Database CompTIA Security+" from "database security".
+    assert pretty_term("security", lookup) == "Security"
+    assert pretty_term("c", lookup) == "C"
+    assert pretty_term("security+", lookup) == "CompTIA Security+"
+
+
+def test_titles_do_not_repeat_a_skill_or_show_odd_lemmas() -> None:
+    canonical = {"agile": "Agile Methodologies", "methodology": "Agile Methodologies"}
+
+    # Seen on the real corpus: "... and Agile Methodologies Agile Methodologies", "... Datum".
+    assert pretty_term("agile methodology", canonical) == "Agile Methodologies"
+    assert pretty_term("datum", {}) == "Data"
+    assert title_terms(["data", "datum", "power bi"]) == ["data", "power bi"]
+
+
+def test_single_words_are_not_matched_to_skills_by_their_stem() -> None:
+    from app.services.ner.skills import SkillPatternSpec, canonical_lookup
+    from app.services.preprocessing.spacy_model import get_nlp
+
+    specs = [SkillPatternSpec("LANGUAGE", "solidity", "Solidity")]
+
+    lookup = canonical_lookup(specs, get_nlp("en_core_web_sm"))
+
+    # The real policy document's "Solid Infrastructure" pillar was titled "Solidity ...".
+    assert pretty_term("solid", lookup) == "Solid"
+    assert pretty_term("solidity", lookup) == "Solidity"
+
+
 def test_separately_ranked_words_of_a_known_skill_are_joined() -> None:
     from app.services.ner.skills import canonical_lookup
     from app.services.preprocessing.spacy_model import get_nlp
@@ -324,21 +408,96 @@ def test_separately_ranked_words_of_a_known_skill_are_joined() -> None:
 
 def test_title_terms_and_fallbacks() -> None:
     assert title_terms(["a b", "b", "c"], limit=5) == ["a b", "c"]
-    assert make_title([], {}) == "Untitled theme"
+    assert make_title([], {}) == "Untitled topic"
     assert make_title(["python"], {}) == "Python"
-
-
-def test_description_mentions_size_terms_and_excerpt() -> None:
-    description = make_description(
-        ["payment gateway", "fintech"],
-        {},
-        passage_count=12,
-        document_count=1,
-        representative_text="x " * 300,
-    )
-
-    assert description.startswith(
-        "A theme found in 12 passages from 1 document, centred on Payment Gateway and Fintech."
-    )
-    assert description.endswith("…”")
     assert excerpt("short text") == "short text"
+
+
+def test_description_says_why_in_plain_words() -> None:
+    description = make_description(
+        document_count=9,
+        total_documents=56,
+        documents_by_category={"job_market": 8, "policy": 1},
+        advert_titles=["QA Engineer – Acme", "Test Analyst – Beta", "QA Engineer – Gamma"],
+        skills=["Selenium", "Jira", "SQL", "Postman", "Agile Methodologies", "Git"],
+        keywords=["test", "defect"],
+    )
+
+    assert description == (
+        "Why this is recommended: 9 of the 56 documents mention this area, mostly job adverts "
+        "for roles such as “QA Engineer” and “Test Analyst”. Employers ask for skills in "
+        "Selenium, Jira, SQL, Postman and Agile Methodologies."
+    )
+    policy = make_description(
+        document_count=1,
+        total_documents=56,
+        documents_by_category={"policy": 1},
+        advert_titles=[],
+        skills=[],
+        keywords=["digital economy", "broadband"],
+    )
+    assert policy == (
+        "Why this is recommended: 1 of the 56 documents mentions this area. "
+        "Main words: digital economy and broadband."
+    )
+
+
+def test_keywords_are_shown_as_written() -> None:
+    nlp = spacy.load("en_core_web_sm")
+    surfaces = SurfaceForms().learn(
+        nlp,
+        [
+            "Strong problem solving skills and distributed systems experience are needed.",
+            "We value problem solving and work on distributed systems.",
+        ],
+    )
+
+    assert surfaces.form("problem solve") == "problem solving"
+    assert surfaces.form("distribute system") == "distributed systems"
+    assert pretty_term("problem solve", {}, surfaces) == "Problem Solving"
+    assert keyword_label("problem solve", {}, surfaces) == "problem solving"
+    assert keyword_label("aws", {}, None) == "AWS"
+
+
+def test_near_duplicate_topics_are_merged_by_centre_similarity() -> None:
+    rng = np.random.default_rng(0)
+    base = rng.normal(size=(3, 16))
+    # Topics 0 and 1 share a direction (near-duplicates); topic 2 is different.
+    vectors = np.vstack(
+        [base[0] + rng.normal(scale=0.05, size=16) for _ in range(4)]
+        + [base[0] + rng.normal(scale=0.05, size=16) for _ in range(4)]
+        + [base[2] + rng.normal(scale=0.05, size=16) for _ in range(4)]
+    ).astype(np.float32)
+    vectors /= np.linalg.norm(vectors, axis=1, keepdims=True)
+    labels = np.array([0] * 4 + [1] * 4 + [2] * 4 + [-1], dtype=np.int64)
+    vectors = np.vstack([vectors, vectors[:1]])
+
+    assert merge_groups(labels, vectors, 0.83) == [[0, 1]]
+    assert merge_groups(labels, vectors, 0.9999) == []
+
+
+def test_topics_get_unique_catalogue_names_above_the_threshold() -> None:
+    names = ["Software Testing", "Cloud Computing", "Digital Policy"]
+    name_vectors = np.eye(3, 4, dtype=np.float32)
+    # Topic 0 and 1 both point at "Software Testing"; topic 0 is closer. Topic 2 matches nothing.
+    centres = np.array([[1, 0, 0, 0.1], [0.9, 0.2, 0, 0.3], [0, 0, 0, 1]], dtype=np.float32)
+
+    named = name_topics(centres, centres, names, name_vectors, threshold=0.5)
+
+    assert named[0].name == "Software Testing"
+    assert named[1].name is None  # its best name is taken and no other is close enough
+    assert named[2].name is None and named[2].similarity < 0.5
+    assert name_topics(centres, centres, [], np.zeros((0, 4)), 0.5)[0].name is None
+
+
+def test_document_labels_read_like_references() -> None:
+    from datetime import date
+
+    from app.utils.labels import document_label
+
+    assert (
+        document_label("Senior QA Engineer – Hydrogen", "job_market", "MyJobMag", date(2026, 9, 18))
+        == "Senior QA Engineer – Hydrogen, job advert (MyJobMag, Sep 2026)"
+    )
+    assert document_label("NDEPS", "policy", "NITDA") == "NDEPS, policy document (NITDA)"
+    assert document_label("Notes", "academic") == "Notes, academic paper"

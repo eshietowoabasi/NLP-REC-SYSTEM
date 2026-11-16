@@ -84,6 +84,28 @@ def document_text(theme: str, sentences: int, seed: int) -> str:
     return " ".join(sentence(theme, rng) for _ in range(sentences))
 
 
+def core_with_courses() -> str:
+    """A synthetic NUC core laid out like CCMAS: course headers with units, then content.
+
+    "CSC 309" is written from the security theme, so the security theme should be closest to it.
+    "CSC 299" (SIWES) and "GST 111" repeat the security text too, but are excluded from the
+    comparison by the default ``nuc_course_exclusions`` setting.
+    """
+    security = document_text("security", 10, seed=4242)
+    return (
+        "CSC 101: Introduction to Computer Science (3 Units C: LH 30; PH 45)\n"
+        + NUC_CORE_TEXT * 2
+        + "\n\nCSC 309: Computer Security Fundamentals (2 Units C: LH 15; PH 45)\n"
+        + security
+        + "\n\nCSC 402 - Numerical Methods (3 Units E: LH 45)\n"
+        + NUC_CORE_TEXT
+        + "\n\nCSC 299: SIWES I (3 Units C: PH 135)\n"
+        + security
+        + "\n\nGST 111: Communication in English (2 Units C: LH 15; PH 45)\n"
+        + security
+    )
+
+
 def corpus(documents_per_theme: int = 3, sentences: int = 20) -> list[tuple[str, str]]:
     """``(theme, text)`` pairs: ``documents_per_theme`` documents for each theme."""
     return [

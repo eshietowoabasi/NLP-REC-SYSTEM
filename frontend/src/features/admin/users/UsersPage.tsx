@@ -1,5 +1,6 @@
 import { KeyRound, MoreHorizontal, Pencil, Search, UserCheck, UserPlus, UserX } from 'lucide-react'
 import { useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 
 import { PaginationControls } from '@/components/shared/PaginationControls'
@@ -14,6 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { UserAvatar } from '@/components/layout/UserAvatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -44,7 +46,7 @@ import {
 import { useAuth } from '@/features/auth/useAuth'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { formatDateTime } from '@/lib/format'
-import { ROLE_LABELS, ROLES } from '@/lib/roles'
+import { ROLE_DESCRIPTIONS, ROLE_LABELS, ROLES } from '@/lib/roles'
 import type { User, UserListParams, UserRole } from '@/types/api'
 
 import { useUpdateUser, useUsers } from './api'
@@ -73,7 +75,23 @@ export function UsersPage() {
   const users = useUsers(params)
 
   const [creating, setCreating] = useState(false)
-  const [editing, setEditing] = useState<User | null>(null)
+  // /admin/users?edit=me (linked from the Profile page) opens the admin's own details.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [editing, setEditing] = useState<User | null>(() =>
+    searchParams.get('edit') === 'me' ? me : null,
+  )
+  const closeEditing = () => {
+    setEditing(null)
+    if (searchParams.has('edit')) {
+      setSearchParams(
+        (next) => {
+          next.delete('edit')
+          return next
+        },
+        { replace: true },
+      )
+    }
+  }
   const [resetting, setResetting] = useState<User | null>(null)
   const [toggling, setToggling] = useState<User | null>(null)
 
@@ -86,18 +104,37 @@ export function UsersPage() {
     }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
+    <div className="mx-auto max-w-6xl space-y-[18px]">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold">Users</h2>
-          <p className="text-sm text-muted-foreground">
+        <div className="space-y-1">
+          <h2 className="page-title">Users</h2>
+          <p className="page-lead">
             Create accounts, change roles and deactivate users. Users are never deleted.
           </p>
         </div>
-        <Button onClick={() => setCreating(true)}>
-          <UserPlus aria-hidden="true" /> Add user
-        </Button>
+        <div className="flex flex-wrap gap-2.5">
+          <Button variant="outline" onClick={() => setEditing(me)}>
+            <Pencil aria-hidden="true" /> Edit my details
+          </Button>
+          <Button onClick={() => setCreating(true)}>
+            <UserPlus aria-hidden="true" /> Add user
+          </Button>
+        </div>
       </div>
+
+      <ul className="grid gap-3.5 sm:grid-cols-3" aria-label="What each role can do">
+        {ROLES.map((value) => (
+          <li
+            key={value}
+            className="flex flex-col gap-1 rounded-[18px] border border-line bg-white px-[18px] py-4"
+          >
+            <span className="text-sm font-extrabold text-ink">{ROLE_LABELS[value]}</span>
+            <span className="text-[13px] leading-normal text-body-soft">
+              {ROLE_DESCRIPTIONS[value]}
+            </span>
+          </li>
+        ))}
+      </ul>
 
       <div className="flex flex-wrap items-end gap-3" role="search">
         <div className="grid min-w-56 flex-1 gap-1.5">
@@ -161,7 +198,7 @@ export function UsersPage() {
           </AlertDescription>
         </Alert>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="overflow-hidden rounded-[20px] border border-line bg-white">
           <Table>
             <TableHeader>
               <TableRow>
@@ -218,7 +255,7 @@ export function UsersPage() {
       <UserFormDialog open={creating} onOpenChange={setCreating} />
       <UserFormDialog
         open={editing !== null}
-        onOpenChange={(open) => !open && setEditing(null)}
+        onOpenChange={(open) => !open && closeEditing()}
         user={editing ?? undefined}
         isSelf={editing?.id === me.id}
       />
@@ -227,6 +264,13 @@ export function UsersPage() {
     </div>
   )
 }
+
+/* Role chips as in the Users mockup: admin terracotta, planner amber, viewer teal. */
+const ROLE_BADGES = {
+  admin: 'brand',
+  planner: 'warning',
+  viewer: 'info',
+} as const satisfies Record<User['role'], string>
 
 interface UserRowProps {
   user: User
@@ -240,28 +284,29 @@ function UserRow({ user, isSelf, onEdit, onResetPassword, onToggleActive }: User
   return (
     <TableRow className={user.is_active ? undefined : 'text-muted-foreground'}>
       <TableCell>
-        <div className="font-medium text-foreground">
-          {user.full_name}
-          {isSelf && <span className="ml-2 text-xs text-muted-foreground">(you)</span>}
+        <div className="flex items-center gap-3.5">
+          <UserAvatar name={user.full_name} role={user.role} size={42} />
+          <div>
+            <div className="text-[15px] font-bold text-ink">
+              {user.full_name}
+              {isSelf && <span className="ml-2 text-xs font-medium text-muted-ink">(you)</span>}
+            </div>
+            <div className="text-[13px] text-muted-ink">{user.username}</div>
+          </div>
         </div>
-        <div className="text-xs text-muted-foreground">{user.username}</div>
       </TableCell>
-      <TableCell className="break-all">{user.email}</TableCell>
+      <TableCell className="text-[13px] break-all text-body">{user.email}</TableCell>
       <TableCell>
-        <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-          {ROLE_LABELS[user.role]}
-        </Badge>
+        <Badge variant={ROLE_BADGES[user.role]}>{ROLE_LABELS[user.role]}</Badge>
       </TableCell>
       <TableCell>
         {user.is_active ? (
-          <Badge variant="outline" className="text-emerald-700 dark:text-emerald-400">
-            Active
-          </Badge>
+          <Badge variant="success">Active</Badge>
         ) : (
-          <Badge variant="outline">Deactivated</Badge>
+          <Badge variant="neutral">Deactivated</Badge>
         )}
       </TableCell>
-      <TableCell className="whitespace-nowrap">
+      <TableCell className="text-[13px] whitespace-nowrap text-body-soft">
         {formatDateTime(user.last_login_at, 'Never')}
       </TableCell>
       <TableCell>

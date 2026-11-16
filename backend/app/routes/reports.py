@@ -7,6 +7,7 @@ authorised download endpoint.
 from __future__ import annotations
 
 import re
+from io import BytesIO
 from typing import Any
 
 from flask import Blueprint, Response, send_file
@@ -38,8 +39,7 @@ MIME_TYPES = {
 def report_json(report: Report) -> dict[str, Any]:
     size = None
     if report.status == ReportStatus.COMPLETED and report.file_path:
-        path = get_storage().path(report.file_path, area="reports")
-        size = path.stat().st_size if path.exists() else None
+        size = get_storage().size(report.file_path, area="reports")
     return ReportOut(
         id=report.id,
         session=ReportSessionRef.model_validate(report.session),
@@ -136,11 +136,11 @@ def download_report(report_id: int) -> Response:
     report = get_report_or_404(report_id)
     if report.status != ReportStatus.COMPLETED or not report.file_path:
         raise ApiError("REPORT_NOT_READY", "This report has not been generated yet.", 409)
-    path = get_storage().path(report.file_path, area="reports")
-    if not path.exists():
+    storage = get_storage()
+    if not storage.exists(report.file_path, area="reports"):
         raise ApiError("NOT_FOUND", "The report file is missing; generate it again.", 404)
     return send_file(
-        path,
+        BytesIO(storage.read(report.file_path, area="reports")),
         mimetype=MIME_TYPES[ReportFormat(report.format)],
         as_attachment=True,
         download_name=download_name(report),

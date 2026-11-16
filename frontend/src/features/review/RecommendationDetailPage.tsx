@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, BookOpenCheck, Loader2, Pencil } from 'lucide-react'
+import { ArrowLeft, BookOpen, Loader2, Pencil } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useParams } from 'react-router'
@@ -14,24 +14,33 @@ import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useAuth } from '@/features/auth/useAuth'
-import { CATEGORY_LABELS } from '@/features/documents/labels'
+import { DOCUMENT_TYPE, monthYear, shorten } from '@/features/documents/labels'
 import { ApiError } from '@/lib/api'
 import { formatDateTime } from '@/lib/format'
 import { applyServerErrors } from '@/lib/forms'
+import { cn } from '@/lib/utils'
+import { DocumentRef } from '@/components/shared/DocumentRef'
 import { NotFoundPage } from '@/routes/NotFoundPage'
-import type { Evidence, PlannerDecision, RecommendationDetail } from '@/types/api'
+import type { Evidence, RecommendationDetail } from '@/types/api'
 
 import { useDecide, useEditRecommendation, useRecommendation } from './api'
-import { DecisionBadge, ErrorPanel, LoadingBlock, OverlapBadge, ScoreMeter } from './components'
 import {
-  DECISION_ACTIONS,
-  DECISION_ICONS,
-  DECISIONS,
-  formatScore,
+  DecisionBadge,
+  ErrorPanel,
+  KeywordsLine,
+  LoadingBlock,
+  OverlapBadge,
+  ScoreContribution,
+} from './components'
+import { DecisionControl } from './DecisionControl'
+import {
+  contributionPoints,
+  formatDecimal,
+  formatPercent,
   SCORE_PARTS,
   SKILL_LABELS,
+  toPoints,
 } from './labels'
 
 export function RecommendationDetailPage() {
@@ -59,25 +68,27 @@ export function RecommendationDetailPage() {
 
 function RecommendationView({ recommendation }: { recommendation: RecommendationDetail }) {
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link to={`/sessions/${recommendation.session_id}/recommendations`}>
-          <ArrowLeft aria-hidden="true" /> Recommendations · {recommendation.session.session_name}
-        </Link>
-      </Button>
+    <div className="mx-auto max-w-6xl space-y-4">
+      <Link
+        to={`/sessions/${recommendation.session_id}/recommendations`}
+        className="inline-flex items-center gap-1.5 text-[13px] font-bold text-primary hover:underline"
+      >
+        <ArrowLeft className="size-4" aria-hidden="true" /> Back to suggested topics ·{' '}
+        {recommendation.session.session_name}
+      </Link>
 
-      <TitleSection recommendation={recommendation} />
-
-      <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
-        <div className="min-w-0 space-y-6">
-          <ScoreCard recommendation={recommendation} />
-          <OverlapCard recommendation={recommendation} />
+      <div className="grid items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0 space-y-4">
+          <TitleSection recommendation={recommendation} />
           <EvidenceCard evidence={recommendation.evidence} />
+          <OverlapCard recommendation={recommendation} />
         </div>
-        <div className="space-y-6">
+        <aside className="space-y-4" aria-label="Score and decision">
+          <ScoreCard recommendation={recommendation} />
           <DecisionCard recommendation={recommendation} />
+          <ScoreMeaningCard recommendation={recommendation} />
           <TermsCard recommendation={recommendation} />
-        </div>
+        </aside>
       </div>
     </div>
   )
@@ -100,24 +111,18 @@ function TitleSection({ recommendation }: { recommendation: RecommendationDetail
   const [editing, setEditing] = useState(false)
 
   return (
-    <div className="space-y-3">
+    <section className="flex flex-col gap-3 rounded-[20px] border border-line bg-white px-6 py-[22px] sm:px-[26px]">
       {editing ? (
         <EditForm recommendation={recommendation} onDone={() => setEditing(false)} />
       ) : (
         <>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 space-y-2">
-              <p className="text-sm text-muted-foreground">
-                Rank {recommendation.rank} · theme {recommendation.topic_id}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <p className="text-[13px] font-bold text-muted-ink">
+                Recommendation #{recommendation.rank}
               </p>
-              <h2 className="text-2xl font-semibold tracking-tight break-words">
-                {recommendation.topic_title}
-              </h2>
-              {recommendation.topic_title !== recommendation.auto_title && (
-                <p className="text-sm text-muted-foreground">
-                  Generated title: {recommendation.auto_title}
-                </p>
-              )}
+              <OverlapBadge status={recommendation.overlap_status} />
+              <DecisionBadge decision={recommendation.planner_decision} />
             </div>
             {canEdit && (
               <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
@@ -125,14 +130,18 @@ function TitleSection({ recommendation }: { recommendation: RecommendationDetail
               </Button>
             )}
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            <OverlapBadge status={recommendation.overlap_status} />
-            <DecisionBadge decision={recommendation.planner_decision} />
+          <div className="flex flex-col gap-1">
+            <h2 className="page-title break-words">{recommendation.topic_title}</h2>
+            {recommendation.topic_title !== recommendation.auto_title && (
+              <p className="text-xs text-muted-ink">Generated title: {recommendation.auto_title}</p>
+            )}
+            <KeywordsLine keywords={recommendation.keywords} />
           </div>
-          <p className="max-w-3xl text-sm leading-relaxed">{recommendation.topic_description}</p>
+          <Description text={recommendation.topic_description} />
+          <ExampleQuote evidence={recommendation.evidence[0]} />
         </>
       )}
-    </div>
+    </section>
   )
 }
 
@@ -171,8 +180,8 @@ function EditForm({
   })
 
   return (
-    <Card>
-      <CardContent>
+    <div>
+      <div>
         <form onSubmit={onSubmit} noValidate>
           <FieldGroup>
             {formError && (
@@ -199,7 +208,7 @@ function EditForm({
               />
               <FieldError errors={[errors.topic_description]} />
             </Field>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-ink">
               The generated title ({recommendation.auto_title}) is kept for reference.
             </p>
             <div className="flex gap-2">
@@ -213,8 +222,46 @@ function EditForm({
             </div>
           </FieldGroup>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
+  )
+}
+
+const WHY = 'Why this is recommended:'
+
+/** The description, with its "Why this is recommended:" opening in bold. */
+function Description({ text }: { text: string }) {
+  const why = text.startsWith(WHY)
+  return (
+    <p className="max-w-3xl text-[15px] leading-relaxed text-[#2e2620]">
+      {why ? (
+        <>
+          <strong className="font-bold text-ink">{WHY}</strong>
+          {text.slice(WHY.length)}
+        </>
+      ) : (
+        text
+      )}
+    </p>
+  )
+}
+
+/** "Example from a job advert (Title, MyJobMag, Sep 2026): “…”", as an amber quote block. */
+function ExampleQuote({ evidence }: { evidence: Evidence | undefined }) {
+  if (!evidence) return null
+  const { document } = evidence
+  const kind = DOCUMENT_TYPE[document.source_category] ?? 'document'
+  const details = [document.source, monthYear(document.published_on)].filter(Boolean).join(', ')
+  return (
+    <figure className="flex max-w-3xl flex-col gap-1.5 rounded-r-[14px] border-l-4 border-amber bg-amber-tint px-4 py-3.5">
+      <figcaption className="text-xs font-bold text-muted-ink">
+        Example from {/^[aeiou]/i.test(kind) ? 'an' : 'a'} {kind} ({document.title}
+        {details && `, ${details}`}):
+      </figcaption>
+      <blockquote className="text-sm leading-relaxed text-[#2e2620] italic">
+        “{shorten(evidence.text, 400)}”
+      </blockquote>
+    </figure>
   )
 }
 
@@ -222,53 +269,110 @@ function EditForm({
 
 function ScoreCard({ recommendation }: { recommendation: RecommendationDetail }) {
   const weights = recommendation.session.weights
+  const [showCalculation, setShowCalculation] = useState(false)
   const terms = SCORE_PARTS.map((part) => ({
     ...part,
     weight: weights[part.key],
     value: recommendation[part.field],
   }))
+  const points = contributionPoints(
+    terms.map((t) => t.weight * t.value),
+    recommendation.composite_score,
+  )
   return (
-    <Card>
+    <Card size="sm">
       <CardHeader>
         <CardTitle>Why it ranks #{recommendation.rank}</CardTitle>
-        <CardDescription>
-          Composite score = weighted sum of three scores, each scaled to 0–1 across this
-          session&apos;s themes.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p
-          className="rounded-md bg-muted/60 p-3 font-mono text-sm leading-relaxed tabular-nums"
-          aria-label="Composite score formula"
-        >
+        <ScoreContribution recommendation={recommendation} weights={weights} detailed />
+        <p className="rounded-xl bg-sand px-3.5 py-3 text-[13px] leading-relaxed text-body tabular-nums">
           {terms.map((term, index) => (
             <span key={term.key}>
               {index > 0 && ' + '}
-              {term.weight.toFixed(2)} × {formatScore(term.value)}
-              <span className="text-muted-foreground"> ({term.label.toLowerCase()})</span>
+              <strong className="text-ink">{points[index]}</strong>
+              <span className="text-muted-ink"> ({term.label.toLowerCase()})</span>
             </span>
           ))}{' '}
-          = <strong>{formatScore(recommendation.composite_score)}</strong>
+          = <strong className="text-ink">{toPoints(recommendation.composite_score)} points</strong>{' '}
+          out of 100
         </p>
-        <div className="space-y-1.5">
-          <ScoreMeter label="Composite" value={recommendation.composite_score} emphasis />
-          {terms.map((term) => (
-            <ScoreMeter key={term.key} label={term.label} value={term.value} />
-          ))}
+        <div className="space-y-2 border-t border-divider pt-3">
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="h-8 text-[13px]"
+            aria-expanded={showCalculation}
+            aria-controls="score-calculation"
+            onClick={() => setShowCalculation((shown) => !shown)}
+          >
+            {showCalculation ? 'Hide calculation' : 'Show calculation'}
+          </Button>
+          {showCalculation && (
+            <div id="score-calculation" className="space-y-1.5">
+              <p
+                className="rounded-xl bg-sand p-3 font-mono text-xs leading-relaxed text-ink tabular-nums"
+                aria-label="Composite score formula"
+              >
+                {terms.map((term, index) => (
+                  <span key={term.key}>
+                    {index > 0 && ' + '}
+                    {formatDecimal(term.weight)} × {formatDecimal(term.value)}
+                    <span className="text-muted-ink"> ({term.technical})</span>
+                  </span>
+                ))}{' '}
+                = <strong>{formatDecimal(recommendation.composite_score)}</strong>
+              </p>
+              <p className="text-xs text-muted-ink">
+                The exact calculation on the 0–1 scale; the points above are these values × 100,
+                rounded so that the parts add up to the total. Highest similarity to the NUC core:{' '}
+                {recommendation.max_similarity.toFixed(3)}.
+              </p>
+            </div>
+          )}
         </div>
-        <dl className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+      </CardContent>
+    </Card>
+  )
+}
+
+/** What the three scores mean, in plain words. */
+function ScoreMeaningCard({ recommendation }: { recommendation: RecommendationDetail }) {
+  return (
+    <Card size="sm">
+      <CardHeader>
+        <CardTitle>What the scores mean</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-xs leading-relaxed text-muted-ink">
+          The score out of 100 adds up three scores, each out of 100 compared with this
+          session&apos;s other topics and weighted by how much it counts.
+        </p>
+        <dl className="grid gap-3 text-xs text-muted-ink">
           <div>
-            <dt className="font-medium text-foreground">Skill demand</dt>
-            <dd>How many documents mention the theme&apos;s top skills.</dd>
+            <dt className="font-bold text-ink">Employer demand</dt>
+            <dd>
+              How many documents ask for the skills that belong to this topic. Skills that every
+              topic mentions count less.
+            </dd>
           </div>
           <div>
-            <dt className="font-medium text-foreground">Theme strength</dt>
-            <dd>Share of passages in the theme × how confidently they belong to it.</dd>
+            <dt className="font-bold text-ink">How often it comes up</dt>
+            <dd>
+              How much of the material is about this topic (each document counts the same), and how
+              clearly its extracts belong to it.
+            </dd>
           </div>
           <div>
-            <dt className="font-medium text-foreground">Novelty</dt>
-            <dd>1 − the highest similarity to any NUC core passage.</dd>
+            <dt className="font-bold text-ink">How new it is</dt>
+            <dd>
+              How different it is from the closest NUC core{' '}
+              {recommendation.closest_nuc_course ? 'course' : 'extract'}. High means the NUC core
+              does not teach it yet.
+            </dd>
           </div>
+          <p>High = 70 or more, Medium = 40–69, Low = below 40.</p>
         </dl>
       </CardContent>
     </Card>
@@ -279,61 +383,105 @@ function ScoreCard({ recommendation }: { recommendation: RecommendationDetail })
 
 function OverlapCard({ recommendation }: { recommendation: RecommendationDetail }) {
   const nuc = recommendation.closest_nuc_passage
+  const course = recommendation.closest_nuc_course
   const threshold = recommendation.session.similarity_threshold
   const top = recommendation.evidence[0]
   const duplicate = recommendation.overlap_status === 'Potential Duplicate'
+  const verdict = duplicate
+    ? 'this topic may already be taught in the NUC core.'
+    : 'the NUC core does not seem to cover it.'
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Overlap with the NUC core</CardTitle>
+        <CardTitle className="flex items-center gap-3">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-teal-tint">
+            <BookOpen className="size-5 text-teal" strokeWidth={1.8} aria-hidden="true" />
+          </span>
+          Comparison with the NUC core
+        </CardTitle>
         <CardDescription>
-          Highest similarity {formatScore(recommendation.max_similarity)} against a threshold of{' '}
-          {formatScore(threshold)}:{' '}
-          {duplicate
-            ? 'this theme may repeat content already in the NUC core.'
-            : 'no significant overlap with the NUC core.'}
+          {course ? (
+            <>
+              We compared this topic with every NUC core course. A topic more than{' '}
+              {formatPercent(threshold)} similar to a course may already be in the NUC core. Here,{' '}
+              {verdict}
+            </>
+          ) : (
+            <>
+              {formatPercent(recommendation.max_similarity)} similar to the closest NUC core
+              extract; above {formatPercent(threshold)} a topic may already be in the NUC core.
+              Here, {verdict}
+            </>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4 md:grid-cols-2">
-        <section aria-labelledby="overlap-theme" className="space-y-1.5 rounded-md border p-3">
-          <h3 id="overlap-theme" className="text-sm font-semibold">
-            Most representative passage
+        {course && (
+          <p
+            className={cn(
+              'rounded-[14px] bg-sand px-4 py-3 text-sm md:col-span-2',
+              duplicate && 'bg-amber-tint',
+            )}
+          >
+            <span className="font-bold tabular-nums">
+              {formatPercent(recommendation.max_similarity)} similar
+            </span>{' '}
+            to the closest NUC course: <span className="font-bold">{course.code}</span> –{' '}
+            {course.title}
+            {(course.units != null || course.page_number != null) && (
+              <span className="text-muted-ink">
+                {' · '}
+                {[
+                  course.units != null && `${course.units} units`,
+                  course.page_number != null && `p. ${course.page_number}`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
+            )}
+          </p>
+        )}
+        <section
+          aria-labelledby="overlap-theme"
+          className="space-y-1.5 rounded-[14px] border border-line p-4"
+        >
+          <h3 id="overlap-theme" className="text-sm font-extrabold">
+            Typical extract from this topic
           </h3>
           {top ? (
             <>
-              <p className="text-xs text-muted-foreground">
-                {top.document.title}
-                {top.page_number != null && ` · p. ${top.page_number}`}
-              </p>
-              <p className="text-sm">{top.text}</p>
+              <DocumentRef
+                document={top.document}
+                titleClassName="text-xs"
+                className="[&>span:last-child]:text-[11px]"
+              />
+              <p className="text-sm leading-relaxed">{top.text}</p>
             </>
           ) : (
-            <p className="text-sm text-muted-foreground">No evidence passages stored.</p>
+            <p className="text-sm text-muted-ink">No evidence extracts stored.</p>
           )}
         </section>
         <section
           aria-labelledby="overlap-nuc"
           className={
-            duplicate
-              ? 'space-y-1.5 rounded-md border border-amber-300 bg-amber-50/60 p-3 dark:border-amber-800 dark:bg-amber-950/40'
-              : 'space-y-1.5 rounded-md border p-3'
+            duplicate && !course
+              ? 'space-y-1.5 rounded-[14px] bg-amber-tint p-4'
+              : 'space-y-1.5 rounded-[14px] border border-line p-4'
           }
         >
-          <h3 id="overlap-nuc" className="text-sm font-semibold">
-            Closest NUC core passage
+          <h3 id="overlap-nuc" className="text-sm font-extrabold">
+            Closest extract in the NUC core
           </h3>
           {nuc ? (
             <>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-ink">
                 {nuc.version_label ?? nuc.document_title}
                 {nuc.page_number != null && ` · p. ${nuc.page_number}`}
               </p>
-              <p className="text-sm">{nuc.text}</p>
+              <p className="text-sm leading-relaxed">{nuc.text}</p>
             </>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              The NUC core passage is no longer available.
-            </p>
+            <p className="text-sm text-muted-ink">This NUC core extract is no longer available.</p>
           )}
         </section>
       </CardContent>
@@ -360,34 +508,30 @@ function EvidenceCard({ evidence }: { evidence: Evidence[] }) {
       <CardHeader>
         <CardTitle>Evidence</CardTitle>
         <CardDescription>
-          The {evidence.length} passages closest to the centre of this theme, grouped by document.
+          The {evidence.length} extracts that best represent this topic, grouped by document.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         {groups.length === 0 && (
-          <p className="text-sm text-muted-foreground">No evidence passages stored.</p>
+          <p className="text-sm text-muted-ink">No evidence extracts stored.</p>
         )}
         {groups.map(({ document, passages }) => (
-          <section key={document.id} aria-label={document.title} className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <Link
-                to={`/documents/${document.id}`}
-                className="text-sm font-semibold hover:underline"
-              >
-                {document.title}
-              </Link>
-              <Badge variant="secondary">{CATEGORY_LABELS[document.source_category]}</Badge>
-            </div>
+          <section
+            key={document.id}
+            aria-label={document.label ?? document.title}
+            className="space-y-2"
+          >
+            <DocumentRef document={document} link />
             <ul className="space-y-2">
               {passages.map((passage) => (
-                <li key={passage.passage_id} className="rounded-md border-l-2 bg-muted/40 p-3">
-                  <p className="mb-1 text-xs text-muted-foreground tabular-nums">
+                <li key={passage.passage_id} className="rounded-[14px] bg-sand px-4 py-3.5">
+                  <p className="mb-1 text-xs font-bold text-muted-ink tabular-nums">
                     {passage.page_number != null
                       ? `Page ${passage.page_number}`
-                      : `Passage ${passage.position + 1}`}{' '}
-                    · relevance {formatScore(passage.relevance_score)}
+                      : `Extract ${passage.position + 1}`}{' '}
+                    · {formatPercent(passage.relevance_score)} relevant
                   </p>
-                  <p className="text-sm">{passage.text}</p>
+                  <p className="text-sm leading-relaxed text-[#2e2620] italic">“{passage.text}”</p>
                 </li>
               ))}
             </ul>
@@ -402,28 +546,26 @@ function EvidenceCard({ evidence }: { evidence: Evidence[] }) {
 
 function TermsCard({ recommendation }: { recommendation: RecommendationDetail }) {
   return (
-    <Card>
+    <Card size="sm">
       <CardHeader>
         <CardTitle>Skills and keywords</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <section className="space-y-2" aria-labelledby="skills-heading">
-          <h3 id="skills-heading" className="text-sm font-medium">
+          <h3 id="skills-heading" className="section-label">
             Skills
           </h3>
           {recommendation.skills.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No recognised skills in this theme.</p>
+            <p className="text-sm text-muted-ink">No known skills were found in this topic.</p>
           ) : (
-            <ul className="divide-y text-sm">
+            <ul className="divide-y divide-divider text-sm">
               {recommendation.skills.map((skill) => (
-                <li key={skill.name} className="flex items-baseline justify-between gap-2 py-1">
+                <li key={skill.name} className="flex items-baseline justify-between gap-2 py-1.5">
                   <span>
                     {skill.name}{' '}
-                    <span className="text-xs text-muted-foreground">
-                      {SKILL_LABELS[skill.label]}
-                    </span>
+                    <span className="text-xs text-muted-ink">{SKILL_LABELS[skill.label]}</span>
                   </span>
-                  <span className="text-xs text-muted-foreground tabular-nums">
+                  <span className="text-xs text-muted-ink tabular-nums">
                     {skill.document_frequency} docs
                   </span>
                 </li>
@@ -432,13 +574,13 @@ function TermsCard({ recommendation }: { recommendation: RecommendationDetail })
           )}
         </section>
         <section className="space-y-2" aria-labelledby="keywords-heading">
-          <h3 id="keywords-heading" className="text-sm font-medium">
+          <h3 id="keywords-heading" className="section-label">
             Keywords
           </h3>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1.5">
             {recommendation.keywords.map((keyword) => (
-              <Badge key={keyword.term} variant="secondary">
-                {keyword.term}
+              <Badge key={keyword.term} variant="secondary" className="font-semibold">
+                {keyword.label ?? keyword.term}
               </Badge>
             ))}
           </div>
@@ -453,24 +595,21 @@ function TermsCard({ recommendation }: { recommendation: RecommendationDetail })
 function DecisionCard({ recommendation }: { recommendation: RecommendationDetail }) {
   const { canEdit } = useAuth()
   const decide = useDecide()
-  const [decision, setDecision] = useState<PlannerDecision | null>(recommendation.planner_decision)
-  const [notes, setNotes] = useState(recommendation.planner_notes ?? '')
-  const mapped = recommendation.mapping !== null
-  const changed =
-    decision !== recommendation.planner_decision ||
-    notes.trim() !== (recommendation.planner_notes ?? '')
+  const saved = recommendation.planner_notes ?? ''
+  const [notes, setNotes] = useState(saved)
+  const mapping = recommendation.mapping
 
-  const save = () =>
+  const saveNotes = () =>
     decide.mutate(
-      { id: recommendation.id, decision, notes: notes.trim() || null },
+      { id: recommendation.id, decision: recommendation.planner_decision, notes: notes.trim() },
       {
-        onSuccess: () => toast.success('Decision saved.'),
+        onSuccess: () => toast.success('Notes saved.'),
         onError: (error) => toast.error(error.message),
       },
     )
 
   return (
-    <Card>
+    <Card size="sm" className="border-2 border-primary shadow-selected">
       <CardHeader>
         <CardTitle>Decision</CardTitle>
         {recommendation.decided_by && (
@@ -480,105 +619,48 @@ function DecisionCard({ recommendation }: { recommendation: RecommendationDetail
         )}
       </CardHeader>
       <CardContent className="space-y-4">
-        {canEdit ? (
-          <>
-            <ToggleGroup
-              type="single"
-              variant="outline"
-              value={decision ?? ''}
-              onValueChange={(value) => setDecision((value || null) as PlannerDecision | null)}
-              aria-label="Decision"
-              className="w-full"
-              disabled={mapped}
+        <DecisionControl recommendation={recommendation} layout="panel" />
+        {mapping && (
+          <p className="text-xs text-muted-ink">
+            {mapping.credit_units} credit unit{mapping.credit_units === 1 ? '' : 's'} ·{' '}
+            {mapping.learning_outcomes.length} learning outcome
+            {mapping.learning_outcomes.length === 1 ? '' : 's'} ·{' '}
+            <Link
+              to={`/sessions/${recommendation.session_id}/curriculum`}
+              className="font-bold text-primary hover:underline"
             >
-              {DECISIONS.map((value) => {
-                const Icon = DECISION_ICONS[value]
-                return (
-                  <ToggleGroupItem key={value} value={value} className="flex-1">
-                    <Icon aria-hidden="true" /> {DECISION_ACTIONS[value]}
-                  </ToggleGroupItem>
-                )
-              })}
-            </ToggleGroup>
-            {mapped && (
-              <p className="text-xs text-muted-foreground">
-                Mapped to a course: remove the mapping to change the decision.
-              </p>
-            )}
-            <div className="grid gap-1.5">
-              <Label htmlFor="decision-notes">Notes</Label>
-              <Textarea
-                id="decision-notes"
-                rows={4}
-                maxLength={2000}
-                placeholder="Reasons, conditions or follow-up (optional)"
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-              />
-            </div>
-            <Button onClick={save} disabled={!changed || decide.isPending} className="w-full">
-              {decide.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
-              Save decision
-            </Button>
-          </>
-        ) : (
-          <div className="space-y-2 text-sm">
-            <DecisionBadge decision={recommendation.planner_decision} />
-            {recommendation.planner_notes && <p>{recommendation.planner_notes}</p>}
-          </div>
+              View the proposed courses
+            </Link>
+          </p>
         )}
-
-        <MappingSummary recommendation={recommendation} />
+        {canEdit ? (
+          <div className="grid gap-1.5 border-t border-divider pt-4">
+            <Label htmlFor="decision-notes">Notes</Label>
+            <Textarea
+              id="decision-notes"
+              rows={4}
+              maxLength={2000}
+              placeholder="Reasons, conditions or follow-up (optional)"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="justify-self-start"
+              onClick={saveNotes}
+              disabled={notes.trim() === saved || decide.isPending}
+            >
+              {decide.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+              Save notes
+            </Button>
+          </div>
+        ) : (
+          recommendation.planner_notes && (
+            <p className="border-t border-divider pt-4 text-sm">{recommendation.planner_notes}</p>
+          )
+        )}
       </CardContent>
     </Card>
-  )
-}
-
-function MappingSummary({ recommendation }: { recommendation: RecommendationDetail }) {
-  const { canEdit } = useAuth()
-  const mapping = recommendation.mapping
-  const mappingPath = `/recommendations/${recommendation.id}/mapping`
-
-  if (mapping) {
-    return (
-      <div className="space-y-2 rounded-md border p-3 text-sm">
-        <p className="flex items-center gap-1.5 font-medium">
-          <BookOpenCheck className="size-4" aria-hidden="true" /> {mapping.course_code}:{' '}
-          {mapping.course_title}
-        </p>
-        <p className="text-muted-foreground">
-          {mapping.credit_units} credit unit{mapping.credit_units === 1 ? '' : 's'} ·{' '}
-          {mapping.learning_outcomes.length} learning outcome
-          {mapping.learning_outcomes.length === 1 ? '' : 's'}
-        </p>
-        {canEdit ? (
-          <Button variant="outline" size="sm" asChild>
-            <Link to={mappingPath}>Edit course mapping</Link>
-          </Button>
-        ) : (
-          <Link
-            to={`/sessions/${recommendation.session_id}/curriculum`}
-            className="text-sm underline-offset-4 hover:underline"
-          >
-            View the proposed curriculum
-          </Link>
-        )}
-      </div>
-    )
-  }
-  if (!canEdit) return null
-  if (recommendation.planner_decision !== 'accepted') {
-    return (
-      <p className="text-xs text-muted-foreground">
-        Accept the recommendation to map it to a proposed course.
-      </p>
-    )
-  }
-  return (
-    <Button asChild variant="secondary" className="w-full">
-      <Link to={mappingPath}>
-        <BookOpenCheck aria-hidden="true" /> Map to course
-      </Link>
-    </Button>
   )
 }

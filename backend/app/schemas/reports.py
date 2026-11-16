@@ -21,9 +21,21 @@ SectionKey = Literal[
 ]
 
 
+ALL_SECTIONS: list[SectionKey] = [
+    "corpus_summary",
+    "nlp_findings",
+    "overlap",
+    "recommendations",
+    "decisions",
+    "proposed_courses",
+]
+
+
 class ReportCreate(RequestModel):
+    """A report request; the one-click "Download report" sends only the format."""
+
     format: ReportFormat
-    sections: list[SectionKey] = Field(min_length=1)
+    sections: list[SectionKey] = Field(default_factory=lambda: list(ALL_SECTIONS), min_length=1)
 
     @field_validator("sections")
     @classmethod

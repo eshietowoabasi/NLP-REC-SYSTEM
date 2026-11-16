@@ -31,6 +31,8 @@ const settings: SettingItem[] = [
   item('min_topic_size', 5),
   item('evidence_per_recommendation', 8),
   item('max_documents_per_session', 50),
+  item('nuc_course_exclusions', { code_prefixes: ['GST'], title_keywords: ['SIWES', 'Seminar'] }),
+  item('topic_name_catalogue', ['Software Testing and Quality Assurance', 'Cloud Computing']),
   item('credit_unit_allowance', null),
 ]
 
@@ -75,7 +77,7 @@ describe('Settings: general', () => {
     })
     const { user } = renderApp('/admin/settings')
 
-    const threshold = await screen.findByLabelText('Duplicate threshold')
+    const threshold = await screen.findByLabelText('“May already be in NUC core” above')
     expect(threshold).toHaveValue(0.8)
     expect(screen.getByText(/Changed by Test Admin/)).toBeInTheDocument()
     const save = screen.getByRole('button', { name: 'Save settings' })
@@ -93,15 +95,75 @@ describe('Settings: general', () => {
     })
   })
 
+  it('edits the NUC course exclusions as lists', async () => {
+    const server = settingsApi({
+      'PUT /admin/settings': ok({ settings, changed: ['nuc_course_exclusions'] }),
+    })
+    const { user } = renderApp('/admin/settings')
+
+    await user.click(await screen.findByRole('tab', { name: 'NUC courses to leave out' }))
+    const prefixes = await screen.findByLabelText('Course-code prefixes')
+    expect(prefixes).toHaveValue('GST')
+    const keywords = screen.getByLabelText('Title keywords')
+    expect(keywords).toHaveValue('SIWES\nSeminar')
+    await user.type(prefixes, ', ent')
+    await user.type(keywords, '\nFinal Year Project')
+    await user.click(screen.getByRole('button', { name: 'Save settings' }))
+
+    await waitFor(() => expect(server.calls('PUT', '/admin/settings')).toHaveLength(1))
+    expect(server.calls('PUT', '/admin/settings')[0].body).toEqual({
+      nuc_course_exclusions: {
+        code_prefixes: ['GST', 'ENT'],
+        title_keywords: ['SIWES', 'Seminar', 'Final Year Project'],
+      },
+    })
+  })
+
+  it('edits the course-style topic names, one per line', async () => {
+    const server = settingsApi({
+      'PUT /admin/settings': ok({ settings, changed: ['topic_name_catalogue'] }),
+    })
+    const { user } = renderApp('/admin/settings')
+
+    await user.click(await screen.findByRole('tab', { name: 'Course-style topic names' }))
+    const names = await screen.findByLabelText('Topic names')
+    expect(names).toHaveValue('Software Testing and Quality Assurance\nCloud Computing')
+    await user.type(names, '\n  Data Mining  \n')
+    await user.click(screen.getByRole('button', { name: 'Save settings' }))
+
+    await waitFor(() => expect(server.calls('PUT', '/admin/settings')).toHaveLength(1))
+    expect(server.calls('PUT', '/admin/settings')[0].body).toEqual({
+      topic_name_catalogue: [
+        'Software Testing and Quality Assurance',
+        'Cloud Computing',
+        'Data Mining',
+      ],
+    })
+  })
+
+  it('rejects malformed course-code prefixes', async () => {
+    const server = settingsApi()
+    const { user } = renderApp('/admin/settings')
+
+    await user.click(await screen.findByRole('tab', { name: 'NUC courses to leave out' }))
+    await user.type(await screen.findByLabelText('Course-code prefixes'), ', G5T')
+    await user.click(screen.getByRole('button', { name: 'Save settings' }))
+
+    expect(
+      await screen.findByText('Course-code prefixes are 2 to 4 letters, separated by commas.'),
+    ).toBeInTheDocument()
+    expect(server.calls('PUT', '/admin/settings')).toHaveLength(0)
+  })
+
   it('checks the weight sum and ranges before saving', async () => {
     const server = settingsApi()
     const { user } = renderApp('/admin/settings')
 
-    const ner = await screen.findByLabelText('Skill demand (NER)')
+    const ner = await screen.findByLabelText('Employer demand')
     await user.clear(ner)
     await user.type(ner, '0.6')
-    expect(screen.getByText(/Sum: 1.20 — the weights must add up to 1.00/)).toBeInTheDocument()
-    const words = screen.getByLabelText('Words per passage: minimum')
+    expect(screen.getByText(/Total: 120% — the weights must add up to 100%/)).toBeInTheDocument()
+    const words = screen.getByLabelText('Words per extract: minimum')
     await user.clear(words)
     await user.type(words, '300')
     await user.click(screen.getByRole('button', { name: 'Save settings' }))
@@ -115,12 +177,14 @@ describe('Settings: general', () => {
     settingsApi()
     const { user } = renderApp('/admin/settings')
 
-    const model = await screen.findByLabelText('Embedding model (SBERT)')
-    expect(screen.queryByText('Changing the embedding model')).not.toBeInTheDocument()
+    // Model settings sit in a collapsed "(advanced)" section at the bottom.
+    await user.click(await screen.findByText('Model settings (advanced)'))
+    const model = await screen.findByLabelText('Meaning model (advanced)')
+    expect(screen.queryByText('Changing the meaning model')).not.toBeInTheDocument()
     await user.clear(model)
     await user.type(model, 'all-mpnet-base-v2')
 
-    expect(screen.getByText('Changing the embedding model')).toBeInTheDocument()
+    expect(screen.getByText('Changing the meaning model')).toBeInTheDocument()
   })
 
   it('shows server validation errors on the field', async () => {
@@ -131,7 +195,8 @@ describe('Settings: general', () => {
     })
     const { user } = renderApp('/admin/settings')
 
-    const spacy = await screen.findByLabelText('spaCy pipeline')
+    await user.click(await screen.findByText('Model settings (advanced)'))
+    const spacy = await screen.findByLabelText('Language model (advanced)')
     await user.clear(spacy)
     await user.type(spacy, 'xx_sm')
     await user.click(screen.getByRole('button', { name: 'Save settings' }))
@@ -147,7 +212,7 @@ describe('Settings: skill patterns', () => {
     })
     const { user } = renderApp('/admin/settings')
 
-    await user.click(await screen.findByRole('tab', { name: 'Skill patterns' }))
+    await user.click(await screen.findByRole('tab', { name: 'Skills list' }))
     const table = await screen.findByRole('table', { name: 'Skill patterns' })
     expect(await within(table).findByText('“docker”')).toBeInTheDocument()
     expect(within(table).getByText('[{"LOWER":"go"},{"LOWER":"developer"}]')).toBeInTheDocument()
@@ -166,7 +231,7 @@ describe('Settings: skill patterns', () => {
     })
     const { user } = renderApp('/admin/settings')
 
-    await user.click(await screen.findByRole('tab', { name: 'Skill patterns' }))
+    await user.click(await screen.findByRole('tab', { name: 'Skills list' }))
     await user.click(await screen.findByRole('button', { name: /Add pattern/ }))
     const dialog = await screen.findByRole('dialog')
     await user.type(within(dialog).getByLabelText('Canonical name'), 'Rust')
@@ -197,7 +262,7 @@ describe('Settings: skill patterns', () => {
     })
     const { user } = renderApp('/admin/settings')
 
-    await user.click(await screen.findByRole('tab', { name: 'Skill patterns' }))
+    await user.click(await screen.findByRole('tab', { name: 'Skills list' }))
     await user.click(await screen.findByRole('button', { name: /Add pattern/ }))
     const dialog = await screen.findByRole('dialog')
     await user.type(within(dialog).getByLabelText('Canonical name'), 'Docker')
@@ -225,7 +290,7 @@ describe('Settings: stop words', () => {
     })
     const { user } = renderApp('/admin/settings')
 
-    await user.click(await screen.findByRole('tab', { name: 'Stop words' }))
+    await user.click(await screen.findByRole('tab', { name: 'Words to ignore' }))
     const input = await screen.findByLabelText('Add a stop word')
     await user.type(input, 'two words')
     await user.click(screen.getByRole('button', { name: 'Add' }))

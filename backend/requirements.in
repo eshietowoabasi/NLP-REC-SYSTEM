@@ -39,3 +39,16 @@ scikit-learn==1.9.1
 nltk==3.10.3
 # Phase 5: reports (HTML -> PDF; DOCX uses python-docx above)
 weasyprint==70.0
+# Phase 6: login rate limiting (counters stored in Redis)
+Flask-Limiter==4.1.1
+# Production object storage
+vercel-blob==0.5.0
+
+# Labour-market harvester
+requests==2.34.2
+
+# Labour-market harvester
+beautifulsoup4==4.15.0
+
+# Labour-market harvester
+lxml==6.1.3

@@ -35,7 +35,8 @@ export function useUpdateSettings() {
     mutationFn: (changes: SettingsUpdate) => apiPut<SettingsResponse>('/admin/settings', changes),
     onSuccess: (data) => {
       queryClient.setQueryData(settingsKey, { settings: data.settings })
-      // New-session defaults come from these settings.
+      // New-session defaults and the NUC course exclusions come from these settings.
+      void queryClient.invalidateQueries({ queryKey: ['nuc-core', 'courses'] })
       return queryClient.invalidateQueries({ queryKey: ['sessions', 'defaults'] })
     },
   })

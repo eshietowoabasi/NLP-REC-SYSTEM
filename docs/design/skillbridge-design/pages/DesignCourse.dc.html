@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Design course</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#FBF6EF;color:#231A14}
+a{color:#A8431E}a:hover{color:#7E2F12}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; background: #FBF6EF;">
+  <div style="width: 256px; flex-shrink: 0; background: #FFFFFF; border-right: 1px solid #EADFD3;"><dc-import name="Sidebar" active="analyses" admin="{{no}}" hint-size="256px,900px"></dc-import></div>
+  <div style="flex-grow: 1; display: flex; flex-direction: column; min-width: 0;">
+    <dc-import name="TopBar" title="Design course" crumb="Real corpus (final) / Software Testing and Quality Assurance" person="Mr John Okon" role="Curriculum Planner" initials="JO" hint-size="1184px,72px"></dc-import>
+    <main style="padding: 22px 40px; display: flex; gap: 18px; align-items: flex-start;">
+      <form style="flex-grow: 1; margin: 0; background: #FFFFFF; border: 1px solid #EADFD3; border-radius: 22px; padding: 24px 28px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;"><h1 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.02em;">Turn this topic into a course</h1><p style="margin: 0; font-size: 14px; color: #5E5249;">Fill in the basics. You can change any of this later.</p></div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px;">
+          <div style="display: flex; flex-direction: column; gap: 6px;"><label for="dc-code" style="font-size: 13px; font-weight: 700;">Course code</label><input id="dc-code" value="CSC 419" style="height: 48px; box-sizing: border-box; padding: 0 14px; font: inherit; font-size: 15px; border: 1px solid #E3D6C8; border-radius: 12px;"></div>
+          <div style="display: flex; flex-direction: column; gap: 6px;"><label for="dc-level" style="font-size: 13px; font-weight: 700;">Level</label><select id="dc-level" style="height: 48px; box-sizing: border-box; padding: 0 12px; font: inherit; font-size: 15px; border: 1px solid #E3D6C8; border-radius: 12px; background: #FFFFFF;"><option>400 Level</option></select></div>
+          <div style="display: flex; flex-direction: column; gap: 6px;"><label for="dc-sem" style="font-size: 13px; font-weight: 700;">Semester</label><select id="dc-sem" style="height: 48px; box-sizing: border-box; padding: 0 12px; font: inherit; font-size: 15px; border: 1px solid #E3D6C8; border-radius: 12px; background: #FFFFFF;"><option>Second semester</option></select></div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;"><label for="dc-title" style="font-size: 13px; font-weight: 700;">Course title</label><input id="dc-title" value="Software Testing and Quality Assurance" style="height: 48px; box-sizing: border-box; padding: 0 14px; font: inherit; font-size: 15px; border: 1px solid #E3D6C8; border-radius: 12px;"></div>
+        <div style="display: flex; gap: 24px;">
+          <div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 13px; font-weight: 700;">Credit units</span><div style="display: flex; gap: 6px; padding: 4px; border-radius: 12px; background: #F4ECE3;"><button type="button" style="width: 52px; height: 40px; border-radius: 9px; border: 0; background: transparent; font: inherit; font-size: 14px; font-weight: 700; color: #5E5249;">1</button><button type="button" style="width: 52px; height: 40px; border-radius: 9px; border: 0; background: transparent; font: inherit; font-size: 14px; font-weight: 700; color: #5E5249;">2</button><button type="button" aria-pressed="true" style="width: 52px; height: 40px; border-radius: 9px; border: 0; background: #A8431E; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 800;">3</button></div></div>
+          <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 6px;"><label for="dc-pre" style="font-size: 13px; font-weight: 700;">Prerequisites</label><div style="min-height: 48px; box-sizing: border-box; padding: 6px 8px; border: 1px solid #E3D6C8; border-radius: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center;"><span style="padding: 6px 10px; border-radius: 8px; background: #F4ECE3; font-size: 13px; font-weight: 700;">SEN 306 Software Construction ×</span><input id="dc-pre" placeholder="Add a course code" style="border: 0; font: inherit; font-size: 14px; flex-grow: 1; height: 34px; outline: none;"></div></div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 13px; font-weight: 700;">Learning outcomes <span style="font-weight: 500; color: #6F625A;">· what students will be able to do</span></span>
+          <div style="display: flex; gap: 10px; align-items: center;"><span style="width: 26px; font-size: 13px; font-weight: 800; color: #8A7C72;">1.</span><input aria-label="Learning outcome 1" value="Plan and carry out tests for a software system." style="flex-grow: 1; height: 44px; box-sizing: border-box; padding: 0 14px; font: inherit; font-size: 14px; border: 1px solid #E3D6C8; border-radius: 12px;"></div>
+          <div style="display: flex; gap: 10px; align-items: center;"><span style="width: 26px; font-size: 13px; font-weight: 800; color: #8A7C72;">2.</span><input aria-label="Learning outcome 2" value="Automate tests inside a CI/CD pipeline." style="flex-grow: 1; height: 44px; box-sizing: border-box; padding: 0 14px; font: inherit; font-size: 14px; border: 1px solid #E3D6C8; border-radius: 12px;"></div>
+          <div style="display: flex; gap: 10px; align-items: center;"><span style="width: 26px; font-size: 13px; font-weight: 800; color: #8A7C72;">3.</span><input aria-label="Learning outcome 3" value="Judge software quality using standard measures." style="flex-grow: 1; height: 44px; box-sizing: border-box; padding: 0 14px; font: inherit; font-size: 14px; border: 1px solid #E3D6C8; border-radius: 12px;"></div>
+          <button type="button" style="align-self: flex-start; border: 0; background: transparent; font: inherit; font-size: 13px; font-weight: 700; color: #A8431E; height: 36px; padding: 0;">+ Add another outcome</button>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #F1E8DE; padding-top: 16px;">
+          <a href="RecommendationDetail.dc.html" style="height: 48px; padding: 0 20px; border-radius: 12px; border: 1px solid #E3D6C8; display: flex; align-items: center; font-size: 14px; font-weight: 700; text-decoration: none; color: #231A14;">Cancel</a>
+          <a href="ProposedCourses.dc.html" style="height: 48px; padding: 0 24px; border-radius: 12px; background: #A8431E; color: #FFFFFF; display: flex; align-items: center; font-size: 14px; font-weight: 700; text-decoration: none;">Save course</a>
+        </div>
+      </form>
+      <aside style="width: 320px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px;">
+        <section style="background: #231A14; color: #FFFFFF; border-radius: 20px; padding: 20px 22px; display: flex; flex-direction: column; gap: 10px;">
+          <span style="font-size: 12px; font-weight: 800; letter-spacing: 0.1em; color: #F2B84B;">BASED ON THE EVIDENCE</span>
+          <span style="font-size: 16px; font-weight: 800;">Skills employers asked for</span>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px;"><span style="padding: 5px 10px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 12px; font-weight: 600;">Software testing</span><span style="padding: 5px 10px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 12px; font-weight: 600;">CI/CD</span><span style="padding: 5px 10px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 12px; font-weight: 600;">Jenkins</span><span style="padding: 5px 10px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 12px; font-weight: 600;">Postman</span><span style="padding: 5px 10px; border-radius: 999px; background: rgba(255,255,255,0.12); font-size: 12px; font-weight: 600;">Selenium</span></div>
+          <span style="font-size: 13px; line-height: 1.5; color: #D9CCC2;">Tip: write one learning outcome for each group of skills.</span>
+        </section>
+        <section style="background: #FFFFFF; border: 1px solid #EADFD3; border-radius: 20px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 14px; font-weight: 800;">Course code rules</span>
+          <span style="font-size: 13px; line-height: 1.5; color: #4A3F37;">2–4 letters and 3 digits, like the NUC style (CSC 419). The first digit is the level: 4 = 400 Level.</span>
+        </section>
+      </aside>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return { no: false }; }
+}
+</script>
+</body>
+</html>

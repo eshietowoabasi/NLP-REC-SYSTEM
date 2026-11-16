@@ -1,6 +1,5 @@
 --index-url https://pypi.org/simple
 --extra-index-url https://download.pytorch.org/whl/cpu
-
 alembic==1.20.0
     # via
     #   -c requirements.txt
@@ -18,11 +17,19 @@ anyio==4.15.1
     # via
     #   -c requirements.txt
     #   httpx
+    #   httpx2
+    #   vercel-blob
+    #   vercel-internal-core
+    #   vercel-oidc
 async-timeout==5.0.1
     # via
     #   -c requirements.txt
     #   redis
 bcrypt==5.0.0
+    # via
+    #   -c requirements.txt
+    #   -r requirements.in
+beautifulsoup4==4.15.0
     # via
     #   -c requirements.txt
     #   -r requirements.in
@@ -108,6 +115,10 @@ defusedxml==0.7.1
     # via
     #   -c requirements.txt
     #   nltk
+deprecated==1.3.1
+    # via
+    #   -c requirements.txt
+    #   limits
 dnspython==2.8.0
     # via
     #   -c requirements.txt
@@ -129,10 +140,15 @@ flask==3.1.3
     # via
     #   -c requirements.txt
     #   -r requirements.in
+    #   flask-limiter
     #   flask-login
     #   flask-migrate
     #   flask-sqlalchemy
     #   flask-wtf
+flask-limiter==4.1.1
+    # via
+    #   -c requirements.txt
+    #   -r requirements.in
 flask-login==0.6.3
     # via
     #   -c requirements.txt
@@ -159,6 +175,8 @@ fsspec==2026.9.0
     #   -c requirements.txt
     #   huggingface-hub
     #   torch
+gensim==4.4.0
+    # via -r requirements-dev.in
 greenlet==3.5.6
     # via
     #   -c requirements.txt
@@ -171,6 +189,7 @@ h11==0.16.0
     # via
     #   -c requirements.txt
     #   httpcore
+    #   httpcore2
 hdbscan==0.8.44
     # via
     #   -c requirements.txt
@@ -184,11 +203,21 @@ httpcore==1.0.9
     # via
     #   -c requirements.txt
     #   httpx
+httpcore2==2.16.2
+    # via
+    #   -c requirements.txt
+    #   httpx2
 httpx==0.28.1
     # via
     #   -c requirements.txt
     #   huggingface-hub
     #   weasel
+httpx2==2.16.2
+    # via
+    #   -c requirements.txt
+    #   vercel-blob
+    #   vercel-internal-core
+    #   vercel-oidc
 huggingface-hub==1.33.0
     # via
     #   -c requirements.txt
@@ -201,6 +230,7 @@ idna==3.20
     #   anyio
     #   email-validator
     #   httpx
+    #   httpx2
     #   requests
 iniconfig==2.3.0
     # via pytest
@@ -222,6 +252,10 @@ joblib==1.6.0
     #   nltk
     #   pynndescent
     #   scikit-learn
+limits==5.8.0
+    # via
+    #   -c requirements.txt
+    #   flask-limiter
 llvmlite==0.49.0
     # via
     #   -c requirements.txt
@@ -231,6 +265,7 @@ llvmlite==0.49.0
 lxml==6.1.3
     # via
     #   -c requirements.txt
+    #   -r requirements.in
     #   python-docx
 mako==1.4.3
     # via
@@ -288,6 +323,7 @@ numpy==2.4.6
     #   -r requirements.in
     #   bertopic
     #   blis
+    #   gensim
     #   hdbscan
     #   numba
     #   pandas
@@ -298,11 +334,16 @@ numpy==2.4.6
     #   thinc
     #   transformers
     #   umap-learn
+ordered-set==4.1.0
+    # via
+    #   -c requirements.txt
+    #   flask-limiter
 packaging==26.3
     # via
     #   -c requirements.txt
     #   black
     #   huggingface-hub
+    #   limits
     #   plotly
     #   pytest
     #   spacy
@@ -356,6 +397,7 @@ pydantic==2.13.5
     #   -r requirements.in
     #   spacy
     #   thinc
+    #   vercel-blob
     #   weasel
 pydantic-core==2.46.5
     # via
@@ -425,6 +467,7 @@ regex==2026.9.10
 requests==2.34.2
     # via
     #   -c requirements.txt
+    #   -r requirements.in
     #   spacy
 rich==15.0.0
     # via
@@ -452,6 +495,7 @@ scikit-learn==1.9.1
 scipy==1.17.1
     # via
     #   -c requirements.txt
+    #   gensim
     #   hdbscan
     #   pynndescent
     #   scikit-learn
@@ -479,7 +523,12 @@ six==1.17.0
 smart-open==8.0.1
     # via
     #   -c requirements.txt
+    #   gensim
     #   weasel
+soupsieve==2.10
+    # via
+    #   -c requirements.txt
+    #   beautifulsoup4
 spacy==3.8.16
     # via
     #   -c requirements.txt
@@ -555,6 +604,8 @@ truststore==0.10.4
     # via
     #   -c requirements.txt
     #   -r requirements.in
+    #   httpcore2
+    #   httpx2
 typer==0.27.2
     # via
     #   -c requirements.txt
@@ -566,7 +617,11 @@ typing-extensions==4.16.0
     #   -c requirements.txt
     #   alembic
     #   anyio
+    #   beautifulsoup4
+    #   flask-limiter
+    #   httpx2
     #   huggingface-hub
+    #   limits
     #   psycopg
     #   pydantic
     #   pydantic-core
@@ -575,6 +630,7 @@ typing-extensions==4.16.0
     #   sqlalchemy
     #   torch
     #   typing-inspection
+    #   vercel-internal-core
 typing-inspection==0.4.4
     # via
     #   -c requirements.txt
@@ -590,6 +646,22 @@ urllib3==2.8.0
     #   requests
 uv==0.12.18
     # via -r requirements-dev.in
+vercel-blob==0.5.0
+    # via
+    #   -c requirements.txt
+    #   -r requirements.in
+vercel-headers==0.8.0
+    # via
+    #   -c requirements.txt
+    #   vercel-oidc
+vercel-internal-core==0.2.2
+    # via
+    #   -c requirements.txt
+    #   vercel-blob
+vercel-oidc==0.12.0
+    # via
+    #   -c requirements.txt
+    #   vercel-blob
 wasabi==1.1.3
     # via
     #   -c requirements.txt
@@ -618,6 +690,7 @@ werkzeug==3.1.8
 wrapt==2.4.1
     # via
     #   -c requirements.txt
+    #   deprecated
     #   smart-open
 wtforms==3.2.2
     # via

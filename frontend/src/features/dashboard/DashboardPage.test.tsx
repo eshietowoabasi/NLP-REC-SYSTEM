@@ -16,8 +16,16 @@ const summary = (overrides: Partial<DashboardSummary> = {}): DashboardSummary =>
     by_category: { job_market: 8, policy: 4 },
   },
   sessions: { total: 3, by_status: { pending: 0, processing: 1, completed: 2, failed: 0 } },
-  recommendations: { total: 30, pending_review: 18, accepted: 7, rejected: 3, flagged: 2 },
+  recommendations: {
+    total: 30,
+    pending_review: 18,
+    accepted: 7,
+    rejected: 3,
+    flagged: 2,
+    review_session: null,
+  },
   courses_mapped: 4,
+  curriculum_session: null,
   reports: 2,
   nuc_core_version: { id: 1, version_label: 'Synthetic core v1' },
   recent_sessions: [
@@ -56,10 +64,11 @@ describe('DashboardPage', () => {
       '/documents',
     )
     expect(screen.getByText('10 ready · 1 processing · 1 failed')).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'Awaiting review: 18' })).toHaveTextContent(
-      'of 30 recommendations · 7 accepted',
-    )
-    expect(screen.getByRole('link', { name: 'Courses mapped: 4' })).toHaveTextContent(
+    // Every card is a link; without a session to review they fall back to the lists.
+    const awaiting = screen.getByRole('link', { name: 'Awaiting review: 18. Analyses' })
+    expect(awaiting).toHaveAttribute('href', '/sessions')
+    expect(awaiting).toHaveTextContent('of 30 recommendations · 7 accepted')
+    expect(screen.getByRole('link', { name: 'Courses designed: 4. Reports' })).toHaveTextContent(
       '2 reports generated',
     )
     const recent = screen.getByRole('table', { name: 'Recent sessions' })
@@ -70,6 +79,57 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('link', { name: /New analysis session/ })).toBeInTheDocument()
     expect(screen.getByText('NUC core: Synthetic core v1')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Welcome, Test' })).toBeInTheDocument()
+  })
+
+  it('links the cards to the session awaiting review and its proposed curriculum', async () => {
+    dashboardApi(
+      plannerUser,
+      summary({
+        recommendations: {
+          total: 30,
+          pending_review: 18,
+          accepted: 7,
+          rejected: 3,
+          flagged: 2,
+          review_session: { id: 5, session_name: 'Synthetic 2026 review', undecided: 11 },
+        },
+        curriculum_session: { id: 4, session_name: 'Synthetic pilot' },
+      }),
+    )
+    renderApp('/')
+
+    const awaiting = await screen.findByRole('link', {
+      name: 'Awaiting review: 18. Review Synthetic 2026 review',
+    })
+    expect(awaiting).toHaveAttribute('href', '/sessions/5/recommendations?decision=undecided')
+    expect(awaiting).toHaveTextContent('11 not reviewed yet in “Synthetic 2026 review”')
+    expect(
+      screen.getByRole('link', {
+        name: 'Courses designed: 4. Proposed courses of Synthetic pilot',
+      }),
+    ).toHaveAttribute('href', '/sessions/4/curriculum')
+  })
+
+  it('explains the three steps until the help is dismissed', async () => {
+    window.localStorage.removeItem('nlprs.howThisWorks.dismissed')
+    dashboardApi(plannerUser, summary())
+    const { user, unmount } = renderApp('/')
+
+    const help = await screen.findByRole('region', { name: 'How this works' })
+    expect(
+      within(help)
+        .getAllByRole('listitem')
+        .map((li) => li.firstChild?.textContent),
+    ).toEqual(['1. Review', '2. Design courses', '3. Report'])
+    await user.click(within(help).getByRole('button', { name: 'Hide “How this works”' }))
+    expect(screen.queryByRole('region', { name: 'How this works' })).not.toBeInTheDocument()
+    unmount()
+
+    dashboardApi(plannerUser, summary())
+    renderApp('/')
+    await screen.findByRole('table', { name: 'Recent sessions' })
+    expect(screen.queryByRole('region', { name: 'How this works' })).not.toBeInTheDocument()
+    window.localStorage.removeItem('nlprs.howThisWorks.dismissed')
   })
 
   it('guides a first run and warns about a missing NUC core', async () => {
@@ -92,14 +152,54 @@ describe('DashboardPage', () => {
     )
   })
 
-  it('hides the create actions from viewers', async () => {
-    dashboardApi(viewerUser, summary())
+  it('shows viewers a read-only summary instead of the next steps', async () => {
+    dashboardApi(
+      viewerUser,
+      summary({
+        recommendations: {
+          total: 30,
+          pending_review: 18,
+          accepted: 7,
+          rejected: 3,
+          flagged: 2,
+          review_session: { id: 5, session_name: 'Synthetic 2026 review', undecided: 11 },
+        },
+      }),
+    )
     renderApp('/')
 
     await screen.findByRole('table', { name: 'Recent sessions' })
     expect(screen.queryByRole('link', { name: /New analysis session/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /Upload documents/ })).not.toBeInTheDocument()
-    // The sidebar item and the quick action.
-    expect(screen.getAllByRole('link', { name: 'Reports' })).toHaveLength(2)
+    expect(screen.queryByRole('link', { name: /Continue reviewing/ })).not.toBeInTheDocument()
+    const readOnly = screen.getByRole('region', { name: 'Summary' })
+    expect(within(readOnly).getByRole('link', { name: 'Synthetic 2026 review' })).toHaveAttribute(
+      'href',
+      '/sessions/5',
+    )
+    expect(within(readOnly).getByText('Accepted topics').nextSibling).toHaveTextContent('7')
+    expect(within(readOnly).getByText('Proposed courses').nextSibling).toHaveTextContent('4')
+  })
+
+  it('offers editors the next step: continue reviewing', async () => {
+    dashboardApi(
+      plannerUser,
+      summary({
+        recommendations: {
+          total: 30,
+          pending_review: 18,
+          accepted: 7,
+          rejected: 3,
+          flagged: 2,
+          review_session: { id: 5, session_name: 'Synthetic 2026 review', undecided: 11 },
+        },
+      }),
+    )
+    renderApp('/')
+
+    expect(await screen.findByRole('link', { name: /Continue reviewing/ })).toHaveAttribute(
+      'href',
+      '/sessions/5/recommendations?decision=undecided',
+    )
   })
 })

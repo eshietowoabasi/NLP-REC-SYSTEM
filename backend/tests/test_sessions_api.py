@@ -17,6 +17,7 @@ from app.models import (
     AuditLog,
     Document,
     NLPResult,
+    NucCourse,
     Passage,
     Recommendation,
     RecommendationEvidence,
@@ -26,7 +27,7 @@ from app.models import (
 from app.services import analysis as analysis_service
 from app.services.exceptions import AnalysisError
 from tests.conftest import ApiClient
-from tests.corpus import NUC_CORE_TEXT, THEMES, corpus, document_text
+from tests.corpus import NUC_CORE_TEXT, THEMES, core_with_courses, corpus, document_text
 
 
 def upload_text(client: ApiClient, name: str, text: str, category: str = "job_market") -> int:
@@ -223,7 +224,55 @@ def test_full_pipeline_run_produces_ranked_recommendations(
     assert results["tfidf"]["overall"]
     assert set(results["tfidf"]["by_category"]) == {"job_market", "institutional", "academic"}
     assert results["similarity"]["threshold"] == 0.80
+    # The synthetic core has no course headers, so themes are compared with its passages.
+    assert results["similarity"]["basis"] == "passage"
+    assert all(rec.closest_nuc_course_id is None for rec in recommendations)
     assert len(results["topics"]["topics"]) == detail["topic_count"]
+
+
+def test_themes_are_compared_with_whole_nuc_courses(
+    planner: ApiClient, admin: ApiClient, corpus_ids: list[int]
+) -> None:
+    upload_core(admin, core_with_courses())
+    core_document = admin.get("/api/nuc-core").get_json()["data"]["active"]["document"]["id"]
+    courses = db.session.scalars(
+        select(NucCourse).where(NucCourse.document_id == core_document).order_by(NucCourse.code)
+    ).all()
+    assert [(c.code, c.title, c.units) for c in courses] == [
+        ("CSC 101", "Introduction to Computer Science", 3),
+        ("CSC 299", "SIWES I", 3),
+        ("CSC 309", "Computer Security Fundamentals", 2),
+        ("CSC 402", "Numerical Methods", 3),
+        ("GST 111", "Communication in English", 2),
+    ]
+    assert all(c.embedding is not None and c.embedding_model for c in courses)
+    listing = planner.get("/api/nuc-core/courses").get_json()["data"]
+    assert {c["code"]: c["excluded"] for c in listing["courses"]} == {
+        "CSC 101": False,
+        "CSC 299": True,
+        "CSC 309": False,
+        "CSC 402": False,
+        "GST 111": True,
+    }
+    assert listing["excluded_count"] == 2 and listing["exclusions"]["code_prefixes"] == ["GST"]
+
+    session_id = create(planner, corpus_ids, run=True).get_json()["data"]["id"]
+
+    similarity = planner.get(f"/api/sessions/{session_id}/similarity").get_json()["data"]
+    assert similarity["basis"] == "course"
+    assert similarity["courses_compared"] == 3 and similarity["courses_excluded"] == 2
+    # The SIWES and GST courses repeat the security text but are never matched.
+    assert {c["closest_nuc_course"]["code"] for c in similarity["candidates"]} <= {
+        "CSC 101",
+        "CSC 309",
+        "CSC 402",
+    }
+    most_similar = max(similarity["candidates"], key=lambda c: c["max_similarity"])
+    assert most_similar["closest_nuc_course"]["code"] == "CSC 309"
+    assert most_similar["closest_nuc_course"]["units"] == 2
+    assert most_similar["overlap_status"] == "Potential Duplicate"
+    listed = planner.get(f"/api/sessions/{session_id}/recommendations").get_json()["data"]
+    assert all(r["closest_nuc_course"]["code"].startswith("CSC") for r in listed["items"])
 
 
 def test_max_recommendations_limits_the_stored_list(
@@ -263,17 +312,19 @@ def test_themes_matching_the_nuc_core_are_flagged_as_duplicates(
 # ------------------------------------------------------------------ failures/retry
 
 
-def test_too_little_text_fails_at_the_themes_stage(planner: ApiClient, admin: ApiClient) -> None:
+def test_too_little_text_is_refused_before_the_session_starts(
+    planner: ApiClient, admin: ApiClient
+) -> None:
     upload_core(admin)
     tiny = upload_text(planner, "tiny.txt", document_text("cloud", 6, seed=1))
 
-    session_id = create(planner, [tiny], run=True).get_json()["data"]["id"]
+    response = create(planner, [tiny], run=True)
 
-    detail = planner.get(f"/api/sessions/{session_id}").get_json()["data"]
-    assert detail["status"] == "failed"
-    assert detail["current_stage"] == "themes"
-    assert "Too little text to discover themes" in detail["error_message"]
-    assert detail["recommendation_count"] == 0
+    assert response.status_code == 422
+    error = response.get_json()["error"]
+    assert error["code"] == "INSUFFICIENT_EVIDENCE"
+    assert error["details"]["passage_count"] < error["details"]["minimum_passages"]
+    assert db.session.query(AnalysisSession).count() == 0
 
 
 def test_unexpected_errors_are_reported_generically(

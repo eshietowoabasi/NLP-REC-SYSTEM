@@ -1,102 +1,209 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
 
 import { AppShell } from '@/components/layout/AppShell'
-import { AuditLogPage } from '@/features/admin/audit/AuditLogPage'
-import { NucCorePage } from '@/features/admin/nuc-core/NucCorePage'
-import { SettingsPage } from '@/features/admin/settings/SettingsPage'
-import { UsersPage } from '@/features/admin/users/UsersPage'
-import { LoginPage } from '@/features/auth/LoginPage'
-import { ProfilePage } from '@/features/auth/ProfilePage'
-import { DashboardPage } from '@/features/dashboard/DashboardPage'
-import { DocumentDetailPage } from '@/features/documents/DocumentDetailPage'
-import { DocumentsPage } from '@/features/documents/DocumentsPage'
-import { ReportsPage } from '@/features/reports/ReportsPage'
-import { CurriculumPage } from '@/features/review/CurriculumPage'
-import { MappingPage } from '@/features/review/MappingPage'
-import { RecommendationDetailPage } from '@/features/review/RecommendationDetailPage'
-import { RecommendationsPage } from '@/features/review/RecommendationsPage'
-import { NewSessionPage } from '@/features/sessions/NewSessionPage'
-import { SessionDetailPage } from '@/features/sessions/SessionDetailPage'
-import { SessionsPage } from '@/features/sessions/SessionsPage'
 
 import { RequireAuth, RequireRole } from './guards'
 import type { RouteHandle } from './handle'
 import { NotFoundPage } from './NotFoundPage'
 
-const title = (value: string) => ({ title: value }) satisfies RouteHandle
+const title = (value: string, crumb = 'Workspace') =>
+  ({ title: value, crumb }) satisfies RouteHandle
+
+/*
+ * Route-level code splitting: every screen is loaded on first visit, so the initial bundle
+ * only holds the shell, the router and shared libraries. Each helper below maps a page
+ * module to React Router's `lazy` route property.
+ */
+const page = <M,>(load: () => Promise<M>, pick: (module: M) => React.ComponentType) => ({
+  lazy: () => load().then((module) => ({ Component: pick(module) })),
+})
 
 export const routes: RouteObject[] = [
-  { path: '/login', element: <LoginPage />, handle: title('Sign in') },
+  {
+    path: '/login',
+    ...page(
+      () => import('@/features/auth/LoginPage'),
+      (m) => m.LoginPage,
+    ),
+    handle: title('Sign in'),
+  },
   {
     element: <RequireAuth />,
     children: [
       {
         element: <AppShell />,
         children: [
-          { index: true, element: <DashboardPage />, handle: title('Dashboard') },
-          { path: 'profile', element: <ProfilePage />, handle: title('Profile') },
-          { path: 'documents', element: <DocumentsPage />, handle: title('Documents') },
-          { path: 'sessions', element: <SessionsPage />, handle: title('Analysis Sessions') },
+          {
+            index: true,
+            ...page(
+              () => import('@/features/dashboard/DashboardPage'),
+              (m) => m.DashboardPage,
+            ),
+            handle: title('Dashboard'),
+          },
+          {
+            path: 'profile',
+            ...page(
+              () => import('@/features/auth/ProfilePage'),
+              (m) => m.ProfilePage,
+            ),
+            handle: title('Profile', 'Account'),
+          },
+          {
+            path: 'documents',
+            ...page(
+              () => import('@/features/documents/DocumentsPage'),
+              (m) => m.DocumentsPage,
+            ),
+            handle: title('Documents'),
+          },
+          {
+            path: 'documents/:documentId',
+            ...page(
+              () => import('@/features/documents/DocumentDetailPage'),
+              (m) => m.DocumentDetailPage,
+            ),
+            handle: title('Document', 'Documents'),
+          },
+          {
+            path: 'sessions',
+            ...page(
+              () => import('@/features/sessions/SessionsPage'),
+              (m) => m.SessionsPage,
+            ),
+            handle: title('Analyses'),
+          },
           {
             path: 'sessions/new',
             element: <RequireRole roles={['admin', 'planner']} />,
-            children: [{ index: true, element: <NewSessionPage />, handle: title('New Session') }],
+            children: [
+              {
+                index: true,
+                ...page(
+                  () => import('@/features/sessions/NewSessionPage'),
+                  (m) => m.NewSessionPage,
+                ),
+                handle: title('New analysis', 'Analyses'),
+              },
+            ],
           },
           {
             path: 'sessions/:sessionId',
-            element: <SessionDetailPage />,
-            handle: title('Analysis Session'),
+            ...page(
+              () => import('@/features/sessions/SessionDetailPage'),
+              (m) => m.SessionDetailPage,
+            ),
+            handle: title('Analysis', 'Analyses'),
           },
           {
             path: 'sessions/:sessionId/evidence',
-            // Charts (Recharts) load only when the Evidence Dashboard is opened.
-            lazy: () =>
-              import('@/features/review/EvidencePage').then((m) => ({ Component: m.EvidencePage })),
-            handle: title('Evidence'),
+            ...page(
+              () => import('@/features/review/EvidencePage'),
+              (m) => m.EvidencePage,
+            ),
+            handle: title('Evidence', 'Analyses'),
           },
           {
             path: 'sessions/:sessionId/recommendations',
-            element: <RecommendationsPage />,
-            handle: title('Recommendations'),
+            ...page(
+              () => import('@/features/review/RecommendationsPage'),
+              (m) => m.RecommendationsPage,
+            ),
+            handle: title('Suggested topics', 'Analyses'),
           },
           {
             path: 'sessions/:sessionId/curriculum',
-            element: <CurriculumPage />,
-            handle: title('Proposed Curriculum'),
+            ...page(
+              () => import('@/features/review/CurriculumPage'),
+              (m) => m.CurriculumPage,
+            ),
+            handle: title('Proposed courses', 'Analyses'),
           },
           {
             path: 'recommendations/:recommendationId',
-            element: <RecommendationDetailPage />,
-            handle: title('Recommendation'),
+            ...page(
+              () => import('@/features/review/RecommendationDetailPage'),
+              (m) => m.RecommendationDetailPage,
+            ),
+            handle: title('Topic', 'Analyses'),
           },
           {
             path: 'recommendations/:recommendationId/mapping',
             element: <RequireRole roles={['admin', 'planner']} />,
             children: [
-              { index: true, element: <MappingPage />, handle: title('Curriculum Mapping') },
+              {
+                index: true,
+                ...page(
+                  () => import('@/features/review/MappingPage'),
+                  (m) => m.MappingPage,
+                ),
+                handle: title('Design course', 'Analyses'),
+              },
             ],
           },
           {
-            path: 'documents/:documentId',
-            element: <DocumentDetailPage />,
-            handle: title('Document'),
+            path: 'reports',
+            ...page(
+              () => import('@/features/reports/ReportsPage'),
+              (m) => m.ReportsPage,
+            ),
+            handle: title('Reports'),
           },
           {
             path: 'admin',
             element: <RequireRole roles={['admin']} />,
             children: [
-              { path: 'users', element: <UsersPage />, handle: title('Users') },
+              {
+                path: 'users',
+                ...page(
+                  () => import('@/features/admin/users/UsersPage'),
+                  (m) => m.UsersPage,
+                ),
+                handle: title('Users', 'Administration'),
+              },
+              {
+                path: 'labour-market',
+                ...page(
+                  () => import('@/features/admin/labour-market/LabourMarketPage'),
+                  (m) => m.LabourMarketPage,
+                ),
+                handle: title('Labour market', 'Administration'),
+              },
+              {
+                path: 'benchmarks',
+                ...page(
+                  () => import('@/features/admin/benchmarks/BenchmarksPage'),
+                  (m) => m.BenchmarksPage,
+                ),
+                handle: title('Curriculum benchmarks', 'Administration'),
+              },
               {
                 path: 'nuc-core',
-                element: <NucCorePage />,
-                handle: title('NUC Core Reference'),
+                ...page(
+                  () => import('@/features/admin/nuc-core/NucCorePage'),
+                  (m) => m.NucCorePage,
+                ),
+                handle: title('NUC core curriculum', 'Administration'),
               },
-              { path: 'settings', element: <SettingsPage />, handle: title('Settings') },
-              { path: 'audit-log', element: <AuditLogPage />, handle: title('Audit Log') },
+              {
+                path: 'settings',
+                ...page(
+                  () => import('@/features/admin/settings/SettingsPage'),
+                  (m) => m.SettingsPage,
+                ),
+                handle: title('Settings', 'Administration'),
+              },
+              {
+                path: 'audit-log',
+                ...page(
+                  () => import('@/features/admin/audit/AuditLogPage'),
+                  (m) => m.AuditLogPage,
+                ),
+                handle: title('Activity log', 'Administration'),
+              },
             ],
           },
-          { path: 'reports', element: <ReportsPage />, handle: title('Reports') },
-          { path: '*', element: <NotFoundPage />, handle: title('Not found') },
+          { path: '*', element: <NotFoundPage />, handle: title('Not found', '') },
         ],
       },
     ],

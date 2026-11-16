@@ -225,12 +225,23 @@ def test_admin_cannot_demote_or_deactivate_themselves(login_as) -> None:
     assert me.role == "admin" and me.is_active
 
 
-def test_admin_can_edit_own_name(login_as) -> None:
+def test_admin_can_edit_own_name_and_email(login_as) -> None:
     admin = login_as("admin")
 
-    response = admin.patch(f"/api/admin/users/{admin.user.id}", json={"full_name": "Head Admin"})
+    response = admin.patch(
+        f"/api/admin/users/{admin.user.id}",
+        json={"full_name": "Head Admin", "email": "Head.Admin@Example.com", "role": "admin"},
+    )
 
     assert response.status_code == 200
+    data = response.get_json()["data"]
+    assert (data["full_name"], data["email"], data["role"]) == (
+        "Head Admin",
+        "head.admin@example.com",
+        "admin",
+    )
+    # Still signed in afterwards (editing details does not rotate the session).
+    assert admin.get("/api/auth/me").status_code == 200
 
 
 def test_update_unknown_user_is_404(login_as) -> None:

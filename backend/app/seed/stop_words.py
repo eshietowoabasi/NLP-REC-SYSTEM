@@ -19,6 +19,14 @@ DOMAIN_STOP_WORDS: tuple[str, ...] = (
     "responsibilities", "ability", "able", "excellent", "strong", "good", "proven",
     "minimum", "preferred", "plus", "must", "required", "etc", "including", "work", "working",
     "year", "years", "successful", "highly", "knowledge", "understanding", "skill", "skills",
+    # More requirement boilerplate, found in the real job-advert corpus (Phase 6). Words that
+    # are part of skill names ("deep learning", "scrum master") are deliberately not listed.
+    "ensure", "familiarity", "familiar", "proficiency", "proficient", "fluency", "fluent",
+    "relevant", "advantage", "advantageous", "degree", "bachelor", "bsc", "hnd", "msc",
+    "qualification", "qualifications", "certification", "certified", "demonstrate",
+    "demonstrated", "desirable", "seek", "seeking", "verify", "understand", "identify",
+    "related", "respect", "manner", "equivalent", "ideal", "ideally", "passionate",
+    "motivated",
     # Work arrangements
     "full-time", "part-time", "contract", "remote", "hybrid", "onsite", "location",
     # Places (the corpus is Nigerian; location names are not skills)

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Document detail</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#FBF6EF;color:#231A14}
+a{color:#A8431E}a:hover{color:#7E2F12}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; background: #FBF6EF;">
+  <div style="width: 256px; flex-shrink: 0; background: #FFFFFF; border-right: 1px solid #EADFD3;"><dc-import name="Sidebar" active="documents" admin="{{no}}" hint-size="256px,900px"></dc-import></div>
+  <div style="flex-grow: 1; display: flex; flex-direction: column; min-width: 0;">
+    <dc-import name="TopBar" title="Application Security Analyst" crumb="Documents" person="Mr John Okon" role="Curriculum Planner" initials="JO" hint-size="1184px,72px"></dc-import>
+    <main style="padding: 28px 40px; display: flex; flex-direction: column; gap: 18px;">
+      <a href="Documents.dc.html" style="font-size: 13px; font-weight: 700; text-decoration: none;">← All documents</a>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <h1 style="margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.03em;">Application Security Analyst</h1>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 13px; color: #4A3F37;">
+          <span style="padding: 5px 10px; border-radius: 999px; background: #F8E6DC; color: #7E2F12; font-weight: 700; font-size: 12px;">Job advert</span>
+          <span>Hydrogen Payment Services · MyJobMag · posted 18 Sept 2026 · collected 25 Sept 2026</span>
+          <a href="#original" style="font-weight: 700; text-decoration: none; margin-left: 6px;">View original advert ↗</a>
+        </div>
+      </div>
+      <div style="display: flex; gap: 18px; align-items: flex-start;">
+        <section style="flex-grow: 1; background: #FFFFFF; border: 1px solid #EADFD3; border-radius: 20px; padding: 22px 24px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;"><h2 style="margin: 0; font-size: 16px; font-weight: 800;">What the system read</h2><span style="font-size: 12px; color: #6F625A;">Split into 5 extracts · personal details removed</span></div>
+          <sc-for list="{{extracts}}" as="x" hint-placeholder-count="4">
+            <div style="display: flex; gap: 14px; padding: 14px 16px; border-radius: 14px; background: #FBF6EF;">
+              <span style="width: 28px; height: 28px; flex-shrink: 0; border-radius: 8px; background: #FFFFFF; border: 1px solid #EADFD3; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #6F625A;">{{x.n}}</span>
+              <span style="font-size: 14px; line-height: 1.6; color: #2E2620;">{{x.text}}</span>
+            </div>
+          </sc-for>
+        </section>
+        <aside style="width: 320px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px;">
+          <section style="background: #FFFFFF; border: 1px solid #EADFD3; border-radius: 20px; padding: 20px 22px; display: flex; flex-direction: column; gap: 12px;">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 800;">At a glance</h2>
+            <div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: #5E5249;">Words</span><strong>313</strong></div>
+            <div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: #5E5249;">Extracts</span><strong>5</strong></div>
+            <div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: #5E5249;">Used in analyses</span><strong>2</strong></div>
+            <div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: #5E5249;">Status</span><strong style="color: #2F6B3A;">Ready</strong></div>
+          </section>
+          <section style="background: #FFFFFF; border: 1px solid #EADFD3; border-radius: 20px; padding: 20px 22px; display: flex; flex-direction: column; gap: 12px;">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 800;">Skills found</h2>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              <span style="padding: 6px 12px; border-radius: 999px; background: #F4ECE3; font-size: 13px; font-weight: 600;">Application security</span>
+              <span style="padding: 6px 12px; border-radius: 999px; background: #F4ECE3; font-size: 13px; font-weight: 600;">Penetration testing</span>
+              <span style="padding: 6px 12px; border-radius: 999px; background: #F4ECE3; font-size: 13px; font-weight: 600;">OWASP</span>
+              <span style="padding: 6px 12px; border-radius: 999px; background: #F4ECE3; font-size: 13px; font-weight: 600;">Secure coding</span>
+              <span style="padding: 6px 12px; border-radius: 999px; background: #F4ECE3; font-size: 13px; font-weight: 600;">Python</span>
+            </div>
+            <span style="font-size: 12px; color: #6F625A;">Sample skills shown for the mockup.</span>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      no: false,
+      extracts: [
+        { n: '1', text: '[Extract 1 of the advert text: the job summary, as it appears after cleaning.]' },
+        { n: '2', text: '[Extract 2: main responsibilities, e.g. reviewing application code and running security tests.]' },
+        { n: '3', text: '[Extract 3: more responsibilities and the tools the team uses.]' },
+        { n: '4', text: '[Extract 4: requirements, qualifications and certifications.]' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

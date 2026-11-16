@@ -14,7 +14,7 @@ from app.models.enums import OverlapStatus, PlannerDecision, enum_type
 from app.utils.time import utcnow
 
 if TYPE_CHECKING:
-    from app.models.document import Passage
+    from app.models.document import NucCourse, Passage
     from app.models.user import User
 
 _SCORE_COLUMNS = ("ner_score", "topic_score", "novelty_score", "composite_score")
@@ -55,6 +55,11 @@ class Recommendation(db.Model):
     closest_nuc_passage_id: Mapped[int | None] = mapped_column(
         sa.ForeignKey("passages.id", ondelete="SET NULL")
     )
+    # Course-level overlap: the most similar NUC course (null when the NUC core has no
+    # recognisable courses; overlap then falls back to passages).
+    closest_nuc_course_id: Mapped[int | None] = mapped_column(
+        sa.ForeignKey("nuc_courses.id", ondelete="SET NULL")
+    )
     overlap_status: Mapped[OverlapStatus] = mapped_column(
         enum_type(OverlapStatus, "overlap_status")
     )
@@ -69,6 +74,7 @@ class Recommendation(db.Model):
     )
 
     closest_nuc_passage: Mapped[Passage | None] = relationship()
+    closest_nuc_course: Mapped[NucCourse | None] = relationship()
     decided_by: Mapped[User | None] = relationship()
     evidence: Mapped[list[RecommendationEvidence]] = relationship(
         back_populates="recommendation",

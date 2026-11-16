@@ -317,6 +317,17 @@ Access: any. The Document object plus `passage_count`, `preview` (the first 5 pa
 `sessions` (analysis sessions using the document: `id`, `session_name`, `status`, `created_at`)
 and `is_nuc_core`.
 
+Every Document object also has `source`, `source_url`, `published_on` (ISO date) and `label`,
+the readable reference used wherever the document is quoted: "Senior QA Engineer – Hydrogen,
+job advert (MyJobMag, Sep 2026)".
+
+### `PATCH /api/documents/{id}`
+
+Access: admin, planner. Any of `{ "title", "source", "source_url", "published_on" }` (`null`
+clears source, link or date; the title cannot be empty; the link must start with http:// or
+https://). Returns the Document object. Audited as `document.updated`. The collector's manifest
+can set these for many documents at once: `flask --app wsgi import-manifest <manifest.csv>`.
+
 ### `GET /api/documents/{id}/passages`
 
 Access: any. The document's passages in order, paginated (`per_page` up to 100, default 50):
@@ -344,8 +355,10 @@ documents.
 
 ## NUC core reference
 
-The NUC CCMAS core (the fixed 70%) against which candidate topics are compared. Exactly one
-version is active. A newly uploaded version becomes active automatically once its document has
+The NUC CCMAS core (the fixed 70%) against which candidate topics are compared. Every version
+belongs to a programme, and each programme has at most one active version. These `/api/nuc-core`
+routes serve the **default programme** (the first active one, Computer Science); other
+programmes use `/api/programmes/{id}/benchmarks` below. A newly uploaded version becomes active automatically once its document has
 been processed successfully; until then (or if processing fails) the previous version stays
 active.
 
@@ -372,11 +385,85 @@ which may still be processing or may have failed.
 
 Access: any. Every version, newest first.
 
+### `GET /api/nuc-core/courses`
+
+Access: any. The courses recognised in the active version (course header with a unit count),
+ordered by page: `{ "version", "exclusions": { "code_prefixes", "title_keywords" }, "courses":
+[{ "id", "code", "title", "units", "page_number", "excluded" }], "excluded_count" }`.
+`excluded` courses (matching the `nuc_course_exclusions` setting) are not compared with themes.
+`courses` is empty when there is no active version or no course headers were recognised (themes
+are then compared with passages).
+
 ### `POST /api/nuc-core`
 
 Access: admin. `multipart/form-data` with `file` and `version_label` (1–64 characters). The file
 is validated as for documents. **201** returns the new (not yet active) version; **422** with
 `details.fields.file` or `details.fields.version_label` otherwise.
+
+---
+
+## Programmes and benchmarks
+
+A programme (e.g. Computer Science, Nursing Science) owns its own curriculum benchmark (NUC core
+versions) and its own labour-market harvest profile. Sessions take an optional `programme_id`
+(default: the default programme) and are compared with that programme's active benchmark.
+
+Programme object: `{ "id", "name", "discipline_code", "faculty", "description", "country",
+"is_active", "created_at" }`.
+
+### `GET /api/programmes`
+
+Access: any. Active programmes, ordered by name.
+
+### `POST /api/programmes`
+
+Access: admin. JSON `{ "name" (2–160), "discipline_code"?, "faculty"?, "description"?,
+"country"? (default "Nigeria") }`. **201** with the programme; **409** if the name (any case) or
+discipline code is taken.
+
+### `GET /api/programmes/{id}`
+
+Access: any. The programme; **404** if unknown.
+
+### `GET /api/programmes/{id}/benchmarks`
+
+Access: any. `{ "programme", "active", "latest", "versions" }` (versions newest first, same
+version object as above).
+
+### `POST /api/programmes/{id}/benchmarks`
+
+Access: admin. As `POST /api/nuc-core`, for this programme. The version becomes active once its
+document is processed, replacing only this programme's previous active version.
+
+---
+
+## Labour-market harvesting
+
+Instead of uploading job adverts by hand, an admin sets a programme's search profile and the
+system collects matching adverts from MyJobMag in the background. Each collected advert is
+stored as an ordinary `job_advert` document (duplicates by content are skipped) and ingested as
+usual, so it can be picked for a session.
+
+### `GET /api/harvest/programmes/{id}`
+
+Access: any. `{ "programme": { "id", "name", "discipline_code" }, "profile": { "search_terms",
+"field_slugs" }, "latest_run": Run | null }`.
+
+Run object: `{ "id", "programme_id", "status" (queued|running|completed|failed),
+"target_count", "pages_per_field", "examined_count", "found_count", "imported_count",
+"skipped_count", "error_message", "created_at", "started_at", "completed_at" }`.
+
+### `PATCH /api/harvest/programmes/{id}`
+
+Access: admin. JSON `{ "search_terms": [...] (≤ 40), "field_slugs": [...] (≤ 20, MyJobMag field
+slugs) }`. **200** with the saved profile.
+
+### `POST /api/harvest/programmes/{id}/runs`
+
+Access: admin. JSON `{ "target_count" (1–30, default 10), "pages_per_field" (1–5, default 2) }`.
+**202** with the queued run. **422** if the profile has no search terms or fields; **409** if a
+run for this programme is already queued or running. Clients poll `GET
+/api/harvest/programmes/{id}` while the latest run is queued or running.
 
 ---
 
@@ -518,11 +605,24 @@ or CERT; skills are ordered by document frequency, then mentions.
 (`[{ "passage_id", "document_id", "document_title", "text" }]`). Every theme is listed, not only
 the recommended ones.
 
+Each topic also has `keyword_title` (the title made from its keywords), `name_similarity` (to
+the closest course-style name; `title` is that name when it is at least 0.50) and keywords with
+a `label` as written in the documents; `merged_topics` lists near-duplicate topics that were
+merged (groups of original topic ids); samples have `document_label`. Sessions run from Phase 6
+also report each topic's `skill_demand_raw` (log1p of the summed
+document frequencies of its top skills, each weighted by the share of the skill's mentions in
+the topic) and `skill_demand` (min-max over the topics that have skills; 0 without skills).
+
 ### `GET /api/sessions/{id}/similarity`
 
-`{ "threshold", "nuc_core_version": { "id", "version_label" }, "candidates": [...] }`, ranked
-like the recommendations. Each candidate: `topic_id`, `title`, `max_similarity`, `novelty`,
-`overlap_status`, `closest_nuc_passage` (`{ "id", "text", "page_number" }`).
+`{ "threshold", "basis", "nuc_core_version": { "id", "version_label" }, "candidates": [...] }`,
+ranked like the recommendations. `basis` is `"course"` when themes were compared with whole NUC
+courses (the similarity is then the closest course's) or `"passage"` when the NUC core had no
+recognisable courses (and for sessions run before course-level overlap). Sessions run with
+course exclusions also report `courses_compared` and `courses_excluded`. Each candidate:
+`topic_id`, `title`, `max_similarity`, `novelty`, `overlap_status`, `closest_nuc_passage`
+(`{ "id", "text", "page_number" }`), `closest_nuc_course`
+(`{ "id", "code", "title", "units", "page_number" }` or null).
 
 ## Recommendations
 
@@ -538,9 +638,11 @@ like the recommendations. Each candidate: `topic_id`, `title`, `max_similarity`,
 | `ner_score`, `topic_score`, `novelty_score` | 0–1, normalised across the session's themes |
 | `composite_score` | Weighted sum with the session's weights |
 | `max_similarity`, `overlap_status` | `"Potential Duplicate"` or `"No Significant Overlap"` |
+| `closest_nuc_course` | `{ "id", "code", "title", "units", "page_number" }` — the NUC course the theme is closest to (the similarity above is to this course); null when the session compared themes with NUC passages |
 | `planner_decision` | `accepted`, `rejected`, `flagged` or null |
 | `planner_notes`, `decided_at`, `decided_by` (`{ "id", "full_name" }`) | Null while undecided |
-| `has_mapping` | Whether the recommendation is mapped to a course |
+| `has_mapping` | Whether a course has been designed for the recommendation |
+| `course` | `{ "course_code", "course_title", "credit_units" }` of the designed course, or null |
 
 ### `GET /api/sessions/{id}/recommendations`
 
@@ -548,7 +650,25 @@ Access: any. Every recommendation of the session in rank order (not paginated: a
 `max_recommendations`, ≤ 100). Filters: `decision` = `all` (default), `undecided`, `accepted`,
 `rejected`, `flagged`; `hide_duplicates=true`. Response:
 `{ "items": [...], "counts": { "total", "reviewed", "undecided", "accepted", "rejected",
-"flagged", "potential_duplicates" } }`; the counts always cover the whole session. **404** if
+"flagged", "potential_duplicates", "with_courses", "accepted_with_courses" } }`; the counts
+always cover the whole session. `flagged` is shown to users as "Discuss later". **404** if the
+session is unknown.
+
+### `GET /api/sessions/{id}/progress`
+
+Access: any. Where the session stands in the review workflow (Review → Design courses →
+Report): `{ "session_status", "total", "reviewed", "accepted", "rejected", "flagged",
+"courses", "accepted_with_courses", "latest_report": { "id", "status", "format",
+"created_at" } | null }`. **404** if the session is unknown.
+
+### `GET /api/sessions/{id}/recommendations/export`
+
+Access: any. Every recommendation of the session as a CSV attachment (UTF-8 with BOM), in rank
+order, with each score both out of 100 (as shown on screen) and as the exact 0–1 decimal:
+`rank, topic_title, score_out_of_100, skill_demand_out_of_100, theme_strength_out_of_100,
+novelty_out_of_100, similarity_percent, composite_score, skill_demand_score,
+theme_strength_score, novelty_score, max_similarity, overlap_status, closest_nuc_course,
+decision, skills`. Text cells are protected against spreadsheet formula injection. **404** if
 the session is unknown.
 
 ### `GET /api/recommendations/{id}`
@@ -570,9 +690,11 @@ description 1–5,000 characters). `auto_title` is kept. Audited as `recommendat
 ### `PATCH /api/recommendations/{id}/decision`
 
 Access: admin, planner. `{ "decision": "accepted" | "rejected" | "flagged" | null, "notes"? }`
-(notes ≤ 2,000 characters). `null` clears the decision. Records who decided and when; audited
-as `recommendation.decided`. **409** when the recommendation is mapped to a course and the new
-decision is not `accepted` (remove the mapping first).
+(notes ≤ 2,000 characters). `null` clears the decision; `flagged` means "Discuss later". The
+notes change only when `notes` is sent (a one-click decision keeps them; `""` clears them).
+Records who decided and when; audited as `recommendation.decided`. **409** when a course has
+been designed for the recommendation and the new decision is not `accepted` (remove the course
+first).
 
 ## Curriculum mapping
 
@@ -646,8 +768,8 @@ Sections: `corpus_summary`, `nlp_findings`, `overlap`, `recommendations`, `decis
 
 ### `POST /api/sessions/{id}/reports`
 
-Access: admin, planner. `{ "format": "pdf" | "docx", "sections": [...] }` (at least one
-section, each once). **202** with the queued report; poll `GET /api/reports/{id}`. Audited as
+Access: admin, planner. `{ "format": "pdf" | "docx", "sections"?: [...] }` (at least one
+section, each once; omitted = every section, as the one-click "Download report" sends). **202** with the queued report; poll `GET /api/reports/{id}`. Audited as
 `report.generated`. **404** unknown session; **409** `RESULTS_NOT_READY` if the session has not
 completed.
 
@@ -684,13 +806,19 @@ Access: any.
   "documents": { "total": 12, "ready": 10, "processing": 1, "failed": 1,
                  "by_category": { "job_market": 8, "policy": 4 } },
   "sessions": { "total": 3, "by_status": { "pending": 0, "processing": 1, "completed": 2, "failed": 0 } },
-  "recommendations": { "total": 30, "pending_review": 18, "accepted": 7, "rejected": 3, "flagged": 2 },
+  "recommendations": { "total": 30, "pending_review": 18, "accepted": 7, "rejected": 3, "flagged": 2,
+                       "review_session": { "id": 9, "session_name": "...", "undecided": 11 } },
   "courses_mapped": 4,
+  "curriculum_session": { "id": 9, "session_name": "..." },
   "reports": 2,
   "nuc_core_version": { "id": 1, "version_label": "CCMAS 2023" },
   "recent_sessions": [ ...five newest session objects... ]
 }
 ```
+
+`review_session` is the most recently completed session that still has undecided
+recommendations, and `curriculum_session` the session with the most recently changed course
+mapping (both null when there is none); the dashboard cards link to them.
 
 Documents exclude archived ones and the NUC core; recommendation counts cover completed sessions.
 
@@ -719,6 +847,8 @@ Access: admin. Any subset of the settings; only the keys sent change.
 | `min_topic_size` | 2–100 |
 | `evidence_per_recommendation` | 1–20 |
 | `max_documents_per_session` | 1–200 |
+| `topic_name_catalogue` | list of course-style names (2–120 characters, at most 400, duplicates dropped) |
+| `nuc_course_exclusions` | `{ "code_prefixes": [2–4 letters], "title_keywords": [2–80 chars] }`, at most 30 each; duplicates dropped, prefixes upper-cased |
 | `credit_unit_allowance` | 1–300, or `null` to clear |
 
 Response: `{ "settings": [...], "changed": [keys whose value changed] }`. Changes are audited as

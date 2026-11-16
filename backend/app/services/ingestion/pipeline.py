@@ -34,6 +34,7 @@ class IngestionOutput:
     page_count: int | None
     word_count: int
     passages: list[PassageData]
+    pages: list[str]  # cleaned pages (course extraction for the NUC core)
 
 
 def process_document(
@@ -70,4 +71,5 @@ def process_document(
             )
             for passage in passages
         ],
+        pages=pages,
     )

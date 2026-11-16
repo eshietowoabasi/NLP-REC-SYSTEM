@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Reports</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#FBF6EF;color:#231A14}
+a{color:#A8431E}a:hover{color:#7E2F12}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; background: #FBF6EF;">
+  <div style="width: 256px; flex-shrink: 0; background: #FFFFFF; border-right: 1px solid #EADFD3;"><dc-import name="Sidebar" active="reports" admin="{{no}}" hint-size="256px,900px"></dc-import></div>
+  <div style="flex-grow: 1; display: flex; flex-direction: column; min-width: 0;">
+    <dc-import name="TopBar" title="Reports" crumb="Workspace" person="Mr John Okon" role="Curriculum Planner" initials="JO" hint-size="1184px,72px"></dc-import>
+    <main style="padding: 28px 40px; display: flex; flex-direction: column; gap: 18px;">
+      <div style="display: flex; flex-direction: column; gap: 4px;"><h1 style="margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.03em;">Reports</h1><p style="margin: 0; font-size: 14px; color: #5E5249;">One document with the evidence, your decisions and the proposed courses, ready for the Faculty Board.</p></div>
+      <section style="background: #FFFFFF; border: 1px solid #EADFD3; border-radius: 22px; padding: 22px 26px; display: flex; align-items: center; gap: 22px;">
+        <span style="width: 64px; height: 64px; flex-shrink: 0; border-radius: 18px; background: #F8E6DC; display: flex; align-items: center; justify-content: center;"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#A8431E" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l5 5v13H6zM9 13h6M9 17h6"></path></svg></span>
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 18px; font-weight: 800;">Real corpus (final)</span>
+          <span style="font-size: 13px; color: #5E5249;">2 accepted topics · 2 courses designed · Word document with all sections</span>
+          <button type="button" style="align-self: flex-start; border: 0; background: transparent; font: inherit; font-size: 13px; font-weight: 700; color: #A8431E; padding: 0; height: 30px;">More options (format, sections)</button>
+        </div>
+        <button type="button" style="height: 52px; padding: 0 24px; border-radius: 14px; border: 0; background: #A8431E; color: #FFFFFF; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 10px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"></path></svg>Download report</button>
+      </section>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 16px; background: #FDF1D8; color: #6B4A00; font-size: 14px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6B4A00" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v5M12 16h.01M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z"></path></svg><span>Need a PDF? Open the Word report, then use <strong>File → Save As → PDF</strong>.</span></div>
+      <section style="background: #FFFFFF; border: 1px solid #EADFD3; border-radius: 20px; overflow: hidden;">
+        <div style="padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;"><h2 style="margin: 0; font-size: 16px; font-weight: 800;">Earlier reports</h2><span style="font-size: 13px; color: #6F625A;">3 reports</span></div>
+        <sc-for list="{{reports}}" as="r" hint-placeholder-count="3">
+          <div style="display: flex; align-items: center; gap: 18px; padding: 14px 24px; border-top: 1px solid #F1E8DE;">
+            <span style="padding: 5px 10px; border-radius: 8px; background: #E4ECF7; color: #1D3F73; font-size: 12px; font-weight: 800;">WORD</span>
+            <span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px; font-weight: 700;">{{r.name}}</span><span style="font-size: 12px; color: #6F625A;">{{r.meta}}</span></span>
+            <span style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; {{r.stateStyle}}"><span style="width: 8px; height: 8px; border-radius: 50%; background: currentColor;"></span>{{r.state}}</span>
+            <button type="button" style="height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid #E3D6C8; background: #FFFFFF; font: inherit; font-size: 13px; font-weight: 700; color: #231A14;">{{r.action}}</button>
+          </div>
+        </sc-for>
+      </section>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      no: false,
+      reports: [
+        { name: 'SkillBridge report – Real corpus (final) – 27 Sept 2026', meta: 'Created by Mr John Okon · all sections', state: 'Ready', stateStyle: 'color: #2F6B3A;', action: 'Download' },
+        { name: 'SkillBridge report – Real corpus: document-weighted strength – 27 Sept 2026', meta: 'Created by Owoabasi Eshiet · all sections', state: 'Ready', stateStyle: 'color: #2F6B3A;', action: 'Download' },
+        { name: 'SkillBridge report – Real corpus (final) – 27 Sept 2026', meta: 'Created by Mr John Okon · all sections', state: "Couldn't create", stateStyle: 'color: #A3302A;', action: 'Try again' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

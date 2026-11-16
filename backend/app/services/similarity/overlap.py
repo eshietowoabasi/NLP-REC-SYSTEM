@@ -1,10 +1,11 @@
 """Overlap of candidate topics with the NUC core (the fixed 70%), by meaning.
 
 For each candidate, ``max_sim`` is the highest cosine similarity between the candidate
-embedding and any NUC core passage embedding; ``novelty = 1 - max_sim`` (clipped to [0, 1]).
+embedding and any NUC core embedding - a whole course (course-level overlap) or, when the core
+has no recognisable courses, a passage; ``novelty = 1 - max_sim`` (clipped to [0, 1]).
 A candidate is a *Potential Duplicate* when ``max_sim`` is strictly greater than the threshold
-(default 0.80); exactly 0.80 is still "No Significant Overlap". The closest NUC passage is
-reported so planners can compare the two side by side.
+(default 0.80); exactly 0.80 is still "No Significant Overlap". The closest NUC course and
+passage are reported so planners can compare them side by side.
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from app.models.enums import OverlapStatus
 @dataclass(frozen=True)
 class Overlap:
     max_similarity: float
-    closest_index: int  # index into the NUC core passages
+    closest_index: int  # index into the NUC core rows (courses or passages)
     novelty: float
     status: OverlapStatus
 
@@ -42,9 +43,9 @@ def overlap_status(max_similarity: float, threshold: float) -> OverlapStatus:
 def compare_to_core(
     candidates: NDArray[np.float32], core: NDArray[np.float32], threshold: float
 ) -> list[Overlap]:
-    """Overlap of each candidate embedding (rows) with the NUC core passage embeddings."""
+    """Overlap of each candidate embedding (rows) with the NUC core embeddings (rows)."""
     if len(core) == 0:
-        raise ValueError("The NUC core has no passages to compare against.")
+        raise ValueError("The NUC core has nothing to compare against.")
     similarities = _normalise(candidates) @ _normalise(core).T
     results = []
     for row in similarities:

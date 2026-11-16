@@ -1,0 +1,19 @@
+[project]
+name = "corpus-collector"
+version = "1.0.0"
+description = "Collects job adverts for the NLP-RS corpus (MyJobMag, Remotive API) politely"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "C4"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]

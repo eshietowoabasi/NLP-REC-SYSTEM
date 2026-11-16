@@ -19,11 +19,13 @@ from app.models import (
     NLPResult,
     NLPResultType,
     NucCoreVersion,
+    NucCourse,
     Passage,
     SessionStatus,
     SourceCategory,
 )
 from app.utils.errors import ApiError
+from app.utils.labels import document_label
 from app.utils.responses import success
 
 bp = Blueprint("results", __name__, url_prefix="/sessions")
@@ -84,14 +86,24 @@ def topics(session_id: int) -> tuple[Response, int]:
         for topic in data.get("topics", [])
         for sample in topic.get("samples", [])
     }
-    titles = dict(
-        db.session.execute(
-            select(Document.id, Document.title).where(Document.id.in_(document_ids))
-        ).all()
-    )
+    documents = {
+        document.id: document
+        for document in db.session.scalars(select(Document).where(Document.id.in_(document_ids)))
+    }
     for topic in data.get("topics", []):
         for sample in topic.get("samples", []):
-            sample["document_title"] = titles.get(sample["document_id"], "(deleted document)")
+            document = documents.get(sample["document_id"])
+            sample["document_title"] = document.title if document else "(deleted document)"
+            sample["document_label"] = (
+                document_label(
+                    document.title,
+                    document.source_category,
+                    document.source,
+                    document.published_on,
+                )
+                if document
+                else "(deleted document)"
+            )
     return success(data)
 
 
@@ -116,9 +128,27 @@ def similarity(session_id: int) -> tuple[Response, int]:
         if session.nuc_core_version_id
         else None
     )
+    course_ids = {
+        c["closest_nuc_course"]["id"]
+        for c in data.get("candidates", [])
+        if c.get("closest_nuc_course")
+    }
+    courses = {
+        row.id: row
+        for row in db.session.execute(
+            select(NucCourse.id, NucCourse.units, NucCourse.page_number).where(
+                NucCourse.id.in_(course_ids)
+            )
+        ).all()
+    }
     for candidate in data.get("candidates", []):
         closest = candidate.get("closest_nuc_passage") or {}
         closest["page_number"] = pages.get(closest.get("id"))
+        course = candidate.get("closest_nuc_course")
+        if course and course["id"] in courses:
+            course["units"] = courses[course["id"]].units
+            course["page_number"] = courses[course["id"]].page_number
+    data.setdefault("basis", "passage")  # sessions run before course-level overlap
     data["nuc_core_version"] = (
         {"id": version.id, "version_label": version.version_label} if version else None
     )

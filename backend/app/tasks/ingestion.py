@@ -14,8 +14,17 @@ import time
 from sqlalchemy import delete, select, update
 
 from app.extensions import db
-from app.models import Document, DocumentStatus, NucCoreVersion, Passage, SourceCategory, StopWord
-from app.services.embeddings.encoder import get_encoder
+from app.models import (
+    Document,
+    DocumentStatus,
+    NucCoreVersion,
+    NucCourse,
+    Passage,
+    SourceCategory,
+    StopWord,
+)
+from app.services.embeddings.encoder import Encoder, get_encoder
+from app.services.ingestion.courses import embed_courses, extract_courses
 from app.services.ingestion.parsers import ParseError
 from app.services.ingestion.passages import PassageConfig
 from app.services.ingestion.pipeline import process_document
@@ -43,18 +52,60 @@ def activate_nuc_core_version(document: Document) -> None:
     )
     if version is None:
         return
-    active = db.session.scalar(select(NucCoreVersion).where(NucCoreVersion.is_active.is_(True)))
+    # Each programme has its own active benchmark; only this programme's one is replaced.
+    programme_filter = NucCoreVersion.programme_id == version.programme_id
+
+    active = db.session.scalar(
+        select(NucCoreVersion).where(
+            NucCoreVersion.is_active.is_(True),
+            programme_filter,
+        )
+    )
+
     if active is not None and active.id > version.id:
         logger.info(
-            "NUC core version %s is ready but newer version %s is active", version.id, active.id
+            "Curriculum benchmark %s is ready but newer version %s is active",
+            version.id,
+            active.id,
         )
         return
-    # Deactivate first: the partial unique index allows only one active row at a time.
+
+    # Only deactivate the active benchmark for this programme.
     db.session.execute(
-        update(NucCoreVersion).where(NucCoreVersion.is_active.is_(True)).values(is_active=False)
+        update(NucCoreVersion)
+        .where(
+            NucCoreVersion.is_active.is_(True),
+            programme_filter,
+        )
+        .values(is_active=False)
     )
     db.session.flush()
     version.is_active = True
+
+
+def store_courses(document: Document, pages: list[str], paged: bool, encoder: Encoder) -> int:
+    """Replace the stored courses of NUC core ``document`` with those found in ``pages``.
+
+    Returns the number of courses. A core with no recognisable course headers stores none, and
+    sessions then compare themes with its passages instead.
+    """
+    courses = extract_courses(pages, page_numbers=paged)
+    vectors = embed_courses(courses, encoder)
+    db.session.execute(delete(NucCourse).where(NucCourse.document_id == document.id))
+    db.session.add_all(
+        NucCourse(
+            document_id=document.id,
+            code=course.code,
+            title=course.title,
+            units=course.units,
+            page_number=course.page_number,
+            text=course.text,
+            embedding=vector.tolist(),
+            embedding_model=encoder.model_name,
+        )
+        for course, vector in zip(courses, vectors, strict=True)
+    )
+    return len(courses)
 
 
 def _fail(document_id: int, message: str) -> None:
@@ -110,6 +161,7 @@ def ingest_document(document_id: int) -> None:
         document.parsed_at = utcnow()
         document.processing_status = DocumentStatus.READY
         if document.source_category == SourceCategory.NUC_CORE:
+            store_courses(document, output.pages, output.page_count is not None, encoder)
             activate_nuc_core_version(document)
         db.session.commit()
         logger.info(
@@ -127,3 +179,149 @@ def ingest_document(document_id: int) -> None:
         _fail(document_id, UNEXPECTED_FAILURE)
     finally:
         db.session.remove()
+
+
+def ingest_documents_batch(document_ids: list[int]) -> None:
+    """Process several non-benchmark documents in one NLP/embedding batch.
+
+    spaCy, stop words and SBERT are loaded once. All prepared passages are
+    embedded together, which is substantially faster for harvested job adverts.
+    """
+    ids = list(dict.fromkeys(int(document_id) for document_id in document_ids))
+    if not ids:
+        return
+
+    documents = []
+    for document_id in ids:
+        document = db.session.get(Document, document_id)
+        if document is None or document.processing_status == DocumentStatus.ARCHIVED:
+            continue
+        # Benchmarks still use the specialised single-document path because
+        # they additionally extract and embed curriculum courses.
+        if document.source_category == SourceCategory.NUC_CORE:
+            ingest_document(document_id)
+            continue
+        document.processing_status = DocumentStatus.PARSING
+        document.error_message = None
+        documents.append(document)
+
+    db.session.commit()
+
+    if not documents:
+        db.session.remove()
+        return
+
+    started = time.perf_counter()
+
+    config = PassageConfig.from_settings(
+        get_setting("passage_sentences"),
+        get_setting("passage_words"),
+    )
+    nlp = get_nlp(get_setting("spacy_model"))
+    stop_words = load_stop_words()
+    encoder = get_encoder(get_setting("sbert_model"))
+
+    prepared = []
+
+    for document in documents:
+        try:
+            content = get_storage().read(document.stored_filename)
+            output = process_document(
+                document.file_type,
+                content,
+                nlp,
+                stop_words,
+                config,
+            )
+            prepared.append((document.id, output))
+        except ParseError as exc:
+            logger.info(
+                "Document %s could not be parsed in batch: %s",
+                document.id,
+                exc,
+            )
+            document.processing_status = DocumentStatus.FAILED
+            document.error_message = str(exc)
+        except Exception:
+            logger.exception(
+                "Unexpected error while preparing document %s in batch",
+                document.id,
+            )
+            document.processing_status = DocumentStatus.FAILED
+            document.error_message = UNEXPECTED_FAILURE
+
+    db.session.commit()
+
+    if not prepared:
+        db.session.remove()
+        return
+
+    texts = [passage.text for _document_id, output in prepared for passage in output.passages]
+
+    try:
+        vectors = encoder.encode(texts)
+    except Exception:
+        logger.exception("Batch embedding failed for documents %s", ids)
+        for document_id, _output in prepared:
+            document = db.session.get(Document, document_id)
+            if document is not None:
+                document.processing_status = DocumentStatus.FAILED
+                document.error_message = UNEXPECTED_FAILURE
+        db.session.commit()
+        db.session.remove()
+        return
+
+    offset = 0
+
+    for document_id, output in prepared:
+        document = db.session.get(Document, document_id)
+        if document is None:
+            offset += len(output.passages)
+            continue
+
+        count = len(output.passages)
+        document_vectors = vectors[offset : offset + count]
+        offset += count
+
+        db.session.execute(delete(Passage).where(Passage.document_id == document_id))
+
+        db.session.add_all(
+            Passage(
+                document_id=document_id,
+                position=passage.position,
+                page_number=passage.page_number,
+                text=passage.text,
+                normalised_text=passage.normalised_text,
+                embedding=vector.tolist(),
+                embedding_model=encoder.model_name,
+            )
+            for passage, vector in zip(
+                output.passages,
+                document_vectors,
+                strict=True,
+            )
+        )
+
+        document.page_count = output.page_count
+        document.word_count = output.word_count
+        document.parsed_at = utcnow()
+        document.processing_status = DocumentStatus.READY
+        document.error_message = None
+
+        logger.info(
+            "Prepared harvested document %s: %s passages, %s words",
+            document_id,
+            count,
+            output.word_count,
+        )
+
+    db.session.commit()
+
+    logger.info(
+        "Batch ingested %s documents / %s passages in %.1fs",
+        len(prepared),
+        len(texts),
+        time.perf_counter() - started,
+    )
+
+    db.session.remove()

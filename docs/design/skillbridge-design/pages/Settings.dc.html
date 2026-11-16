@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#FBF6EF;color:#231A14}
+a{color:#A8431E}a:hover{color:#7E2F12}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; background: #FBF6EF;">
+  <div style="width: 256px; flex-shrink: 0; background: #FFFFFF; border-right: 1px solid #EADFD3;"><dc-import name="Sidebar" active="settings" admin="{{yes}}" hint-size="256px,900px"></dc-import></div>
+  <div style="flex-grow: 1; display: flex; flex-direction: column; min-width: 0;">
+    <dc-import name="TopBar" title="Settings" crumb="Administration" person="Owoabasi Eshiet" role="Administrator" initials="OE" hint-size="1184px,72px"></dc-import>
+    <main style="padding: 26px 40px; display: flex; flex-direction: column; gap: 18px;">
+      <div style="display: flex; flex-direction: column; gap: 4px;"><h1 style="margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.03em;">Settings</h1><p style="margin: 0; font-size: 14px; color: #5E5249;">How topics are scored and what the system looks for. Changes apply to new analyses only.</p></div>
+      <div style="display: flex; gap: 6px; padding: 4px; border-radius: 14px; background: #F4ECE3; align-self: flex-start;">
+        <span style="height: 40px; padding: 0 18px; border-radius: 10px; background: #FFFFFF; display: flex; align-items: center; font-size: 14px; font-weight: 800;">Scoring</span>
+        <span style="height: 40px; padding: 0 18px; border-radius: 10px; display: flex; align-items: center; font-size: 14px; font-weight: 600; color: #5E5249;">Skills list</span>
+        <span style="height: 40px; padding: 0 18px; border-radius: 10px; display: flex; align-items: center; font-size: 14px; font-weight: 600; color: #5E5249;">Words to ignore</span>
+        <span style="height: 40px; padding: 0 18px; border-radius: 10px; display: flex; align-items: center; font-size: 14px; font-weight: 600; color: #5E5249;">NUC courses to leave out</span>
+        <span style="height: 40px; padding: 0 18px; border-radius: 10px; display: flex; align-items: center; font-size: 14px; font-weight: 600; color: #5E5249;">Course names</span>
+      </div>
+      <div style="display: flex; gap: 18px; align-items: flex-start;">
+        <section style="flex-grow: 1; background: #FFFFFF; border: 1px solid #EADFD3; border-radius: 20px; padding: 22px 26px; display: flex; flex-direction: column; gap: 18px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;"><h2 style="margin: 0; font-size: 17px; font-weight: 800;">What matters most when ranking topics?</h2><span style="padding: 5px 10px; border-radius: 999px; background: #E3F1E4; color: #1F4D28; font-size: 12px; font-weight: 800;">Adds up to 100% ✓</span></div>
+          <div style="display: flex; flex-direction: column; gap: 8px;"><div style="display: flex; justify-content: space-between; font-size: 14px;"><label for="w1" style="font-weight: 700;">Employer demand</label><strong>40%</strong></div><input id="w1" type="range" min="0" max="100" value="40" style="accent-color: #A8431E;"><span style="font-size: 12px; color: #6F625A;">How many documents ask for the topic's skills.</span></div>
+          <div style="display: flex; flex-direction: column; gap: 8px;"><div style="display: flex; justify-content: space-between; font-size: 14px;"><label for="w2" style="font-weight: 700;">How often it comes up</label><strong>35%</strong></div><input id="w2" type="range" min="0" max="100" value="35" style="accent-color: #A8431E;"><span style="font-size: 12px; color: #6F625A;">How much of the evidence is about this topic.</span></div>
+          <div style="display: flex; flex-direction: column; gap: 8px;"><div style="display: flex; justify-content: space-between; font-size: 14px;"><label for="w3" style="font-weight: 700;">How new it is</label><strong>25%</strong></div><input id="w3" type="range" min="0" max="100" value="25" style="accent-color: #A8431E;"><span style="font-size: 12px; color: #6F625A;">How different it is from what the NUC core already teaches.</span></div>
+        </section>
+        <section style="width: 380px; flex-shrink: 0; background: #FFFFFF; border: 1px solid #EADFD3; border-radius: 20px; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px;">
+          <h2 style="margin: 0; font-size: 17px; font-weight: 800;">Other settings</h2>
+          <div style="display: flex; flex-direction: column; gap: 6px;"><label for="s1" style="font-size: 14px; font-weight: 700;">“May already be in NUC core” above</label><div style="display: flex; align-items: center; gap: 8px;"><input id="s1" value="80" style="width: 80px; height: 44px; box-sizing: border-box; padding: 0 12px; font: inherit; font-size: 15px; border: 1px solid #E3D6C8; border-radius: 12px;"><span style="font-size: 14px;">% similar</span></div></div>
+          <div style="display: flex; flex-direction: column; gap: 6px;"><label for="s2" style="font-size: 14px; font-weight: 700;">Topics to show per analysis</label><input id="s2" value="20" style="width: 80px; height: 44px; box-sizing: border-box; padding: 0 12px; font: inherit; font-size: 15px; border: 1px solid #E3D6C8; border-radius: 12px;"></div>
+          <div style="display: flex; flex-direction: column; gap: 6px;"><label for="s3" style="font-size: 14px; font-weight: 700;">Credit units available for the 30%</label><input id="s3" placeholder="e.g. 30" style="width: 120px; height: 44px; box-sizing: border-box; padding: 0 12px; font: inherit; font-size: 15px; border: 1px solid #E3D6C8; border-radius: 12px;"></div>
+          <span style="font-size: 12px; color: #6F625A;">Last changed by Owoabasi Eshiet · 27 Sept 2026</span>
+        </section>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" style="height: 48px; padding: 0 20px; border-radius: 12px; border: 1px solid #E3D6C8; background: #FFFFFF; font: inherit; font-size: 14px; font-weight: 700; color: #231A14;">Undo changes</button>
+        <button type="button" style="height: 48px; padding: 0 24px; border-radius: 12px; border: 0; background: #A8431E; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 700;">Save settings</button>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return { yes: true }; }
+}
+</script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
@@ -14,6 +14,7 @@ from app.models.enums import DocumentStatus, FileType, SourceCategory, enum_type
 from app.utils.time import utcnow
 
 if TYPE_CHECKING:
+    from app.models.programme import Programme
     from app.models.user import User
 
 
@@ -28,6 +29,11 @@ class Document(db.Model):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     uploaded_by_id: Mapped[int] = mapped_column(sa.ForeignKey("users.id"), index=True)
+    programme_id: Mapped[int | None] = mapped_column(
+        sa.ForeignKey("programmes.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
     title: Mapped[str] = mapped_column(sa.String(255))
     original_filename: Mapped[str] = mapped_column(sa.String(255))
     stored_filename: Mapped[str] = mapped_column(sa.String(64), unique=True)
@@ -42,6 +48,11 @@ class Document(db.Model):
         enum_type(DocumentStatus, "processing_status"), default=DocumentStatus.UPLOADED
     )
     error_message: Mapped[str | None] = mapped_column(sa.Text)
+    # Where the document comes from, for readable references such as
+    # "Senior QA Engineer – Hydrogen, job advert (MyJobMag, Sep 2026)".
+    source: Mapped[str | None] = mapped_column(sa.String(128))
+    source_url: Mapped[str | None] = mapped_column(sa.String(1024))
+    published_on: Mapped[date | None] = mapped_column(sa.Date)
     page_count: Mapped[int | None]
     word_count: Mapped[int | None]
     uploaded_at: Mapped[datetime] = mapped_column(
@@ -50,6 +61,7 @@ class Document(db.Model):
     parsed_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
 
     uploaded_by: Mapped[User] = relationship()
+    programme: Mapped[Programme | None] = relationship()
     passages: Mapped[list[Passage]] = relationship(
         back_populates="document", order_by="Passage.position", cascade="all, delete-orphan"
     )
@@ -60,16 +72,19 @@ class NucCoreVersion(db.Model):
 
     __tablename__ = "nuc_core_versions"
     __table_args__ = (
-        # Partial unique index: only one row may have is_active = true.
+        # Each programme may have one active curriculum benchmark.
         sa.Index(
-            "uq_nuc_core_versions_single_active",
-            "is_active",
+            "uq_nuc_core_versions_programme_active",
+            "programme_id",
             unique=True,
             postgresql_where=sa.text("is_active"),
         ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    programme_id: Mapped[int] = mapped_column(
+        sa.ForeignKey("programmes.id", ondelete="RESTRICT"), index=True
+    )
     document_id: Mapped[int] = mapped_column(sa.ForeignKey("documents.id"), unique=True)
     version_label: Mapped[str] = mapped_column(sa.String(64))
     is_active: Mapped[bool] = mapped_column(default=False, server_default=sa.false())
@@ -78,6 +93,7 @@ class NucCoreVersion(db.Model):
         sa.DateTime(timezone=True), default=utcnow, server_default=sa.func.now()
     )
 
+    programme: Mapped[Programme] = relationship()
     document: Mapped[Document] = relationship()
     uploaded_by: Mapped[User] = relationship()
 
@@ -109,3 +125,27 @@ class Passage(db.Model):
     )
 
     document: Mapped[Document] = relationship(back_populates="passages")
+
+
+class NucCourse(db.Model):
+    """One course of the NUC core curriculum (e.g. "SEN 304: Software Testing & QA").
+
+    Extracted from the NUC core document at ingestion: the course header (code, title, units)
+    and its content up to the next course. ``embedding`` is the normalised mean of the SBERT
+    embeddings of the course text's chunks; themes are compared with whole courses.
+    """
+
+    __tablename__ = "nuc_courses"
+    __table_args__ = (sa.UniqueConstraint("document_id", "code"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(
+        sa.ForeignKey("documents.id", ondelete="CASCADE"), index=True
+    )
+    code: Mapped[str] = mapped_column(sa.String(16))
+    title: Mapped[str] = mapped_column(sa.String(255))
+    units: Mapped[int | None]
+    page_number: Mapped[int | None]
+    text: Mapped[str] = mapped_column(sa.Text)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector())
+    embedding_model: Mapped[str | None] = mapped_column(sa.String(128))

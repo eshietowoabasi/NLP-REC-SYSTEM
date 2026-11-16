@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Profile</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#FBF6EF;color:#231A14}
+a{color:#A8431E}a:hover{color:#7E2F12}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; background: #FBF6EF;">
+  <div style="width: 256px; flex-shrink: 0; background: #FFFFFF; border-right: 1px solid #EADFD3;"><dc-import name="Sidebar" active="none" admin="{{no}}" hint-size="256px,900px"></dc-import></div>
+  <div style="flex-grow: 1; display: flex; flex-direction: column; min-width: 0;">
+    <dc-import name="TopBar" title="Your profile" crumb="Account" person="Mr John Okon" role="Curriculum Planner" initials="JO" hint-size="1184px,72px"></dc-import>
+    <main style="padding: 28px 40px; display: flex; gap: 18px; align-items: flex-start;">
+      <section style="width: 460px; flex-shrink: 0; background: #FFFFFF; border: 1px solid #EADFD3; border-radius: 22px; padding: 26px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 16px;"><span style="width: 64px; height: 64px; border-radius: 50%; background: #F2B84B; color: #4A2C00; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800;">JO</span><div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 20px; font-weight: 800;">Mr John Okon</span><span style="padding: 4px 10px; border-radius: 999px; background: #FDF1D8; color: #6B4A00; font-size: 12px; font-weight: 700; align-self: flex-start;">Curriculum Planner</span></div></div>
+        <div style="display: flex; justify-content: space-between; font-size: 14px; padding-top: 6px; border-top: 1px solid #F1E8DE;"><span style="color: #5E5249;">Username</span><strong>j.okon</strong></div>
+        <div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: #5E5249;">Email</span><strong>[email]</strong></div>
+        <div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: #5E5249;">Member since</span><strong>27 Sept 2026</strong></div>
+        <span style="font-size: 13px; line-height: 1.5; color: #6F625A;">To change your name, email or role, ask your administrator.</span>
+      </section>
+      <form style="flex-grow: 1; margin: 0; background: #FFFFFF; border: 1px solid #EADFD3; border-radius: 22px; padding: 26px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;"><h1 style="margin: 0; font-size: 20px; font-weight: 800;">Change password</h1><span style="font-size: 13px; color: #5E5249;">You'll be signed out on other devices.</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px;"><label for="p1" style="font-size: 13px; font-weight: 700;">Current password</label><input id="p1" type="password" style="height: 48px; box-sizing: border-box; padding: 0 14px; font: inherit; border: 1px solid #E3D6C8; border-radius: 12px;"></div>
+        <div style="display: flex; flex-direction: column; gap: 6px;"><label for="p2" style="font-size: 13px; font-weight: 700;">New password</label><input id="p2" type="password" style="height: 48px; box-sizing: border-box; padding: 0 14px; font: inherit; border: 1px solid #E3D6C8; border-radius: 12px;"><span style="font-size: 12px; color: #6F625A;">At least 8 characters.</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px;"><label for="p3" style="font-size: 13px; font-weight: 700;">Type the new password again</label><input id="p3" type="password" style="height: 48px; box-sizing: border-box; padding: 0 14px; font: inherit; border: 1px solid #E3D6C8; border-radius: 12px;"></div>
+        <button type="button" style="align-self: flex-start; height: 48px; padding: 0 22px; border-radius: 12px; border: 0; background: #A8431E; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 700;">Update password</button>
+      </form>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return { no: false }; }
+}
+</script>
+</body>
+</html>

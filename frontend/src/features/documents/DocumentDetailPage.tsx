@@ -1,5 +1,14 @@
-import { AlertCircle, Archive, ArrowLeft, Download, Loader2, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import {
+  AlertCircle,
+  Archive,
+  ArrowLeft,
+  Download,
+  ExternalLink,
+  Loader2,
+  Pencil,
+  Trash2,
+} from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
 import { PaginationControls } from '@/components/shared/PaginationControls'
@@ -17,7 +26,8 @@ import type { DocumentDetail } from '@/types/api'
 import { documentFileUrl, useDocument, usePassages } from './api'
 import { DocumentActionDialogs, type DocumentAction } from './DocumentActionDialogs'
 import { DocumentStatusBadge } from './DocumentStatusBadge'
-import { CATEGORY_LABELS } from './labels'
+import { EditDocumentDialog } from './EditDocumentDialog'
+import { CATEGORY_BADGES, documentType, monthYear } from './labels'
 
 export function DocumentDetailPage() {
   const params = useParams()
@@ -59,44 +69,73 @@ function DocumentDetailView({ document }: { document: DocumentDetail }) {
   const { canEdit, isAdmin } = useAuth()
   const navigate = useNavigate()
   const [action, setAction] = useState<DocumentAction | null>(null)
+  const [editing, setEditing] = useState(false)
   const status = document.processing_status
   const processing = status === 'uploaded' || status === 'parsing'
   const backTo = document.is_nuc_core && isAdmin ? '/admin/nuc-core' : '/documents'
 
-  const metadata: [string, string][] = [
-    ['File', document.original_filename],
+  const subtitle = [document.source, monthYear(document.published_on)].filter(Boolean).join(' · ')
+  const metadata: [string, ReactNode][] = [
+    ['Source', document.source ?? 'Not given'],
+    [
+      'Original',
+      document.source_url ? (
+        <a
+          href={document.source_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 break-all text-primary hover:underline"
+        >
+          {document.source_url}
+          <ExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
+          <span className="sr-only">(opens in a new tab)</span>
+        </a>
+      ) : (
+        'Not given'
+      ),
+    ],
+    ['Published', formatDate(document.published_on, 'Not given')],
     ['Type', document.file_type.toUpperCase()],
     ['Size', formatBytes(document.file_size)],
     ['Pages', document.page_count === null ? 'Not paginated' : String(document.page_count)],
     ['Words', formatNumber(document.word_count)],
-    ['Passages', String(document.passage_count)],
+    ['Extracts', String(document.passage_count)],
     ['Uploaded', `${formatDateTime(document.uploaded_at)} by ${document.uploaded_by.full_name}`],
     ['Processed', formatDateTime(document.parsed_at, 'Not yet')],
   ]
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link to={backTo}>
-          <ArrowLeft aria-hidden="true" />
-          {document.is_nuc_core ? 'NUC core reference' : 'Document library'}
-        </Link>
-      </Button>
+    <div className="mx-auto max-w-6xl space-y-5">
+      <Link
+        to={backTo}
+        className="inline-flex items-center gap-1.5 text-[13px] font-bold text-primary hover:underline"
+      >
+        <ArrowLeft className="size-4" aria-hidden="true" />
+        {document.is_nuc_core ? 'NUC core reference' : 'Document library'}
+      </Link>
 
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
-          <h2 className="text-2xl font-semibold tracking-tight break-words">{document.title}</h2>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary">{CATEGORY_LABELS[document.source_category]}</Badge>
+        <div className="space-y-2.5">
+          <h2 className="page-title break-words">{document.title}</h2>
+          <div className="flex flex-wrap items-center gap-2 text-[13px] text-body">
+            <Badge variant={CATEGORY_BADGES[document.source_category]}>
+              {documentType(document.source_category)}
+            </Badge>
             <DocumentStatusBadge status={status} />
+            {subtitle && <span>From {subtitle}</span>}
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2.5">
           <Button variant="outline" asChild>
             <a href={documentFileUrl(document.id)} download>
               <Download aria-hidden="true" /> Download
             </a>
           </Button>
+          {canEdit && (
+            <Button variant="outline" onClick={() => setEditing(true)}>
+              <Pencil aria-hidden="true" /> Edit details
+            </Button>
+          )}
           {canEdit && !document.is_nuc_core && (
             <>
               {status !== 'archived' && (
@@ -108,7 +147,7 @@ function DocumentDetailView({ document }: { document: DocumentDetail }) {
                   <Archive aria-hidden="true" /> Archive
                 </Button>
               )}
-              <Button variant="outline" onClick={() => setAction({ kind: 'delete', document })}>
+              <Button variant="destructive" onClick={() => setAction({ kind: 'delete', document })}>
                 <Trash2 aria-hidden="true" /> Delete
               </Button>
             </>
@@ -117,7 +156,7 @@ function DocumentDetailView({ document }: { document: DocumentDetail }) {
       </div>
 
       {processing && (
-        <Alert>
+        <Alert variant="info">
           <Loader2 className="animate-spin" aria-hidden="true" />
           <AlertTitle>Processing</AlertTitle>
           <AlertDescription>
@@ -133,28 +172,31 @@ function DocumentDetailView({ document }: { document: DocumentDetail }) {
         </Alert>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[9rem_1fr]">
-            {metadata.map(([label, value]) => (
-              <div key={label} className="contents">
-                <dt className="text-muted-foreground">{label}</dt>
-                <dd className="font-medium break-all">{value}</dd>
-              </div>
-            ))}
-          </dl>
-        </CardContent>
-      </Card>
+      <div className="grid items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0 space-y-4">
+          {status === 'ready' || status === 'archived' ? (
+            <PassagesCard documentId={document.id} total={document.passage_count} />
+          ) : null}
+          {!document.is_nuc_core && <SessionsCard document={document} />}
+        </div>
+        <Card size="sm" className="lg:order-last">
+          <CardHeader>
+            <CardTitle>At a glance</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="flex flex-col gap-3 text-sm">
+              {metadata.map(([label, value]) => (
+                <div key={label} className="flex flex-col gap-0.5">
+                  <dt className="text-body-soft">{label}</dt>
+                  <dd className="font-bold break-words text-ink">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </CardContent>
+        </Card>
+      </div>
 
-      {status === 'ready' || status === 'archived' ? (
-        <PassagesCard documentId={document.id} total={document.passage_count} />
-      ) : null}
-
-      {!document.is_nuc_core && <SessionsCard document={document} />}
-
+      <EditDocumentDialog document={document} open={editing} onOpenChange={setEditing} />
       <DocumentActionDialogs
         action={action}
         onClose={() => setAction(null)}
@@ -173,27 +215,35 @@ function PassagesCard({ documentId, total }: { documentId: number; total: number
       <CardHeader>
         <CardTitle>Extracted text</CardTitle>
         <CardDescription>
-          The document split into {total} passage{total === 1 ? '' : 's'} of a few sentences each,
+          The document split into {total} extract{total === 1 ? '' : 's'} of a few sentences each,
           as used for analysis and shown as evidence.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         {total === 0 ? (
-          <p className="text-sm text-muted-foreground">No passages were extracted.</p>
+          <p className="text-sm text-muted-ink">No text could be read from this document.</p>
         ) : passages.isError ? (
           <p className="text-sm text-destructive">{passages.error.message}</p>
         ) : passages.isPending ? (
           <Skeleton className="h-32 w-full" />
         ) : (
           <>
-            <ol className="space-y-3">
+            <ol className="space-y-2.5">
               {passages.data.items.map((passage) => (
-                <li key={passage.id} className="rounded-md border p-3">
-                  <div className="mb-1 flex gap-2 text-xs text-muted-foreground">
-                    <span>Passage {passage.position + 1}</span>
-                    {passage.page_number !== null && <span>· Page {passage.page_number}</span>}
+                <li key={passage.id} className="flex gap-3.5 rounded-[14px] bg-sand px-4 py-3.5">
+                  <span
+                    className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-line bg-white text-xs font-extrabold text-muted-ink tabular-nums"
+                    aria-hidden="true"
+                  >
+                    {passage.position + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="mb-1 flex gap-2 text-xs font-bold text-muted-ink">
+                      <span>Extract {passage.position + 1}</span>
+                      {passage.page_number !== null && <span>· Page {passage.page_number}</span>}
+                    </div>
+                    <p className="text-sm leading-relaxed text-[#2e2620]">{passage.text}</p>
                   </div>
-                  <p className="text-sm leading-relaxed">{passage.text}</p>
                 </li>
               ))}
             </ol>
@@ -201,7 +251,7 @@ function PassagesCard({ documentId, total }: { documentId: number; total: number
               <PaginationControls
                 pagination={passages.data.pagination}
                 onPageChange={setPage}
-                itemLabel="passages"
+                itemLabel="extracts"
               />
             )}
           </>
@@ -219,13 +269,18 @@ function SessionsCard({ document }: { document: DocumentDetail }) {
       </CardHeader>
       <CardContent>
         {document.sessions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Not used in any analysis session yet.</p>
+          <p className="text-sm text-muted-ink">Not used in any analysis session yet.</p>
         ) : (
-          <ul className="divide-y text-sm">
+          <ul className="divide-y divide-divider text-sm">
             {document.sessions.map((session) => (
-              <li key={session.id} className="flex justify-between gap-4 py-2">
-                <span className="font-medium">{session.session_name}</span>
-                <span className="text-muted-foreground">
+              <li key={session.id} className="flex justify-between gap-4 py-2.5">
+                <Link
+                  to={`/sessions/${session.id}`}
+                  className="font-bold text-ink hover:text-primary"
+                >
+                  {session.session_name}
+                </Link>
+                <span className="text-muted-ink">
                   {session.status} · {formatDate(session.created_at)}
                 </span>
               </li>

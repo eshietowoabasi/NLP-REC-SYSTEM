@@ -1,34 +1,30 @@
-import { BookOpenCheck, Inbox, Loader2 } from 'lucide-react'
+import { Download, Inbox } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router'
-import { toast } from 'sonner'
+import { Link, useParams, useSearchParams } from 'react-router'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
-import { Progress } from '@/components/ui/progress'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { useAuth } from '@/features/auth/useAuth'
-import type { DecisionFilter, PlannerDecision, Recommendation, ReviewCounts } from '@/types/api'
+import type { DecisionFilter, Recommendation, ReviewCounts, ScoreWeights } from '@/types/api'
 
-import { useDecide, useRecommendations } from './api'
+import { useRecommendations } from './api'
 import {
   CompletedSessionGate,
-  DecisionBadge,
   EmptyPanel,
   ErrorPanel,
+  KeywordsLine,
   LoadingBlock,
   OverlapBadge,
-  ScoreBreakdown,
+  ScoreContribution,
   SessionReviewHeader,
 } from './components'
-import { DECISION_ACTIONS, DECISION_ICONS, DECISION_LABELS, DECISIONS } from './labels'
+import { DecisionControl } from './DecisionControl'
+import { DECISION_LABELS, formatPercent, formatWeight } from './labels'
 
 const FILTERS: { value: DecisionFilter; label: string; count: keyof ReviewCounts }[] = [
   { value: 'all', label: 'All', count: 'total' },
-  { value: 'undecided', label: 'Undecided', count: 'undecided' },
+  { value: 'undecided', label: 'Not reviewed yet', count: 'undecided' },
   { value: 'accepted', label: DECISION_LABELS.accepted, count: 'accepted' },
   { value: 'rejected', label: DECISION_LABELS.rejected, count: 'rejected' },
   { value: 'flagged', label: DECISION_LABELS.flagged, count: 'flagged' },
@@ -37,23 +33,43 @@ const FILTERS: { value: DecisionFilter; label: string; count: keyof ReviewCounts
 export function RecommendationsPage() {
   const sessionId = Number(useParams().sessionId)
   return (
-    <CompletedSessionGate sessionId={sessionId} title="Recommendations">
+    <CompletedSessionGate sessionId={sessionId} title="Suggested topics">
       {(session) => (
-        <div className="mx-auto max-w-5xl space-y-6">
+        <div className="mx-auto max-w-6xl space-y-5">
           <SessionReviewHeader
             sessionId={session.id}
             sessionName={session.session_name}
-            title="Recommendations"
+            title="Suggested topics"
           />
-          <RecommendationReview sessionId={session.id} />
+          <RecommendationReview sessionId={session.id} weights={session.parameter_config.weights} />
         </div>
       )}
     </CompletedSessionGate>
   )
 }
 
-function RecommendationReview({ sessionId }: { sessionId: number }) {
-  const [decision, setDecision] = useState<DecisionFilter>('all')
+function RecommendationReview({
+  sessionId,
+  weights,
+}: {
+  sessionId: number
+  weights: ScoreWeights
+}) {
+  // The decision filter lives in the URL (?decision=undecided) so dashboard links can open it.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const fromUrl = searchParams.get('decision')
+  const decision: DecisionFilter = FILTERS.some((f) => f.value === fromUrl)
+    ? (fromUrl as DecisionFilter)
+    : 'all'
+  const setDecision = (value: DecisionFilter) =>
+    setSearchParams(
+      (params) => {
+        if (value === 'all') params.delete('decision')
+        else params.set('decision', value)
+        return params
+      },
+      { replace: true },
+    )
   const [hideDuplicates, setHideDuplicates] = useState(false)
   const list = useRecommendations(sessionId, { decision, hide_duplicates: hideDuplicates })
 
@@ -68,39 +84,47 @@ function RecommendationReview({ sessionId }: { sessionId: number }) {
     )
   }
   const { items, counts } = list.data
-  const reviewedPercent = counts.total ? (counts.reviewed / counts.total) * 100 : 0
 
   if (counts.total === 0) {
     return (
       <EmptyPanel icon={Inbox} title="No recommendations">
-        The analysis completed but found no themes to recommend. Try a session with more documents
-        or a smaller minimum theme size.
+        The analysis finished but found no topics to recommend. Try again with more documents.
       </EmptyPanel>
     )
   }
 
   return (
-    <div className="space-y-5">
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
-          <p>
-            <span className="font-semibold">
-              {counts.reviewed} of {counts.total}
-            </span>{' '}
-            reviewed
-          </p>
-          <p className="text-muted-foreground">
-            {counts.potential_duplicates} potential duplicate
-            {counts.potential_duplicates === 1 ? '' : 's'} of NUC core content
-          </p>
-        </div>
-        <Progress value={reviewedPercent} aria-label="Review progress" />
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="max-w-3xl text-sm leading-relaxed text-body-soft">
+          Suggested topics, ranked by score (best first; each topic keeps its rank in every tab).
+          Each has a score out of 100: employer demand{' '}
+          <span className="font-bold text-ink">{formatWeight(weights.ner)}</span>, how often it
+          comes up <span className="font-bold text-ink">{formatWeight(weights.topic)}</span> and how
+          new it is <span className="font-bold text-ink">{formatWeight(weights.novelty)}</span>.
+          Open a topic to see its evidence and decide.
+        </p>
+        <Button variant="outline" size="sm" asChild>
+          <a href={`/api/sessions/${sessionId}/recommendations/export`} download>
+            <Download aria-hidden="true" /> Download CSV
+          </a>
+        </Button>
       </div>
+      <p className="text-[13px] text-body-soft">
+        <span className="font-bold text-ink">
+          {counts.reviewed} of {counts.total}
+        </span>{' '}
+        reviewed ·{' '}
+        <span>
+          {counts.potential_duplicates} {counts.potential_duplicates === 1 ? 'topic' : 'topics'} may
+          already be in the NUC core
+        </span>
+      </p>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <ToggleGroup
           type="single"
-          variant="outline"
+          variant="chip"
           value={decision}
           onValueChange={(value) => value && setDecision(value as DecisionFilter)}
           aria-label="Filter by decision"
@@ -109,7 +133,11 @@ function RecommendationReview({ sessionId }: { sessionId: number }) {
           {FILTERS.map((filter) => (
             <ToggleGroupItem key={filter.value} value={filter.value}>
               {filter.label}
-              <span className="text-muted-foreground tabular-nums">{counts[filter.count]}</span>
+              <span className="tabular-nums opacity-70 before:content-['·_']">
+                {counts[filter.count]}
+                {filter.value === 'accepted' &&
+                  ` · ${counts.accepted_with_courses} with course${counts.accepted_with_courses === 1 ? '' : 's'}`}
+              </span>
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
@@ -119,19 +147,21 @@ function RecommendationReview({ sessionId }: { sessionId: number }) {
             checked={hideDuplicates}
             onCheckedChange={(checked) => setHideDuplicates(checked === true)}
           />
-          <Label htmlFor="hide-duplicates">Hide potential duplicates</Label>
+          <Label htmlFor="hide-duplicates" className="font-semibold text-body">
+            Hide topics that may already be in the NUC core
+          </Label>
         </div>
       </div>
 
       {items.length === 0 ? (
         <EmptyPanel icon={Inbox} title="Nothing matches these filters">
-          Choose another decision filter or show potential duplicates.
+          Choose another filter, or show the topics that may already be in the NUC core.
         </EmptyPanel>
       ) : (
-        <ol className="space-y-4" aria-label="Ranked recommendations">
+        <ol className="space-y-3.5" aria-label="Ranked recommendations">
           {items.map((recommendation) => (
             <li key={recommendation.id}>
-              <RecommendationCard recommendation={recommendation} />
+              <RecommendationCard recommendation={recommendation} weights={weights} />
             </li>
           ))}
         </ol>
@@ -140,111 +170,70 @@ function RecommendationReview({ sessionId }: { sessionId: number }) {
   )
 }
 
-function RecommendationCard({ recommendation }: { recommendation: Recommendation }) {
-  const { canEdit } = useAuth()
+/** One suggested topic (Recommendations.dc.html): rank, name, why, decision and score. */
+function RecommendationCard({
+  recommendation,
+  weights,
+}: {
+  recommendation: Recommendation
+  weights: ScoreWeights
+}) {
   return (
-    <Card>
-      <CardContent className="grid gap-4 lg:grid-cols-[1fr_17rem]">
-        <div className="min-w-0 space-y-2">
-          <div className="flex items-start gap-3">
-            <span
-              className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold tabular-nums"
-              aria-label={`Rank ${recommendation.rank}`}
-            >
-              {recommendation.rank}
-            </span>
-            <div className="min-w-0 space-y-1.5">
-              <h3 className="text-base leading-tight font-semibold">
-                <Link to={`/recommendations/${recommendation.id}`} className="hover:underline">
+    <article className="flex flex-col gap-5 rounded-[20px] border border-line bg-white px-[22px] py-[18px] lg:flex-row lg:items-center lg:gap-[22px]">
+      <div className="flex min-w-0 flex-1 gap-4 lg:gap-[22px]">
+        <span
+          className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-[10px] bg-sand-deep text-ink tabular-nums"
+          aria-label={`Rank ${recommendation.rank}`}
+          title="Rank by score among all suggested topics. It stays the same in every tab."
+        >
+          <span className="text-[9px] leading-none font-bold tracking-[0.08em] text-muted-ink uppercase">
+            Rank
+          </span>
+          <span className="mt-0.5 text-lg leading-none font-extrabold">#{recommendation.rank}</span>
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div className="flex flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+              <h3 className="text-lg leading-snug font-extrabold tracking-[-0.01em] text-ink">
+                <Link
+                  to={`/recommendations/${recommendation.id}`}
+                  className="hover:text-primary focus-visible:rounded focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+                >
                   {recommendation.topic_title}
                 </Link>
               </h3>
-              <div className="flex flex-wrap gap-1.5">
-                <OverlapBadge status={recommendation.overlap_status} />
-                <DecisionBadge decision={recommendation.planner_decision} />
-                {recommendation.has_mapping && (
-                  <Badge variant="secondary">
-                    <BookOpenCheck aria-hidden="true" /> Mapped to a course
-                  </Badge>
-                )}
-              </div>
+              <OverlapBadge status={recommendation.overlap_status} />
             </div>
+            <KeywordsLine keywords={recommendation.keywords} limit={6} />
           </div>
-          <p className="line-clamp-2 text-sm text-muted-foreground">
+          <p className="line-clamp-2 text-sm leading-normal text-body">
             {recommendation.topic_description}
           </p>
           {recommendation.skills.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">Skills: </span>
+            <p className="text-xs text-muted-ink">
+              <span className="font-bold text-body">Skills: </span>
               {recommendation.skills
                 .slice(0, 6)
                 .map((s) => s.name)
                 .join(', ')}
             </p>
           )}
-          {canEdit && <QuickDecision recommendation={recommendation} />}
+          {recommendation.closest_nuc_course && (
+            <p className="text-[13px] text-muted-ink">
+              Closest NUC course:{' '}
+              <strong className="text-ink">
+                {recommendation.closest_nuc_course.code} {recommendation.closest_nuc_course.title}
+              </strong>{' '}
+              · <span className="tabular-nums">{formatPercent(recommendation.max_similarity)}</span>{' '}
+              similar
+            </p>
+          )}
+          <DecisionControl recommendation={recommendation} />
         </div>
-        <ScoreBreakdown recommendation={recommendation} />
-      </CardContent>
-    </Card>
-  )
-}
-
-/** Accept / Reject / Flag in one click; clicking the current decision clears it. */
-function QuickDecision({ recommendation }: { recommendation: Recommendation }) {
-  const decide = useDecide()
-  const current = recommendation.planner_decision
-  const pending = decide.isPending ? decide.variables?.decision : undefined
-
-  const choose = (decision: PlannerDecision) => {
-    const next = current === decision ? null : decision
-    decide.mutate(
-      { id: recommendation.id, decision: next, notes: recommendation.planner_notes },
-      {
-        onSuccess: () =>
-          toast.success(
-            next
-              ? `${DECISION_LABELS[next]}: ${recommendation.topic_title}`
-              : `Decision cleared: ${recommendation.topic_title}`,
-          ),
-        onError: (error) => toast.error(error.message),
-      },
-    )
-  }
-
-  return (
-    <div
-      className="flex flex-wrap gap-2 pt-1"
-      role="group"
-      aria-label={`Decision for ${recommendation.topic_title}`}
-    >
-      {DECISIONS.map((decision) => {
-        const Icon = DECISION_ICONS[decision]
-        const active = current === decision
-        const locked = recommendation.has_mapping && decision !== 'accepted'
-        return (
-          <Button
-            key={decision}
-            size="sm"
-            variant={active ? 'default' : 'outline'}
-            aria-pressed={active}
-            disabled={decide.isPending || locked || (recommendation.has_mapping && active)}
-            title={
-              locked || (recommendation.has_mapping && active)
-                ? 'Remove the course mapping before changing this decision.'
-                : undefined
-            }
-            onClick={() => choose(decision)}
-          >
-            {pending === decision ? (
-              <Loader2 className="animate-spin" aria-hidden="true" />
-            ) : (
-              <Icon aria-hidden="true" />
-            )}
-            {DECISION_ACTIONS[decision]}
-          </Button>
-        )
-      })}
-    </div>
+      </div>
+      <div className="shrink-0 rounded-[14px] bg-sand px-4 py-3.5 lg:w-[250px]">
+        <ScoreContribution recommendation={recommendation} weights={weights} />
+      </div>
+    </article>
   )
 }

@@ -90,8 +90,8 @@ describe('UploadDialog', () => {
       file('copy.pdf'),
     ])
     await user.click(within(dialog).getByLabelText('Set all to'))
-    await user.click(await screen.findByRole('option', { name: 'Policy' }))
-    await chooseCategory(user, 'copy.pdf', 'Academic')
+    await user.click(await screen.findByRole('option', { name: 'Policy documents' }))
+    await chooseCategory(user, 'copy.pdf', 'Academic papers')
     await user.click(within(dialog).getByRole('button', { name: 'Upload 2 files' }))
 
     expect(await within(dialog).findByText('Uploaded; processing has started.')).toBeInTheDocument()

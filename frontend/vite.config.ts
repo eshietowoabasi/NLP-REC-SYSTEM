@@ -34,7 +34,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     // Whole-screen tests (render app, type into forms) need headroom on slower machines.
-    testTimeout: 15_000,
+    testTimeout: 30_000,
     css: false,
   },
 })

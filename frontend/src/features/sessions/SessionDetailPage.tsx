@@ -20,11 +20,14 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuth } from '@/features/auth/useAuth'
-import { CATEGORY_LABELS } from '@/features/documents/labels'
+import { CATEGORY_BADGES, documentType } from '@/features/documents/labels'
+import { cn } from '@/lib/utils'
 import { ApiError } from '@/lib/api'
 import { formatDateTime } from '@/lib/format'
 import { NotFoundPage } from '@/routes/NotFoundPage'
 import type { SessionDetail } from '@/types/api'
+import { formatPercent, formatWeight } from '@/features/review/labels'
+import { SessionProgress } from '@/features/review/SessionProgress'
 
 import { useRetrySession, useRunSession, useSession } from './api'
 import { DeleteSessionDialog } from './DeleteSessionDialog'
@@ -74,6 +77,7 @@ function SessionView({ session }: { session: SessionDetail }) {
   const retry = useRetrySession()
   const [deleting, setDeleting] = useState(false)
   const busy = run.isPending || retry.isPending
+  const running = session.status === 'pending' || session.status === 'processing'
   const failedStage = PIPELINE_STAGES.find((s) => s.id === session.current_stage)?.label
 
   const start = (action: typeof run, label: string) =>
@@ -83,19 +87,18 @@ function SessionView({ session }: { session: SessionDetail }) {
     })
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <Button variant="ghost" size="sm" asChild className="-ml-2">
-        <Link to="/sessions">
-          <ArrowLeft aria-hidden="true" /> Analysis sessions
-        </Link>
-      </Button>
+    <div className="mx-auto max-w-6xl space-y-5">
+      <Link
+        to="/sessions"
+        className="inline-flex items-center gap-1.5 text-[13px] font-bold text-primary hover:underline"
+      >
+        <ArrowLeft className="size-4" aria-hidden="true" /> Analyses
+      </Link>
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
-          <h2 className="text-2xl font-semibold tracking-tight break-words">
-            {session.session_name}
-          </h2>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <h2 className="page-title break-words">{session.session_name}</h2>
+          <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted-ink">
             <SessionStatusBadge status={session.status} stage={session.current_stage} />
             <span>
               Created {formatDateTime(session.created_at)} by {session.created_by.full_name}
@@ -146,13 +149,13 @@ function SessionView({ session }: { session: SessionDetail }) {
       )}
 
       {session.status === 'completed' && (
-        <Alert>
-          <CheckCircle2 aria-hidden="true" className="text-emerald-600" />
+        <Alert variant="success">
+          <CheckCircle2 aria-hidden="true" />
           <AlertTitle>Analysis complete</AlertTitle>
           <AlertDescription className="space-y-3">
             <p>
               {session.recommendation_count} recommendation
-              {session.recommendation_count === 1 ? '' : 's'} from {session.topic_count ?? 0} theme
+              {session.recommendation_count === 1 ? '' : 's'} from {session.topic_count ?? 0} topic
               {session.topic_count === 1 ? '' : 's'} found in {session.document_count} document
               {session.document_count === 1 ? '' : 's'}. Finished{' '}
               {formatDateTime(session.completed_at)}.
@@ -160,7 +163,7 @@ function SessionView({ session }: { session: SessionDetail }) {
             <div className="flex flex-wrap gap-2">
               <Button size="sm" asChild>
                 <Link to={`/sessions/${session.id}/recommendations`}>
-                  <ListChecks aria-hidden="true" /> View recommendations
+                  <ListChecks aria-hidden="true" /> View suggested topics
                 </Link>
               </Button>
               <Button size="sm" variant="outline" asChild>
@@ -170,29 +173,57 @@ function SessionView({ session }: { session: SessionDetail }) {
               </Button>
               <Button size="sm" variant="outline" asChild>
                 <Link to={`/sessions/${session.id}/curriculum`}>
-                  <BookOpen aria-hidden="true" /> Proposed curriculum
+                  <BookOpen aria-hidden="true" /> Proposed courses
                 </Link>
               </Button>
             </div>
           </AlertDescription>
         </Alert>
       )}
+      {session.status === 'completed' && <SessionProgress sessionId={session.id} />}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Pipeline</CardTitle>
-          <CardDescription>
-            {session.status === 'pending'
-              ? 'The analysis has not been run yet.'
-              : session.status === 'processing'
-                ? 'Running. This page updates every few seconds.'
-                : 'Stages of the last run.'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <StageTracker session={session} />
-        </CardContent>
-      </Card>
+      <div
+        className={cn(
+          'grid items-start gap-[18px]',
+          running && 'lg:grid-cols-[minmax(0,1fr)_340px]',
+        )}
+      >
+        <Card className="rounded-3xl py-7">
+          <CardHeader className="sm:px-8">
+            {session.status === 'processing' && (
+              <span className="text-xs font-extrabold tracking-[0.1em] text-primary uppercase">
+                Working on it
+              </span>
+            )}
+            <CardTitle className="text-xl">Analysis steps</CardTitle>
+            <CardDescription>
+              {session.status === 'pending'
+                ? 'The analysis has not been run yet.'
+                : session.status === 'processing'
+                  ? 'Running. This page updates every few seconds.'
+                  : 'Stages of the last run.'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="sm:px-8">
+            <StageTracker session={session} />
+          </CardContent>
+        </Card>
+        {running && (
+          <section
+            aria-labelledby="whats-happening"
+            className="flex flex-col gap-2.5 rounded-[20px] bg-ink px-6 py-[22px] text-white"
+          >
+            <h3 id="whats-happening" className="text-base font-extrabold">
+              What&apos;s happening?
+            </h3>
+            <p className="text-sm leading-relaxed text-[#d9ccc2]">
+              The system reads every advert and policy paper, spots the skills employers mention,
+              groups similar needs into topics, then checks each topic against the NUC core so you
+              only see what&apos;s new.
+            </p>
+          </section>
+        )}
+      </div>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
@@ -201,24 +232,24 @@ function SessionView({ session }: { session: SessionDetail }) {
           </CardHeader>
           <CardContent>
             <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-              <dt className="text-muted-foreground">Weights</dt>
-              <dd className="font-medium tabular-nums">
-                skills {session.parameter_config.weights.ner.toFixed(2)} · themes{' '}
-                {session.parameter_config.weights.topic.toFixed(2)} · novelty{' '}
-                {session.parameter_config.weights.novelty.toFixed(2)}
+              <dt className="text-muted-ink">Weights</dt>
+              <dd className="font-bold tabular-nums">
+                employer demand {formatWeight(session.parameter_config.weights.ner)} · how often it
+                comes up {formatWeight(session.parameter_config.weights.topic)} · how new it is{' '}
+                {formatWeight(session.parameter_config.weights.novelty)}
               </dd>
-              <dt className="text-muted-foreground">Duplicate threshold</dt>
-              <dd className="font-medium tabular-nums">
-                {session.parameter_config.similarity_threshold.toFixed(2)}
+              <dt className="text-muted-ink">“May already be in NUC core”</dt>
+              <dd className="font-bold tabular-nums">
+                above {formatPercent(session.parameter_config.similarity_threshold)} similar
               </dd>
-              <dt className="text-muted-foreground">Max recommendations</dt>
-              <dd className="font-medium">{session.parameter_config.max_recommendations}</dd>
-              <dt className="text-muted-foreground">NUC core</dt>
-              <dd className="font-medium">
+              <dt className="text-muted-ink">Max recommendations</dt>
+              <dd className="font-bold">{session.parameter_config.max_recommendations}</dd>
+              <dt className="text-muted-ink">NUC core</dt>
+              <dd className="font-bold">
                 {session.nuc_core_version?.version_label ?? 'Chosen when the session runs'}
               </dd>
-              <dt className="text-muted-foreground">Models</dt>
-              <dd className="font-medium break-all">
+              <dt className="text-muted-ink">Language models (advanced)</dt>
+              <dd className="font-bold break-all">
                 {session.parameter_config.sbert_model} · {session.parameter_config.spacy_model}
               </dd>
             </dl>
@@ -229,14 +260,17 @@ function SessionView({ session }: { session: SessionDetail }) {
             <CardTitle>Documents ({session.documents.length})</CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="max-h-64 divide-y overflow-y-auto text-sm">
+            <ul className="max-h-64 divide-y divide-divider overflow-y-auto text-sm">
               {session.documents.map((document) => (
-                <li key={document.id} className="flex items-center justify-between gap-3 py-1.5">
-                  <Link to={`/documents/${document.id}`} className="truncate hover:underline">
+                <li key={document.id} className="flex items-center justify-between gap-3 py-2">
+                  <Link
+                    to={`/documents/${document.id}`}
+                    className="truncate font-semibold text-ink hover:text-primary"
+                  >
                     {document.title}
                   </Link>
-                  <Badge variant="secondary" className="shrink-0">
-                    {CATEGORY_LABELS[document.source_category]}
+                  <Badge variant={CATEGORY_BADGES[document.source_category]} className="shrink-0">
+                    {documentType(document.source_category)}
                   </Badge>
                 </li>
               ))}

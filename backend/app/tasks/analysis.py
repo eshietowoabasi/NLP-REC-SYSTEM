@@ -9,9 +9,11 @@ from __future__ import annotations
 
 import logging
 import time
+from functools import lru_cache
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from sqlalchemy import select
 
 from app.extensions import db
@@ -21,6 +23,7 @@ from app.models import (
     DocumentSession,
     NLPResult,
     NLPResultType,
+    NucCourse,
     Passage,
     Recommendation,
     RecommendationEvidence,
@@ -32,15 +35,20 @@ from app.services.analysis import (
     STAGE_PROGRESS,
     AnalysisOutput,
     AnalysisParameters,
+    CoreCourse,
     CorePassage,
     CorpusPassage,
+    TopicNaming,
     run_analysis,
 )
+from app.services.embeddings.encoder import get_encoder
 from app.services.exceptions import AnalysisError
+from app.services.ingestion.courses import CourseExclusions
 from app.services.ner.skills import SkillPatternSpec, build_skill_pipeline, canonical_lookup
 from app.services.preprocessing.spacy_model import get_nlp
 from app.services.recommendations.scoring import ScoreWeights, WeightsError
 from app.sessions import active_nuc_core
+from app.settings import get_setting
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
@@ -58,6 +66,13 @@ class Progress:
 
     def __init__(self, session: AnalysisSession) -> None:
         self.session = session
+        # Keep primitive values outside the ORM object. SQLAlchemy expires ORM
+        # attributes after commit; reading session.id immediately after a commit
+        # can otherwise issue a SELECT and leave an idle transaction open while
+        # the next CPU-heavy NLP stage runs.
+        self.session_id = session.id
+        self.current_stage = session.current_stage
+        self.current_progress = session.progress_percent
         self.timings: dict[str, float] = {}
         self._started: tuple[str, float] | None = None
 
@@ -66,11 +81,22 @@ class Progress:
         if self._started:
             previous, started = self._started
             self.timings.setdefault(previous, round(now - started, 3))
+
         self._started = (name, now)
+        self.current_stage = name
+        self.current_progress = STAGE_PROGRESS.get(
+            name,
+            self.current_progress,
+        )
+
         self.session.current_stage = name
-        self.session.progress_percent = STAGE_PROGRESS.get(name, self.session.progress_percent)
+        self.session.progress_percent = self.current_progress
+
+        # End the progress transaction before the NLP computation begins.
         db.session.commit()
-        logger.info("Session %s: %s", self.session.id, name)
+
+        # Important: do not read ORM attributes after the commit here.
+        logger.info("Session %s: %s", self.session_id, name)
 
 
 def load_parameters(config: dict[str, Any]) -> AnalysisParameters:
@@ -166,6 +192,48 @@ def load_core(document_id: int) -> list[CorePassage]:
     ]
 
 
+@lru_cache(maxsize=4)
+def _name_vectors(model_name: str, names: tuple[str, ...]) -> NDArray[np.float32]:
+    return get_encoder(model_name).encode(list(names))
+
+
+def load_naming(model_name: str) -> TopicNaming:
+    """The course-name catalogue (setting) with its embeddings, cached per model and list."""
+    names = tuple(get_setting("topic_name_catalogue") or ())
+    return TopicNaming(
+        names=list(names),
+        name_vectors=_name_vectors(model_name, names),
+        encoder=get_encoder(model_name),
+    )
+
+
+def load_courses(
+    document_id: int, exclusions: CourseExclusions | None = None
+) -> tuple[list[CoreCourse], int]:
+    """The NUC core's courses to compare with, and how many were excluded.
+
+    Only courses embedded with the same model as the core's passages are used; courses from
+    another model (or none at all) make the session fall back to comparing themes with NUC
+    core passages. Courses matching ``exclusions`` (the ``nuc_course_exclusions`` setting)
+    are left out.
+    """
+    exclusions = exclusions or CourseExclusions()
+    passage_model = db.session.scalar(
+        select(Passage.embedding_model).where(Passage.document_id == document_id).limit(1)
+    )
+    courses = db.session.scalars(
+        select(NucCourse)
+        .where(NucCourse.document_id == document_id, NucCourse.embedding_model == passage_model)
+        .order_by(NucCourse.id)
+    )
+    usable = [c for c in courses if c.embedding is not None]
+    kept = [c for c in usable if not exclusions.excludes(c.code, c.title)]
+    return [
+        CoreCourse(id=c.id, code=c.code, title=c.title, embedding=_vector(c.embedding))
+        for c in kept
+    ], len(usable) - len(kept)
+
+
 def load_skill_patterns() -> list[SkillPatternSpec]:
     """The active skill patterns."""
     patterns = db.session.scalars(select(SkillPattern).where(SkillPattern.is_active.is_(True)))
@@ -187,7 +255,7 @@ def validate(session: AnalysisSession) -> tuple[AnalysisParameters, int]:
     ]
     if not_ready:
         raise AnalysisError(f"These documents are not ready: {', '.join(not_ready)}.")
-    version = active_nuc_core()
+    version = active_nuc_core(session.programme_id)
     if version is None:
         raise AnalysisError(
             "There is no active NUC core reference. An administrator must upload one first."
@@ -220,6 +288,7 @@ def save_results(session: AnalysisSession, output: AnalysisOutput) -> None:
             composite_score=candidate.composite_score,
             max_similarity=candidate.max_similarity,
             closest_nuc_passage_id=candidate.closest_nuc_passage_id,
+            closest_nuc_course_id=candidate.closest_nuc_course_id,
             overlap_status=candidate.overlap_status,
         )
         recommendation.evidence = [
@@ -259,14 +328,38 @@ def run_session(session_id: int) -> None:
         check_embedding_models(session, core_document_id)
         corpus = load_corpus(session)
         core = load_core(core_document_id)
+        courses, excluded_courses = load_courses(
+            core_document_id, CourseExclusions.from_setting(get_setting("nuc_course_exclusions"))
+        )
         specs = load_skill_patterns()
         model_name = config.get("spacy_model", "en_core_web_sm")
         skill_nlp = build_skill_pipeline(model_name, specs)
         canonical = canonical_lookup(specs, get_nlp(model_name))
 
+        text_nlp = get_nlp(model_name)
+        naming = load_naming(config.get("sbert_model") or get_setting("sbert_model"))
+        document_titles = {link.document.id: link.document.title for link in session.document_links}
+
+        # Everything needed by the CPU-heavy pipeline is now in ordinary Python
+        # objects. End any transaction opened while loading DB-backed settings,
+        # passages, courses and document metadata. Neon can then safely keep the
+        # connection idle while BERTopic/SBERT/NER perform long computations.
+        db.session.commit()
+
         output = run_analysis(
-            corpus, core, parameters, skill_nlp, canonical, on_stage=progress.stage
+            corpus,
+            core,
+            parameters,
+            skill_nlp,
+            canonical,
+            on_stage=progress.stage,
+            courses=courses,
+            text_nlp=text_nlp,
+            naming=naming,
+            document_titles=document_titles,
         )
+        output.similarity["courses_compared"] = len(courses)
+        output.similarity["courses_excluded"] = excluded_courses
 
         save_results(session, output)
         progress.timings.update(output.stage_timings)
@@ -284,11 +377,20 @@ def run_session(session_id: int) -> None:
             output.stage_timings,
         )
     except AnalysisError as exc:
-        logger.info("Session %s failed at %s: %s", session_id, session.current_stage, exc)
+        logger.info(
+            "Session %s failed at %s: %s",
+            session_id,
+            progress.current_stage,
+            exc,
+        )
         _fail(session_id, str(exc))
     except Exception:
-        stage = session.current_stage
-        logger.exception("Session %s failed unexpectedly at %s", session_id, stage)
+        stage = progress.current_stage
+        logger.exception(
+            "Session %s failed unexpectedly at %s",
+            session_id,
+            stage,
+        )
         _fail(session_id, unexpected_failure(stage))
     finally:
         db.session.remove()

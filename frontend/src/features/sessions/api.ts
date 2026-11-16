@@ -50,9 +50,13 @@ export function useSessionDefaults() {
   })
 }
 
-/** Every ready library document (fetched page by page), for choosing a session's inputs. */
-export function useReadyDocuments() {
+/**
+ * Every ready library document (fetched page by page), for choosing a session's inputs.
+ * ``refetchInterval`` polls while newly uploaded documents are still being processed.
+ */
+export function useReadyDocuments(refetchInterval: number | false = false) {
   return useQuery({
+    refetchInterval,
     queryKey: ['documents', 'ready', 'all'],
     queryFn: async () => {
       const documents: DocumentSummary[] = []

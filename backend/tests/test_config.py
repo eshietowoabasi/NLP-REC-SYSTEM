@@ -74,3 +74,17 @@ def test_production_accepts_strong_secret(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://u:p@db/x")
     monkeypatch.setenv("REDIS_URL", "redis://redis:6379/0")
     assert get_config("production") is ProductionConfig
+
+
+def test_relative_storage_dir_is_resolved_against_the_backend_folder() -> None:
+    """A relative STORAGE_DIR (./storage in .env) must become absolute.
+
+    Flask's send_file resolves relative paths against the app package, so a relative
+    storage path made report downloads fail with a 404 even though the file existed.
+    """
+    import os
+
+    from app.config import BACKEND_DIR, _absolute_dir
+
+    assert _absolute_dir("./storage") == str((BACKEND_DIR / "storage").resolve())
+    assert os.path.isabs(BaseConfig.STORAGE_DIR)

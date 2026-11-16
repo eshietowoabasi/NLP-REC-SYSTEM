@@ -57,6 +57,8 @@ def load_report_data(session: AnalysisSession, generated_by: str) -> ReportData:
             page_count=d.page_count,
             word_count=d.word_count,
             passage_count=passage_counts.get(d.id, 0),
+            source=d.source,
+            published_on=d.published_on,
         )
         for d in db.session.scalars(
             select(Document)

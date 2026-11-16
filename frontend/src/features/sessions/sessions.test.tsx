@@ -96,9 +96,9 @@ describe('SessionsPage', () => {
     )
     const row = screen.getByRole('link', { name: 'Synthetic 2026 review' }).closest('tr')!
     expect(within(row).getByText('Completed')).toBeInTheDocument()
-    expect(screen.getByText('· Themes')).toBeInTheDocument()
+    expect(screen.getByText('· Topics')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Delete Running one' })).toBeDisabled()
-    expect(screen.getByRole('link', { name: /New session/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /New analysis/ })).toBeInTheDocument()
   })
 
   it('hides create and delete from viewers', async () => {
@@ -106,7 +106,7 @@ describe('SessionsPage', () => {
     renderApp('/sessions')
 
     await screen.findByRole('link', { name: 'Synthetic 2026 review' })
-    expect(screen.queryByRole('link', { name: /New session/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /New analysis/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Delete/ })).not.toBeInTheDocument()
   })
 })
@@ -140,13 +140,13 @@ describe('NewSessionPage', () => {
     const { user } = renderApp('/sessions/new')
     await toStep3(user)
 
-    const ner = screen.getByLabelText('Skill demand (NER)')
+    const ner = screen.getByLabelText('Employer demand')
     expect(ner).toHaveValue(0.4)
-    expect(screen.getByText(/Sum: 1.00 ✓/)).toBeInTheDocument()
+    expect(screen.getByText(/Total: 100% ✓/)).toBeInTheDocument()
     await user.clear(ner)
     await user.type(ner, '0.6')
 
-    expect(screen.getByText(/Sum: 1.20 — the weights must add up to 1.00/)).toBeInTheDocument()
+    expect(screen.getByText(/Total: 120% — the weights must add up to 100%/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Create' }))
     expect(await screen.findByText('The three weights must add up to 1.00.')).toBeInTheDocument()
     expect(server.calls('POST', '/sessions')).toHaveLength(0)
@@ -186,7 +186,7 @@ describe('NewSessionPage', () => {
     })
     const { user } = renderApp('/sessions/new')
 
-    expect(await screen.findByText('No active NUC core reference')).toBeInTheDocument()
+    expect(await screen.findByText('No active curriculum benchmark')).toBeInTheDocument()
     await toStep3(user)
     expect(screen.getByRole('button', { name: /Create & run/ })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Create' })).toBeEnabled()
@@ -209,7 +209,7 @@ describe('SessionDetailPage', () => {
 
     const stages = await screen.findByRole('list', { name: 'Analysis stages' })
     expect(within(stages).getByText('Keywords').parentElement).toHaveTextContent('done')
-    expect(within(stages).getByText('Themes').closest('li')).toHaveAttribute('aria-current', 'step')
+    expect(within(stages).getByText('Topics').closest('li')).toHaveAttribute('aria-current', 'step')
     expect(within(stages).getByText('Scoring').parentElement).toHaveTextContent('not started')
     expect(screen.getByText('55%')).toBeInTheDocument()
   })
@@ -231,7 +231,7 @@ describe('SessionDetailPage', () => {
     })
     const { user } = renderApp('/sessions/5')
 
-    expect(await screen.findByText('The analysis failed at the Themes stage')).toBeInTheDocument()
+    expect(await screen.findByText('The analysis failed at the Topics stage')).toBeInTheDocument()
     expect(screen.getByText(/Too little text/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Retry/ }))
 
@@ -244,7 +244,7 @@ describe('SessionDetailPage', () => {
 
     expect(await screen.findByText('Analysis complete')).toBeInTheDocument()
     expect(
-      screen.getByText(/7 recommendations from 7 themes found in 9 documents/),
+      screen.getByText(/7 recommendations from 7 topics found in 9 documents/),
     ).toBeInTheDocument()
     expect(screen.getByText('Synthetic core v1')).toBeInTheDocument()
   })
@@ -256,5 +256,38 @@ describe('SessionDetailPage', () => {
     renderApp('/sessions/999')
 
     expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument()
+  })
+})
+
+describe('NewSessionPage uploads', () => {
+  async function toDocumentsStep(user: ReturnType<typeof renderApp>['user']) {
+    await user.type(await screen.findByLabelText('Session name'), 'Synthetic review')
+    await user.click(screen.getByRole('button', { name: /Next/ }))
+    await screen.findByRole('list', { name: 'Ready documents' })
+  }
+
+  it('lets a planner upload documents from the documents step', async () => {
+    sessionsApi(plannerUser)
+    const { user } = renderApp('/sessions/new')
+    await toDocumentsStep(user)
+
+    await user.click(screen.getByRole('button', { name: 'Upload documents' }))
+    expect(await screen.findByRole('dialog', { name: 'Upload documents' })).toBeInTheDocument()
+  })
+
+  it('tells the planner which uploads are still being processed', async () => {
+    sessionsApi(plannerUser, {
+      'GET /documents': ok({
+        ...page([
+          ...readyDocuments,
+          makeDocument({ id: 14, title: 'Synthetic new advert', processing_status: 'parsing' }),
+        ]),
+        category_counts: { job_market: 3, institutional: 0, policy: 1, academic: 0 },
+      }),
+    })
+    const { user } = renderApp('/sessions/new')
+    await toDocumentsStep(user)
+
+    expect(await screen.findByText(/1 document is still being processed/)).toBeInTheDocument()
   })
 })

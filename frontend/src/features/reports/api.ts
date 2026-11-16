@@ -1,13 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { apiDelete, apiGet, apiPost } from '@/lib/api'
-import type {
-  CreateReportRequest,
-  Paginated,
-  Report,
-  ReportListParams,
-  SessionSummary,
-} from '@/types/api'
+import { apiDelete, apiGet } from '@/lib/api'
+import type { Paginated, Report, ReportListParams, SessionSummary } from '@/types/api'
 
 export const reportsQueryKey = ['reports'] as const
 /** Reports being generated are polled like running sessions. */
@@ -36,15 +30,6 @@ export function useCompletedSessions() {
     queryKey: ['sessions', 'list', { status: 'completed', per_page: 100 }],
     queryFn: () =>
       apiGet<Paginated<SessionSummary>>('/sessions', { status: 'completed', per_page: 100 }),
-  })
-}
-
-export function useGenerateReport() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({ sessionId, ...input }: CreateReportRequest & { sessionId: number }) =>
-      apiPost<Report>(`/sessions/${sessionId}/reports`, input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [...reportsQueryKey, 'list'] }),
   })
 }
 

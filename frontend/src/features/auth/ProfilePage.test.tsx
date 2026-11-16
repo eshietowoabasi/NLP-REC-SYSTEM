@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
-import { healthyStatus, viewerUser } from '@/test/fixtures'
+import { adminUser, healthyStatus, viewerUser } from '@/test/fixtures'
 import { fail, mockApi, ok } from '@/test/server'
 import { renderApp } from '@/test/utils'
 
@@ -25,6 +25,19 @@ describe('ProfilePage', () => {
     expect(await screen.findByText('test.viewer@example.com')).toBeInTheDocument()
     expect(screen.getAllByText('Viewer').length).toBeGreaterThan(0)
     expect(screen.getByText(/Read-only access/)).toBeInTheDocument()
+    expect(screen.getByText(/contact an administrator/)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Edit name and email/ })).not.toBeInTheDocument()
+  })
+
+  it('sends administrators to edit their own name and email', async () => {
+    mockApi({ ...signedIn, 'GET /auth/me': ok(adminUser) })
+    renderApp('/profile')
+
+    expect(await screen.findByRole('link', { name: /Edit name and email/ })).toHaveAttribute(
+      'href',
+      '/admin/users?edit=me',
+    )
+    expect(screen.queryByText(/contact an administrator/)).not.toBeInTheDocument()
   })
 
   it('checks the new password locally before calling the API', async () => {

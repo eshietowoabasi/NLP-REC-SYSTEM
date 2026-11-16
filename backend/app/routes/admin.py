@@ -45,6 +45,7 @@ from app.schemas.admin import (
 from app.schemas.documents import UserRef
 from app.schemas.users import UserCreate, UserListQuery, UserOut, UserUpdate
 from app.settings import SETTING_DEFINITIONS
+from app.utils.csv_export import csv_cell
 from app.utils.errors import ApiError
 from app.utils.responses import success
 from app.utils.time import utcnow
@@ -404,12 +405,6 @@ def list_audit_logs() -> tuple[Response, int]:
     )
 
 
-def _csv_cell(value: Any) -> str:
-    """Stringify, neutralising spreadsheet formulas (CSV injection)."""
-    text = "" if value is None else str(value)
-    return "'" + text if text[:1] in ("=", "+", "-", "@", "\t", "\r") else text
-
-
 @bp.get("/audit-logs/export")
 @role_required(UserRole.ADMIN)
 def export_audit_logs() -> Response:
@@ -434,13 +429,13 @@ def export_audit_logs() -> Response:
             writer.writerow(
                 [
                     entry.created_at.isoformat(),
-                    _csv_cell(entry.user.full_name if entry.user else ""),
-                    _csv_cell(entry.user.username if entry.user else ""),
+                    csv_cell(entry.user.full_name if entry.user else ""),
+                    csv_cell(entry.user.username if entry.user else ""),
                     entry.action_type,
-                    _csv_cell(entry.entity_type),
-                    _csv_cell(entry.entity_id),
-                    _csv_cell(json.dumps(entry.detail or {}, ensure_ascii=False, sort_keys=True)),
-                    _csv_cell(entry.ip_address),
+                    csv_cell(entry.entity_type),
+                    csv_cell(entry.entity_id),
+                    csv_cell(json.dumps(entry.detail or {}, ensure_ascii=False, sort_keys=True)),
+                    csv_cell(entry.ip_address),
                 ]
             )
             yield buffer.getvalue()

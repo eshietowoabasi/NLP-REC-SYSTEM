@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from app.services.embeddings.encoder import get_encoder
-from app.services.storage import FileStorage
+from app.services.storage import FileStorage, VercelBlobStorage
 
 
 def test_storage_round_trip(tmp_path) -> None:
@@ -16,8 +16,11 @@ def test_storage_round_trip(tmp_path) -> None:
 
     assert name.endswith(".pdf") and len(name) == 36
     assert storage.read(name) == b"content"
+    assert storage.exists(name)
+    assert storage.size(name) == len(b"content")
     storage.delete(name)
-    assert not storage.path(name).exists()
+    assert not storage.exists(name)
+    assert storage.size(name) is None
     storage.delete(name)  # deleting twice is harmless
 
 
@@ -27,6 +30,49 @@ def test_storage_round_trip(tmp_path) -> None:
 def test_storage_rejects_names_it_did_not_generate(tmp_path, name: str) -> None:
     with pytest.raises(ValueError):
         FileStorage(tmp_path).path(name)
+
+
+class FakeBlob:
+    def __init__(self) -> None:
+        self.objects: dict[str, bytes] = {}
+
+    def put_blob(self, pathname, content, *, access):
+        assert access == "private"
+        self.objects[pathname] = bytes(content)
+
+    def get_blob(self, pathname, *, access):
+        assert access == "private"
+        return type("Result", (), {"body": self.objects[pathname]})()
+
+    def head_blob(self, pathname):
+        if pathname not in self.objects:
+            raise type("BlobNotFoundError", (Exception,), {})()
+        return type("Head", (), {"size": len(self.objects[pathname])})()
+
+    def delete_blob(self, pathname):
+        self.objects.pop(pathname, None)
+
+
+def test_vercel_blob_storage_contract(monkeypatch) -> None:
+    fake = FakeBlob()
+    storage = VercelBlobStorage()
+    monkeypatch.setattr(storage, "_blob_module", lambda: fake)
+    name = storage.save(b"content", ".PDF")
+    assert name.endswith(".pdf") and len(name) == 36
+    assert storage.read(name) == b"content"
+    assert storage.exists(name)
+    assert storage.size(name) == 7
+    storage.delete(name)
+    assert not storage.exists(name)
+    assert storage.size(name) is None
+
+
+def test_vercel_blob_uses_separate_report_prefix(monkeypatch) -> None:
+    fake = FakeBlob()
+    storage = VercelBlobStorage()
+    monkeypatch.setattr(storage, "_blob_module", lambda: fake)
+    name = storage.save(b"report", ".docx", area="reports")
+    assert f"reports/{name}" in fake.objects
 
 
 @pytest.mark.real_models

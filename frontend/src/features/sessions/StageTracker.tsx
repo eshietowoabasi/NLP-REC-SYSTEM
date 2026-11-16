@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, Circle, Loader2 } from 'lucide-react'
+import { AlertCircle, Check, Circle, Loader2 } from 'lucide-react'
 
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
@@ -7,17 +7,24 @@ import type { SessionDetail } from '@/types/api'
 import { PIPELINE_STAGES, stageStates, type StageState } from './stages'
 
 const ICONS: Record<StageState, typeof Circle> = {
-  done: CheckCircle2,
+  done: Check,
   current: Loader2,
   failed: AlertCircle,
   waiting: Circle,
 }
 
-const ICON_STYLES: Record<StageState, string> = {
-  done: 'text-emerald-600 dark:text-emerald-400',
-  current: 'animate-spin text-sky-600 dark:text-sky-400',
-  failed: 'text-destructive',
-  waiting: 'text-muted-foreground/50',
+const DOT_STYLES: Record<StageState, string> = {
+  done: 'bg-green-tint text-green',
+  current: 'bg-primary text-primary-foreground',
+  failed: 'bg-red-tint text-red',
+  waiting: 'bg-divider text-faint',
+}
+
+const TEXT_STYLES: Record<StageState, string> = {
+  done: 'text-ink',
+  current: 'text-primary',
+  failed: 'text-red',
+  waiting: 'text-faint',
 }
 
 const STATE_LABELS: Record<StageState, string> = {
@@ -27,52 +34,78 @@ const STATE_LABELS: Record<StageState, string> = {
   waiting: 'not started',
 }
 
-/** Validating → … → Scoring, with the progress bar and per-stage timings. */
+const STATE_WORDS: Record<StageState, string> = {
+  done: 'Done',
+  current: 'In progress',
+  failed: 'Failed',
+  waiting: 'Waiting',
+}
+
+/** Checking → … → Scoring (AnalysisProgress.dc.html): the percentage, a bar and each step. */
 export function StageTracker({ session }: { session: SessionDetail }) {
   const states = stageStates(session.status, session.current_stage)
   const queued = session.status === 'processing' && session.current_stage === 'queued'
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-1.5">
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">
+    <div className="space-y-5">
+      <div className="space-y-2.5">
+        <div className="flex items-end justify-between gap-4">
+          <span className="text-sm text-body-soft">
             {queued ? 'Waiting for the analysis worker…' : 'Progress'}
           </span>
-          <span className="font-medium tabular-nums">{session.progress_percent}%</span>
+          <span className="text-4xl leading-none font-extrabold text-primary tabular-nums">
+            {session.progress_percent}%
+          </span>
         </div>
-        <Progress value={session.progress_percent} aria-label="Analysis progress" />
+        <Progress
+          value={session.progress_percent}
+          aria-label="Analysis progress"
+          className="h-2.5"
+        />
       </div>
-      <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" aria-label="Analysis stages">
-        {PIPELINE_STAGES.map((stage) => {
+      <ol className="flex flex-col" aria-label="Analysis stages">
+        {PIPELINE_STAGES.map((stage, index) => {
           const state = states[stage.id]
           const Icon = ICONS[state]
           const seconds = session.stage_timings[stage.id]
           return (
             <li
               key={stage.id}
-              className={cn(
-                'flex items-start gap-2 rounded-md border p-2.5',
-                state === 'current' &&
-                  'border-sky-300 bg-sky-50 dark:border-sky-800 dark:bg-sky-950/40',
-                state === 'failed' && 'border-destructive/50 bg-destructive/5',
-              )}
+              className="flex items-center gap-3.5 border-b border-divider px-1 py-3 last:border-b-0"
               aria-current={state === 'current' ? 'step' : undefined}
             >
-              <Icon
-                className={cn('mt-0.5 size-4 shrink-0', ICON_STYLES[state])}
+              <span
+                className={cn(
+                  'flex size-8 shrink-0 items-center justify-center rounded-full text-[13px] font-extrabold',
+                  DOT_STYLES[state],
+                )}
                 aria-hidden="true"
-              />
-              <div className="min-w-0">
-                <p className="text-sm font-medium">
+              >
+                {state === 'waiting' ? (
+                  index + 1
+                ) : (
+                  <Icon
+                    className={cn('size-4', state === 'current' && 'animate-spin')}
+                    strokeWidth={2.4}
+                  />
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className={cn('text-[15px] font-bold', TEXT_STYLES[state])}>
                   {stage.label}
                   <span className="sr-only"> — {STATE_LABELS[state]}</span>
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[13px] text-muted-ink">
                   {stage.description}
                   {seconds !== undefined && state === 'done' && ` · ${seconds.toFixed(1)} s`}
                 </p>
               </div>
+              <span
+                className={cn('shrink-0 text-[13px] font-bold', TEXT_STYLES[state])}
+                aria-hidden="true"
+              >
+                {STATE_WORDS[state]}
+              </span>
             </li>
           )
         })}

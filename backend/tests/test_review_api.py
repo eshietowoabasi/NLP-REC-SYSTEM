@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import io
 
 import pytest
@@ -117,6 +118,69 @@ def test_results_endpoints_after_a_real_pipeline_run(login_as) -> None:
 # ------------------------------------------------------------------- recommendations
 
 
+def test_progress_follows_review_course_design_and_report(
+    planner: ApiClient, review: ReviewSession
+) -> None:
+    sid = review.session.id
+    first, second, third = (r.id for r in review.recommendations)
+
+    start = planner.get(f"/api/sessions/{sid}/progress").get_json()["data"]
+    assert start == {
+        "session_status": "completed",
+        "total": 3,
+        "reviewed": 0,
+        "accepted": 0,
+        "rejected": 0,
+        "flagged": 0,
+        "courses": 0,
+        "accepted_with_courses": 0,
+        "latest_report": None,
+    }
+
+    accept(planner, first)
+    accept(planner, second)
+    planner.patch(f"/api/recommendations/{third}/decision", json={"decision": "flagged"})
+    assert planner.post(f"/api/recommendations/{first}/mapping", json=MAPPING).status_code == 201
+    planner.post(f"/api/sessions/{sid}/reports", json={"format": "docx"})
+
+    data = planner.get(f"/api/sessions/{sid}/progress").get_json()["data"]
+    assert (data["reviewed"], data["accepted"], data["flagged"]) == (3, 2, 1)
+    assert (data["courses"], data["accepted_with_courses"]) == (1, 1)
+    assert data["latest_report"]["format"] == "docx"
+    listed = planner.get(f"/api/sessions/{sid}/recommendations").get_json()["data"]
+    assert listed["items"][0]["course"] == {
+        "course_code": "CSC 419",
+        "course_title": "Cloud Security Engineering",
+        "credit_units": 3,
+    }
+    assert listed["counts"]["accepted_with_courses"] == 1
+    assert planner.get("/api/sessions/999999/progress").status_code == 404
+
+
+def test_csv_export_has_points_and_exact_decimals(
+    login_as, planner: ApiClient, review: ReviewSession
+) -> None:
+    accept(planner, review.recommendations[0].id)
+    review.recommendations[2].topic_title = "=HYPERLINK(1)"  # formula injection attempt
+    db.session.commit()
+
+    response = login_as("viewer").get(f"/api/sessions/{review.session.id}/recommendations/export")
+
+    assert response.status_code == 200
+    assert response.mimetype == "text/csv"
+    assert "recommendations.csv" in response.headers["Content-Disposition"]
+    rows = list(csv.reader(io.StringIO(response.get_data(as_text=True).lstrip("﻿"))))
+    header, first = rows[0], rows[1]
+    record = dict(zip(header, first, strict=True))
+    assert record["topic_title"] == "Cloud Security and Kubernetes"
+    assert (record["score_out_of_100"], record["composite_score"]) == ("90", "0.9000")
+    assert (record["skill_demand_out_of_100"], record["skill_demand_score"]) == ("100", "1.0000")
+    assert (record["similarity_percent"], record["max_similarity"]) == ("40", "0.4000")
+    assert record["decision"] == "accepted" and record["skills"] == "Kubernetes"
+    assert rows[3][1] == "'=HYPERLINK(1)"
+    assert planner.get("/api/sessions/999999/recommendations/export").status_code == 404
+
+
 def test_list_in_rank_order_with_counts_and_filters(
     planner: ApiClient, review: ReviewSession
 ) -> None:
@@ -138,7 +202,10 @@ def test_list_in_rank_order_with_counts_and_filters(
         "rejected": 0,
         "flagged": 1,
         "potential_duplicates": 1,
+        "with_courses": 0,
+        "accepted_with_courses": 0,
     }
+    assert data["items"][0]["course"] is None
 
     def titles(query: str) -> list[str]:
         items = planner.get(f"/api/sessions/{sid}/recommendations?{query}").get_json()["data"][
@@ -167,6 +234,10 @@ def test_detail_includes_evidence_nuc_passage_and_session_context(
         "id": review.documents[0].id,
         "title": "Synthetic cloud advert",
         "source_category": "job_market",
+        "source": None,
+        "source_url": None,
+        "published_on": None,
+        "label": "Synthetic cloud advert, job advert",
     }
     assert detail["evidence"][0]["page_number"] == 1
     assert detail["closest_nuc_passage"] == {
@@ -217,13 +288,23 @@ def test_decisions_record_who_when_and_notes(planner: ApiClient, review: ReviewS
     assert data["planner_decision"] == "rejected"
     assert data["planner_notes"] == "Already covered by the core."
     assert data["decided_by"]["full_name"] == planner.user.full_name and data["decided_at"]
-    cleared = planner.patch(f"/api/recommendations/{rec_id}/decision", json={"decision": None})
+    # A one-click decision (no "notes" sent) keeps the notes; sending notes replaces them.
+    flagged = planner.patch(f"/api/recommendations/{rec_id}/decision", json={"decision": "flagged"})
+    assert flagged.get_json()["data"]["planner_notes"] == "Already covered by the core."
+    cleared = planner.patch(
+        f"/api/recommendations/{rec_id}/decision", json={"decision": None, "notes": ""}
+    )
     assert cleared.get_json()["data"]["planner_decision"] is None
     assert cleared.get_json()["data"]["decided_at"] is None
+    assert cleared.get_json()["data"]["planner_notes"] is None
     actions = db.session.scalars(
         select(AuditLog.detail).where(AuditLog.action_type == "recommendation.decided")
     ).all()
-    assert [(a["from"], a["to"]) for a in actions] == [(None, "rejected"), ("rejected", None)]
+    assert [(a["from"], a["to"]) for a in actions] == [
+        (None, "rejected"),
+        ("rejected", "flagged"),
+        ("flagged", None),
+    ]
     bad = planner.patch(f"/api/recommendations/{rec_id}/decision", json={"decision": "maybe"})
     assert bad.status_code == 422
 
@@ -321,7 +402,7 @@ def test_update_and_delete_mapping(planner: ApiClient, review: ReviewSession) ->
     )
     assert (
         blocked.status_code == 409
-        and "Remove the course mapping" in blocked.get_json()["error"]["message"]
+        and "Remove the course before" in blocked.get_json()["error"]["message"]
     )
 
     assert planner.delete(f"/api/mappings/{mapping_id}").status_code == 200

@@ -10,6 +10,7 @@ from pydantic import Field, StringConstraints, field_validator, model_validator
 from app.models.enums import DocumentStatus, SessionStatus, SourceCategory
 from app.schemas.common import PaginationQuery, RequestModel, ResponseModel
 from app.schemas.documents import UserRef
+from app.schemas.programmes import ProgrammeRef
 from app.services.recommendations.scoring import ScoreWeights, WeightsError
 
 SessionName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
@@ -39,6 +40,7 @@ class SessionParameters(RequestModel):
 
 class SessionCreate(RequestModel):
     session_name: SessionName
+    programme_id: int | None = Field(default=None, ge=1)
     document_ids: list[int] = Field(min_length=1)
     parameters: SessionParameters = Field(default_factory=SessionParameters)
     run: bool = False
@@ -83,6 +85,7 @@ class SessionSummaryOut(ResponseModel):
 
 
 class SessionDetailOut(SessionSummaryOut):
+    programme: ProgrammeRef | None
     parameter_config: dict[str, Any]
     stage_timings: dict[str, float]
     error_message: str | None

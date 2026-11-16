@@ -15,6 +15,9 @@ x-backend-env: &backend-env
   DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
   REDIS_URL: redis://redis:6379/0
   STORAGE_DIR: /data/storage
+  # 1 = load NLP models only from the models-data volume, never check Hugging Face online
+  # (set once the model has been downloaded; avoids slow retries behind HTTPS-scanning antivirus).
+  HF_HUB_OFFLINE: ${HF_HUB_OFFLINE:-0}
   ADMIN_USERNAME: ${ADMIN_USERNAME:-}
   ADMIN_EMAIL: ${ADMIN_EMAIL:-}
   ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}

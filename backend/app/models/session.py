@@ -15,6 +15,7 @@ from app.utils.time import utcnow
 
 if TYPE_CHECKING:
     from app.models.document import Document, NucCoreVersion
+    from app.models.programme import Programme
     from app.models.user import User
 
 
@@ -27,6 +28,9 @@ class AnalysisSession(db.Model):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    programme_id: Mapped[int | None] = mapped_column(
+        sa.ForeignKey("programmes.id", ondelete="RESTRICT"), index=True, nullable=True
+    )
     created_by_id: Mapped[int] = mapped_column(sa.ForeignKey("users.id"), index=True)
     session_name: Mapped[str] = mapped_column(sa.String(200))
     status: Mapped[SessionStatus] = mapped_column(
@@ -50,6 +54,7 @@ class AnalysisSession(db.Model):
     started_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
 
+    programme: Mapped[Programme | None] = relationship()
     created_by: Mapped[User] = relationship()
     nuc_core_version: Mapped[NucCoreVersion | None] = relationship()
     document_links: Mapped[list[DocumentSession]] = relationship(
