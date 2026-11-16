@@ -55,7 +55,12 @@ export const NAV_SECTIONS: NavSection[] = [
     roles: ['admin'],
     items: [
       { label: 'Curriculum benchmarks', to: '/admin/benchmarks', icon: BookOpen, available: true },
-      { label: 'Labour market', to: '/admin/labour-market', icon: BriefcaseBusiness, available: true },
+      {
+        label: 'Labour market',
+        to: '/admin/labour-market',
+        icon: BriefcaseBusiness,
+        available: true,
+      },
       { label: 'Users', to: '/admin/users', icon: Users, available: true },
       { label: 'Settings', to: '/admin/settings', icon: Settings, available: true },
       { label: 'Activity log', to: '/admin/audit-log', icon: SquareCheckBig, available: true },

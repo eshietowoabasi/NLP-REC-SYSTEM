@@ -115,10 +115,7 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
   const [formError, setFormError] = useState<string | null>(null)
   const schema = useMemo(() => makeSchema(defaults.max_documents), [defaults.max_documents])
   const initial: SessionForm = {
-    programme_id:
-      defaults.default_programme_id ??
-      defaults.programmes?.[0]?.id ??
-      0,
+    programme_id: defaults.default_programme_id ?? defaults.programmes?.[0]?.id ?? 0,
     session_name: '',
     document_ids: [],
     weights: defaults.parameters.weights,
@@ -142,18 +139,14 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
     name: 'programme_id',
   })
 
-  const selectedBenchmark =
-    useProgrammeBenchmarks(selectedProgrammeId)
+  const selectedBenchmark = useProgrammeBenchmarks(selectedProgrammeId)
 
-  const benchmarkLoading =
-    selectedProgrammeId > 0 &&
-    selectedBenchmark.isPending
+  const benchmarkLoading = selectedProgrammeId > 0 && selectedBenchmark.isPending
 
   const noBenchmark =
     selectedProgrammeId > 0
       ? selectedBenchmark.isError ||
-        (!selectedBenchmark.isPending &&
-          selectedBenchmark.data?.active == null)
+        (!selectedBenchmark.isPending && selectedBenchmark.data?.active == null)
       : defaults.nuc_core_version === null
 
   const next = async () => {
@@ -166,9 +159,7 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
       create.mutate(
         {
           session_name: values.session_name,
-          ...(values.programme_id > 0
-            ? { programme_id: values.programme_id }
-            : {}),
+          ...(values.programme_id > 0 ? { programme_id: values.programme_id } : {}),
           document_ids: values.document_ids,
           parameters: {
             weights: values.weights,
@@ -264,9 +255,7 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
               <CardContent className="space-y-5">
                 {(defaults.programmes?.length ?? 0) > 0 && (
                   <Field className="max-w-lg">
-                    <FieldLabel htmlFor="programme_id">
-                      Programme
-                    </FieldLabel>
+                    <FieldLabel htmlFor="programme_id">Programme</FieldLabel>
 
                     <select
                       id="programme_id"
@@ -275,24 +264,16 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
                         valueAsNumber: true,
                       })}
                     >
-                      {defaults.programmes?.map(
-                        (programme) => (
-                          <option
-                            key={programme.id}
-                            value={programme.id}
-                          >
-                            {programme.name}
-                            {programme.discipline_code
-                              ? ` (${programme.discipline_code})`
-                              : ''}
-                          </option>
-                        ),
-                      )}
+                      {defaults.programmes?.map((programme) => (
+                        <option key={programme.id} value={programme.id}>
+                          {programme.name}
+                          {programme.discipline_code ? ` (${programme.discipline_code})` : ''}
+                        </option>
+                      ))}
                     </select>
 
                     <FieldDescription>
-                      SkillBridge uses this programme's
-                      curriculum benchmark for comparison.
+                      SkillBridge uses this programme's curriculum benchmark for comparison.
                     </FieldDescription>
                   </Field>
                 )}
@@ -444,23 +425,14 @@ function AnalysisSummary({
   control: Control<SessionForm>
   defaults: SessionDefaults
 }) {
-  const [name, documentIds, programmeId] =
-    useWatch({
-      control,
-      name: [
-        'session_name',
-        'document_ids',
-        'programme_id',
-      ],
-    })
+  const [name, documentIds, programmeId] = useWatch({
+    control,
+    name: ['session_name', 'document_ids', 'programme_id'],
+  })
 
-  const benchmark =
-    useProgrammeBenchmarks(programmeId)
+  const benchmark = useProgrammeBenchmarks(programmeId)
 
-  const programme =
-    defaults.programmes?.find(
-      (item) => item.id === programmeId,
-    )
+  const programme = defaults.programmes?.find((item) => item.id === programmeId)
 
   return (
     <aside
@@ -476,12 +448,8 @@ function AnalysisSummary({
           <dd className="truncate font-bold text-ink">{name.trim() || '—'}</dd>
         </div>
         <div className="flex justify-between gap-3">
-          <dt className="text-body-soft">
-            Programme
-          </dt>
-          <dd className="truncate font-bold text-ink">
-            {programme?.name ?? '—'}
-          </dd>
+          <dt className="text-body-soft">Programme</dt>
+          <dd className="truncate font-bold text-ink">{programme?.name ?? '—'}</dd>
         </div>
         <div className="flex justify-between gap-3">
           <dt className="text-body-soft">Documents selected</dt>
@@ -494,8 +462,7 @@ function AnalysisSummary({
           {benchmark.data?.active?.version_label ??
             (programmeId > 0
               ? 'No benchmark yet'
-              : defaults.nuc_core_version?.version_label ??
-                'No benchmark yet')}
+              : (defaults.nuc_core_version?.version_label ?? 'No benchmark yet'))}
         </span>
       </div>
     </aside>
@@ -635,7 +602,8 @@ function DocumentPicker({
         <CardTitle>Select documents</CardTitle>
         <CardDescription>
           Choose the documents to analyse, or upload new ones. Only documents that have finished
-          processing can be selected. The selected programme's curriculum benchmark is used as the comparison baseline.
+          processing can be selected. The selected programme's curriculum benchmark is used as the
+          comparison baseline.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

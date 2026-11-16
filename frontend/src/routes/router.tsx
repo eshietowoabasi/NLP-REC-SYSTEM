@@ -167,10 +167,7 @@ export const routes: RouteObject[] = [
                   () => import('@/features/admin/labour-market/LabourMarketPage'),
                   (m) => m.LabourMarketPage,
                 ),
-                handle: title(
-                  'Labour market',
-                  'Administration',
-                ),
+                handle: title('Labour market', 'Administration'),
               },
               {
                 path: 'benchmarks',
@@ -178,10 +175,7 @@ export const routes: RouteObject[] = [
                   () => import('@/features/admin/benchmarks/BenchmarksPage'),
                   (m) => m.BenchmarksPage,
                 ),
-                handle: title(
-                  'Curriculum benchmarks',
-                  'Administration',
-                ),
+                handle: title('Curriculum benchmarks', 'Administration'),
               },
               {
                 path: 'nuc-core',

@@ -802,7 +802,6 @@ export interface ProgrammeBenchmarkState {
   versions: NucCoreVersion[]
 }
 
-
 export interface NucCoreVersion {
   id: number
   version_label: string
@@ -840,7 +839,6 @@ export interface UserListParams {
   search?: string
 }
 
-
 export interface HarvestProfile {
   search_terms: string[]
   field_slugs: string[]
@@ -849,11 +847,7 @@ export interface HarvestProfile {
 export interface HarvestRun {
   id: number
   programme_id: number
-  status:
-    | 'queued'
-    | 'running'
-    | 'completed'
-    | 'failed'
+  status: 'queued' | 'running' | 'completed' | 'failed'
   target_count: number
   pages_per_field: number
   examined_count: number

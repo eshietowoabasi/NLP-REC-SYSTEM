@@ -1,29 +1,11 @@
-import {
-  BriefcaseBusiness,
-  Loader2,
-  RefreshCw,
-  Save,
-} from 'lucide-react'
-import {
-  useEffect,
-  useState,
-} from 'react'
+import { BriefcaseBusiness, Loader2, RefreshCw, Save } from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -33,7 +15,6 @@ import {
 } from '@/features/labour-market/api'
 import { useProgrammes } from '@/features/programmes/api'
 import { formatDateTime } from '@/lib/format'
-
 
 const FIELD_EXAMPLES = [
   'information-technology',
@@ -46,43 +27,23 @@ const FIELD_EXAMPLES = [
   'legal-and-regulatory',
 ]
 
-
 export function LabourMarketPage() {
   const programmes = useProgrammes()
 
-  const [programmeId, setProgrammeId] =
-    useState(0)
-
-  useEffect(() => {
-    if (
-      programmeId === 0 &&
-      programmes.data?.length
-    ) {
-      setProgrammeId(
-        programmes.data[0].id,
-      )
-    }
-  }, [
-    programmeId,
-    programmes.data,
-  ])
+  const [chosenProgrammeId, setProgrammeId] = useState(0)
+  // Until the admin picks one, show the first programme.
+  const programmeId = chosenProgrammeId || programmes.data?.[0]?.id || 0
 
   if (programmes.isPending) {
-    return (
-      <Skeleton className="h-96 w-full" />
-    )
+    return <Skeleton className="h-96 w-full" />
   }
 
   if (programmes.isError) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>
-          Could not load programmes
-        </AlertTitle>
+        <AlertTitle>Could not load programmes</AlertTitle>
 
-        <AlertDescription>
-          {programmes.error.message}
-        </AlertDescription>
+        <AlertDescription>{programmes.error.message}</AlertDescription>
       </Alert>
     )
   }
@@ -90,27 +51,20 @@ export function LabourMarketPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-5">
       <div className="space-y-1">
-        <h2 className="page-title">
-          Labour Market Harvester
-        </h2>
+        <h2 className="page-title">Labour Market Harvester</h2>
 
         <p className="max-w-3xl page-lead">
-          Define the roles that belong to each academic
-          programme, then let SkillBridge collect live job
-          adverts and send them directly into the NLP
-          ingestion pipeline.
+          Define the roles that belong to each academic programme, then let SkillBridge collect live
+          job adverts and send them directly into the NLP ingestion pipeline.
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>
-            Programme
-          </CardTitle>
+          <CardTitle>Programme</CardTitle>
 
           <CardDescription>
-            Each programme has its own labour-market
-            search profile.
+            Each programme has its own labour-market search profile.
           </CardDescription>
         </CardHeader>
 
@@ -118,119 +72,71 @@ export function LabourMarketPage() {
           <select
             aria-label="Programme"
             value={programmeId}
-            onChange={(event) =>
-              setProgrammeId(
-                Number(event.target.value),
-              )
-            }
+            onChange={(event) => setProgrammeId(Number(event.target.value))}
             className="h-11 w-full max-w-xl rounded-xl border border-input bg-white px-3.5 text-sm font-medium text-ink outline-none focus:border-ring focus:ring-3 focus:ring-ring/25"
           >
-            {programmes.data.map(
-              (programme) => (
-                <option
-                  key={programme.id}
-                  value={programme.id}
-                >
-                  {programme.name}
-                  {programme.discipline_code
-                    ? ` (${programme.discipline_code})`
-                    : ''}
-                </option>
-              ),
-            )}
+            {programmes.data.map((programme) => (
+              <option key={programme.id} value={programme.id}>
+                {programme.name}
+                {programme.discipline_code ? ` (${programme.discipline_code})` : ''}
+              </option>
+            ))}
           </select>
         </CardContent>
       </Card>
 
-      {programmeId > 0 && (
-        <ProgrammeHarvester
-          programmeId={programmeId}
-        />
-      )}
+      {programmeId > 0 && <ProgrammeHarvester key={programmeId} programmeId={programmeId} />}
     </div>
   )
 }
 
+function ProgrammeHarvester({ programmeId }: { programmeId: number }) {
+  const state = useHarvestState(programmeId)
 
-function ProgrammeHarvester({
-  programmeId,
-}: {
-  programmeId: number
-}) {
-  const state =
-    useHarvestState(programmeId)
+  const save = useSaveHarvestProfile()
 
-  const save =
-    useSaveHarvestProfile()
+  const start = useStartHarvest()
 
-  const start =
-    useStartHarvest()
+  const [terms, setTerms] = useState('')
 
-  const [terms, setTerms] =
-    useState('')
+  const [fields, setFields] = useState('')
 
-  const [fields, setFields] =
-    useState('')
+  const [target, setTarget] = useState(10)
 
-  const [target, setTarget] =
-    useState(10)
+  const [pages, setPages] = useState(2)
 
-  const [pages, setPages] =
-    useState(2)
-
-  useEffect(() => {
-    if (!state.data) {
-      return
-    }
-
-    setTerms(
-      state.data.profile.search_terms.join(
-        ', ',
-      ),
-    )
-
-    setFields(
-      state.data.profile.field_slugs.join(
-        ', ',
-      ),
-    )
-  }, [
-    programmeId,
-    state.data?.profile,
-  ])
+  // Fill the form from the saved profile whenever a new one arrives
+  // (adjusting state during render instead of in an effect).
+  const profile = state.data?.profile
+  const [syncedProfile, setSyncedProfile] = useState<typeof profile>(undefined)
+  if (profile && profile !== syncedProfile) {
+    setSyncedProfile(profile)
+    setTerms(profile.search_terms.join(', '))
+    setFields(profile.field_slugs.join(', '))
+  }
 
   if (state.isPending) {
-    return (
-      <Skeleton className="h-96 w-full" />
-    )
+    return <Skeleton className="h-96 w-full" />
   }
 
   if (state.isError) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>
-          Could not load the harvester
-        </AlertTitle>
+        <AlertTitle>Could not load the harvester</AlertTitle>
 
-        <AlertDescription>
-          {state.error.message}
-        </AlertDescription>
+        <AlertDescription>{state.error.message}</AlertDescription>
       </Alert>
     )
   }
 
   const latest = state.data.latest_run
 
-  const running =
-    latest?.status === 'queued' ||
-    latest?.status === 'running'
+  const running = latest?.status === 'queued' || latest?.status === 'running'
 
   const parseCsv = (value: string) =>
     value
       .split(',')
-      .map((item) =>
-        item.trim().toLowerCase(),
-      )
+      .map((item) => item.trim().toLowerCase())
       .filter(Boolean)
 
   const saveProfile = () => {
@@ -238,17 +144,12 @@ function ProgrammeHarvester({
       {
         programmeId,
         profile: {
-          search_terms:
-            parseCsv(terms),
-          field_slugs:
-            parseCsv(fields),
+          search_terms: parseCsv(terms),
+          field_slugs: parseCsv(fields),
         },
       },
       {
-        onSuccess: () =>
-          toast.success(
-            'Labour-market profile saved.',
-          ),
+        onSuccess: () => toast.success('Labour-market profile saved.'),
       },
     )
   }
@@ -261,10 +162,7 @@ function ProgrammeHarvester({
         pagesPerField: pages,
       },
       {
-        onSuccess: () =>
-          toast.success(
-            'Labour-market collection started.',
-          ),
+        onSuccess: () => toast.success('Labour-market collection started.'),
       },
     )
   }
@@ -273,87 +171,63 @@ function ProgrammeHarvester({
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
       <Card>
         <CardHeader>
-          <CardTitle>
-            Search profile
-          </CardTitle>
+          <CardTitle>Search profile</CardTitle>
 
           <CardDescription>
-            The profile is editable, so SkillBridge is not
-            limited to predefined disciplines.
+            The profile is editable, so SkillBridge is not limited to predefined disciplines.
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-5">
           <div className="space-y-2">
-            <label
-              htmlFor="job-search-terms"
-              className="text-sm font-bold text-ink"
-            >
+            <label htmlFor="job-search-terms" className="text-sm font-bold text-ink">
               Relevant job titles / keywords
             </label>
 
             <textarea
               id="job-search-terms"
               value={terms}
-              onChange={(event) =>
-                setTerms(event.target.value)
-              }
+              onChange={(event) => setTerms(event.target.value)}
               rows={4}
               placeholder="e.g. registered nurse, nursing officer, midwife"
               className="w-full rounded-xl border border-input bg-white p-3 text-sm text-ink outline-none focus:border-ring focus:ring-3 focus:ring-ring/25"
             />
 
             <p className="text-xs text-muted-foreground">
-              Separate terms with commas. Only adverts whose
-              job titles match these terms are imported.
+              Separate terms with commas. Only adverts whose job titles match these terms are
+              imported.
             </p>
           </div>
 
           <div className="space-y-2">
-            <label
-              htmlFor="job-fields"
-              className="text-sm font-bold text-ink"
-            >
+            <label htmlFor="job-fields" className="text-sm font-bold text-ink">
               MyJobMag fields
             </label>
 
             <textarea
               id="job-fields"
               value={fields}
-              onChange={(event) =>
-                setFields(event.target.value)
-              }
+              onChange={(event) => setFields(event.target.value)}
               rows={3}
               placeholder="e.g. medical"
               className="w-full rounded-xl border border-input bg-white p-3 text-sm text-ink outline-none focus:border-ring focus:ring-3 focus:ring-ring/25"
             />
 
-            <p className="text-xs text-muted-foreground">
-              Examples: {FIELD_EXAMPLES.join(', ')}.
-            </p>
+            <p className="text-xs text-muted-foreground">Examples: {FIELD_EXAMPLES.join(', ')}.</p>
           </div>
 
           {save.isError && (
             <Alert variant="destructive">
-              <AlertDescription>
-                {save.error.message}
-              </AlertDescription>
+              <AlertDescription>{save.error.message}</AlertDescription>
             </Alert>
           )}
 
-          <Button
-            onClick={saveProfile}
-            disabled={save.isPending}
-          >
+          <Button onClick={saveProfile} disabled={save.isPending}>
             {save.isPending ? (
-              <Loader2
-                className="animate-spin"
-                aria-hidden="true"
-              />
+              <Loader2 className="animate-spin" aria-hidden="true" />
             ) : (
               <Save aria-hidden="true" />
             )}
-
             Save search profile
           </Button>
         </CardContent>
@@ -363,27 +237,19 @@ function ProgrammeHarvester({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <BriefcaseBusiness
-                className="size-5"
-                aria-hidden="true"
-              />
+              <BriefcaseBusiness className="size-5" aria-hidden="true" />
               Collect jobs
             </CardTitle>
 
             <CardDescription>
-              SkillBridge will respect the source's
-              robots.txt and collect slowly in the
-              background.
+              SkillBridge will respect the source's robots.txt and collect slowly in the background.
             </CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label
-                  htmlFor="target-count"
-                  className="text-xs font-bold text-ink"
-                >
+                <label htmlFor="target-count" className="text-xs font-bold text-ink">
                   Target adverts
                 </label>
 
@@ -393,21 +259,12 @@ function ProgrammeHarvester({
                   min={1}
                   max={30}
                   value={target}
-                  onChange={(event) =>
-                    setTarget(
-                      Number(
-                        event.target.value,
-                      ),
-                    )
-                  }
+                  onChange={(event) => setTarget(Number(event.target.value))}
                 />
               </div>
 
               <div className="space-y-1">
-                <label
-                  htmlFor="pages"
-                  className="text-xs font-bold text-ink"
-                >
+                <label htmlFor="pages" className="text-xs font-bold text-ink">
                   Pages per field
                 </label>
 
@@ -417,66 +274,42 @@ function ProgrammeHarvester({
                   min={1}
                   max={5}
                   value={pages}
-                  onChange={(event) =>
-                    setPages(
-                      Number(
-                        event.target.value,
-                      ),
-                    )
-                  }
+                  onChange={(event) => setPages(Number(event.target.value))}
                 />
               </div>
             </div>
 
             {start.isError && (
               <Alert variant="destructive">
-                <AlertDescription>
-                  {start.error.message}
-                </AlertDescription>
+                <AlertDescription>{start.error.message}</AlertDescription>
               </Alert>
             )}
 
             <Button
               className="w-full"
               onClick={collect}
-              disabled={
-                running ||
-                start.isPending ||
-                !terms.trim() ||
-                !fields.trim()
-              }
+              disabled={running || start.isPending || !terms.trim() || !fields.trim()}
             >
-              {running ||
-              start.isPending ? (
-                <Loader2
-                  className="animate-spin"
-                  aria-hidden="true"
-                />
+              {running || start.isPending ? (
+                <Loader2 className="animate-spin" aria-hidden="true" />
               ) : (
-                <RefreshCw
-                  aria-hidden="true"
-                />
+                <RefreshCw aria-hidden="true" />
               )}
 
-              {running
-                ? 'Collecting…'
-                : 'Collect jobs now'}
+              {running ? 'Collecting…' : 'Collect jobs now'}
             </Button>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>
-              Latest run
-            </CardTitle>
+            <CardTitle>Latest run</CardTitle>
           </CardHeader>
 
           <CardContent>
             {!latest ? (
               <p className="text-sm text-muted-foreground">
-                No labour-market collection has been run
-                for this programme yet.
+                No labour-market collection has been run for this programme yet.
               </p>
             ) : (
               <div className="space-y-4">
@@ -494,55 +327,35 @@ function ProgrammeHarvester({
                   </Badge>
 
                   <span className="text-xs text-muted-foreground">
-                    {formatDateTime(
-                      latest.created_at,
-                    )}
+                    {formatDateTime(latest.created_at)}
                   </span>
                 </div>
 
                 <dl className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <dt className="text-muted-foreground">
-                      Examined
-                    </dt>
-                    <dd className="font-bold text-ink">
-                      {latest.examined_count}
-                    </dd>
+                    <dt className="text-muted-foreground">Examined</dt>
+                    <dd className="font-bold text-ink">{latest.examined_count}</dd>
                   </div>
 
                   <div>
-                    <dt className="text-muted-foreground">
-                      Matched
-                    </dt>
-                    <dd className="font-bold text-ink">
-                      {latest.found_count}
-                    </dd>
+                    <dt className="text-muted-foreground">Matched</dt>
+                    <dd className="font-bold text-ink">{latest.found_count}</dd>
                   </div>
 
                   <div>
-                    <dt className="text-muted-foreground">
-                      Imported
-                    </dt>
-                    <dd className="font-bold text-ink">
-                      {latest.imported_count}
-                    </dd>
+                    <dt className="text-muted-foreground">Imported</dt>
+                    <dd className="font-bold text-ink">{latest.imported_count}</dd>
                   </div>
 
                   <div>
-                    <dt className="text-muted-foreground">
-                      Skipped
-                    </dt>
-                    <dd className="font-bold text-ink">
-                      {latest.skipped_count}
-                    </dd>
+                    <dt className="text-muted-foreground">Skipped</dt>
+                    <dd className="font-bold text-ink">{latest.skipped_count}</dd>
                   </div>
                 </dl>
 
                 {latest.error_message && (
                   <Alert variant="destructive">
-                    <AlertDescription>
-                      {latest.error_message}
-                    </AlertDescription>
+                    <AlertDescription>{latest.error_message}</AlertDescription>
                   </Alert>
                 )}
               </div>
