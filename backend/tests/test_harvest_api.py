@@ -166,7 +166,7 @@ def test_a_run_marked_stopped_is_not_started_later(app, make_user, programme_id,
     assert db.session.scalar(select(Document.id).where(Document.harvest_run_id == run.id)) is None
 
 
-def test_profile_changes_are_audited_and_only_admins_collect(login_as, programme_id):
+def test_profile_changes_are_audited_and_only_admins_change_the_profile(login_as, programme_id):
     admin = login_as(UserRole.ADMIN)
     response = admin.patch(
         f"/api/harvest/programmes/{programme_id}",
@@ -178,4 +178,41 @@ def test_profile_changes_are_audited_and_only_admins_collect(login_as, programme
     )
 
     planner = login_as(UserRole.PLANNER)
-    assert planner.post(f"/api/harvest/programmes/{programme_id}/runs", json={}).status_code == 403
+    assert (
+        planner.patch(
+            f"/api/harvest/programmes/{programme_id}",
+            json={"search_terms": ["x"], "field_slugs": ["medical"]},
+        ).status_code
+        == 403
+    )
+
+
+def test_planners_collect_jobs_and_get_the_ready_adverts(login_as, programme_id, fake_collector):
+    planner = login_as(UserRole.PLANNER)
+
+    response = planner.post(
+        f"/api/harvest/programmes/{programme_id}/runs", json={"target_count": 2}
+    )
+
+    assert response.status_code == 202
+    run = planner.get(f"/api/harvest/programmes/{programme_id}").get_json()["data"]["latest_run"]
+    ids = run["ready_document_ids"]
+    assert len(ids) == 2
+    titles = [db.session.get(Document, i).title for i in ids]
+    assert all(t.startswith("Registered Nurse") for t in titles)
+
+
+def test_viewers_cannot_collect_jobs(login_as, programme_id):
+    viewer = login_as(UserRole.VIEWER)
+    assert viewer.post(f"/api/harvest/programmes/{programme_id}/runs", json={}).status_code == 403
+
+
+def test_collection_without_a_profile_explains_who_can_set_it_up(login_as, app):
+    programme = default_programme()
+    db.session.commit()
+    planner = login_as(UserRole.PLANNER)
+
+    response = planner.post(f"/api/harvest/programmes/{programme.id}/runs", json={})
+
+    assert response.status_code == 422
+    assert "Ask an admin" in response.get_json()["error"]["message"]

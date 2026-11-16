@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from app.audit import AuditAction, record_audit
 from app.auth.decorators import (
+    EDITOR_ROLES,
     login_required,
     role_required,
 )
@@ -74,6 +75,7 @@ def run_json(
         "documents_ready": progress.documents_ready,
         "documents_processing": progress.documents_processing,
         "documents_failed": progress.documents_failed,
+        "ready_document_ids": progress.ready_document_ids,
         "error_message": run.error_message,
         "created_at": run.created_at.isoformat(),
         "started_at": (run.started_at.isoformat() if run.started_at else None),
@@ -142,10 +144,15 @@ def update_harvest_profile(
 
 
 @bp.post("/programmes/<int:programme_id>/runs")
-@role_required(UserRole.ADMIN)
+@role_required(*EDITOR_ROLES)
 def start_harvest(
     programme_id: int,
 ) -> tuple[Response, int]:
+    """Start collecting job adverts for the programme with its saved search profile.
+
+    Admins and planners may start a collection (planners from New analysis); only admins change
+    the profile. Collected adverts become the programme's job-advert documents.
+    """
     programme = get_programme(programme_id)
 
     if not programme.is_active:
@@ -154,14 +161,16 @@ def start_harvest(
     if not programme.job_search_terms:
         raise ApiError(
             "VALIDATION_ERROR",
-            "Add job-search terms before collecting jobs.",
+            "Job collection is not set up for this programme yet. Ask an admin to add job"
+            " titles on the Labour Market page.",
             422,
         )
 
     if not programme.job_field_slugs:
         raise ApiError(
             "VALIDATION_ERROR",
-            "Choose at least one MyJobMag field before collecting jobs.",
+            "Job collection is not set up for this programme yet. Ask an admin to choose job"
+            " fields on the Labour Market page.",
             422,
         )
 
