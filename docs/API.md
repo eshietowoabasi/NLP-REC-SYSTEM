@@ -355,8 +355,10 @@ documents.
 
 ## NUC core reference
 
-The NUC CCMAS core (the fixed 70%) against which candidate topics are compared. Exactly one
-version is active. A newly uploaded version becomes active automatically once its document has
+The NUC CCMAS core (the fixed 70%) against which candidate topics are compared. Every version
+belongs to a programme, and each programme has at most one active version. These `/api/nuc-core`
+routes serve the **default programme** (the first active one, Computer Science); other
+programmes use `/api/programmes/{id}/benchmarks` below. A newly uploaded version becomes active automatically once its document has
 been processed successfully; until then (or if processing fails) the previous version stays
 active.
 
@@ -397,6 +399,71 @@ are then compared with passages).
 Access: admin. `multipart/form-data` with `file` and `version_label` (1–64 characters). The file
 is validated as for documents. **201** returns the new (not yet active) version; **422** with
 `details.fields.file` or `details.fields.version_label` otherwise.
+
+---
+
+## Programmes and benchmarks
+
+A programme (e.g. Computer Science, Nursing Science) owns its own curriculum benchmark (NUC core
+versions) and its own labour-market harvest profile. Sessions take an optional `programme_id`
+(default: the default programme) and are compared with that programme's active benchmark.
+
+Programme object: `{ "id", "name", "discipline_code", "faculty", "description", "country",
+"is_active", "created_at" }`.
+
+### `GET /api/programmes`
+
+Access: any. Active programmes, ordered by name.
+
+### `POST /api/programmes`
+
+Access: admin. JSON `{ "name" (2–160), "discipline_code"?, "faculty"?, "description"?,
+"country"? (default "Nigeria") }`. **201** with the programme; **409** if the name (any case) or
+discipline code is taken.
+
+### `GET /api/programmes/{id}`
+
+Access: any. The programme; **404** if unknown.
+
+### `GET /api/programmes/{id}/benchmarks`
+
+Access: any. `{ "programme", "active", "latest", "versions" }` (versions newest first, same
+version object as above).
+
+### `POST /api/programmes/{id}/benchmarks`
+
+Access: admin. As `POST /api/nuc-core`, for this programme. The version becomes active once its
+document is processed, replacing only this programme's previous active version.
+
+---
+
+## Labour-market harvesting
+
+Instead of uploading job adverts by hand, an admin sets a programme's search profile and the
+system collects matching adverts from MyJobMag in the background. Each collected advert is
+stored as an ordinary `job_advert` document (duplicates by content are skipped) and ingested as
+usual, so it can be picked for a session.
+
+### `GET /api/harvest/programmes/{id}`
+
+Access: any. `{ "programme": { "id", "name", "discipline_code" }, "profile": { "search_terms",
+"field_slugs" }, "latest_run": Run | null }`.
+
+Run object: `{ "id", "programme_id", "status" (queued|running|completed|failed),
+"target_count", "pages_per_field", "examined_count", "found_count", "imported_count",
+"skipped_count", "error_message", "created_at", "started_at", "completed_at" }`.
+
+### `PATCH /api/harvest/programmes/{id}`
+
+Access: admin. JSON `{ "search_terms": [...] (≤ 40), "field_slugs": [...] (≤ 20, MyJobMag field
+slugs) }`. **200** with the saved profile.
+
+### `POST /api/harvest/programmes/{id}/runs`
+
+Access: admin. JSON `{ "target_count" (1–30, default 10), "pages_per_field" (1–5, default 2) }`.
+**202** with the queued run. **422** if the profile has no search terms or fields; **409** if a
+run for this programme is already queued or running. Clients poll `GET
+/api/harvest/programmes/{id}` while the latest run is queued or running.
 
 ---
 

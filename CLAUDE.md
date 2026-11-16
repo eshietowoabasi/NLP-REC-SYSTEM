@@ -72,7 +72,8 @@ Web only (Chrome, Firefox, Edge). Pre-trained models only.
     authorised endpoints.
 17. Documents used by a session cannot be hard-deleted (409) — archive instead. Users are
     deactivated, never deleted.
-18. Exactly one active NUC core version (admin-only upload). Sessions record the version used and
+18. Exactly one active NUC core version **per programme** (admin-only upload; `/api/nuc-core` =
+    default programme, Computer Science). Sessions record the programme and version used and
     cannot run without one.
 19. 30% credit-unit allowance: admin setting, null until set.
 
