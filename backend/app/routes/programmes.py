@@ -5,20 +5,25 @@ from __future__ import annotations
 from flask import Blueprint, Response, request
 from flask_login import current_user
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.audit import AuditAction, record_audit
 from app.auth.decorators import login_required, role_required
 from app.extensions import db
 from app.models import NucCoreVersion, Programme, SourceCategory, UserRole
 from app.schemas.documents import NucCoreUploadForm, NucCoreVersionOut
-from app.schemas.programmes import ProgrammeCreate, ProgrammeOut
+from app.schemas.programmes import (
+    ProgrammeCreate,
+    ProgrammeListQuery,
+    ProgrammeOut,
+    ProgrammeUpdate,
+)
 from app.services.ingestion.validation import UploadRejectedError
 from app.tasks.queue import enqueue
 from app.uploads import discard, store_upload
 from app.utils.errors import ApiError
 from app.utils.responses import success
-from app.utils.validation import parse_body, validation_details
+from app.utils.validation import parse_body, parse_query, validation_details
 
 bp = Blueprint("programmes", __name__, url_prefix="/programmes")
 
@@ -40,46 +45,112 @@ def get_programme_or_404(programme_id: int) -> Programme:
     return programme
 
 
-@bp.get("")
-@login_required
-def list_programmes() -> tuple[Response, int]:
-    programmes = db.session.scalars(
-        select(Programme).where(Programme.is_active.is_(True)).order_by(Programme.name)
-    ).all()
-    return success([programme_json(programme) for programme in programmes])
-
-
-@bp.post("")
-@role_required(UserRole.ADMIN)
-def create_programme() -> tuple[Response, int]:
-    data = parse_body(ProgrammeCreate)
-
-    if db.session.scalar(select(Programme).where(Programme.name.ilike(data.name))) is not None:
+def _check_unique(name: str | None, code: str | None, exclude_id: int | None = None) -> None:
+    """409 if another programme already has this name or discipline code (any letter case)."""
+    others = select(Programme)
+    if exclude_id is not None:
+        others = others.where(Programme.id != exclude_id)
+    if name and db.session.scalar(
+        others.where(func.lower(Programme.name) == name.lower()).limit(1)
+    ):
         raise ApiError(
             "CONFLICT",
             "A programme with that name already exists.",
             409,
+            {"fields": {"name": ["A programme with that name already exists."]}},
         )
-
-    if (
-        data.discipline_code
-        and db.session.scalar(
-            select(Programme).where(Programme.discipline_code == data.discipline_code)
-        )
-        is not None
+    if code and db.session.scalar(
+        others.where(func.lower(Programme.discipline_code) == code.lower()).limit(1)
     ):
         raise ApiError(
             "CONFLICT",
             "That discipline code is already in use.",
             409,
+            {"fields": {"discipline_code": ["That discipline code is already in use."]}},
         )
+
+
+@bp.get("")
+@login_required
+def list_programmes() -> tuple[Response, int]:
+    """Active programmes by name; admins may add ``include_inactive=true`` to see retired ones."""
+    params = parse_query(ProgrammeListQuery)
+    query = select(Programme).order_by(Programme.name)
+    if not (params.include_inactive and current_user.role == UserRole.ADMIN):
+        query = query.where(Programme.is_active.is_(True))
+    return success([programme_json(programme) for programme in db.session.scalars(query)])
+
+
+@bp.post("")
+@role_required(UserRole.ADMIN)
+def create_programme() -> tuple[Response, int]:
+    """Add a programme (it starts without a benchmark or a job-collection profile)."""
+    data = parse_body(ProgrammeCreate)
+    _check_unique(data.name, data.discipline_code)
 
     programme = Programme(**data.model_dump())
     db.session.add(programme)
+    db.session.flush()
+    record_audit(
+        AuditAction.PROGRAMME_CREATED,
+        "programme",
+        programme.id,
+        {"name": programme.name, "discipline_code": programme.discipline_code},
+    )
     db.session.commit()
     db.session.refresh(programme)
 
     return success(programme_json(programme), 201)
+
+
+@bp.patch("/<int:programme_id>")
+@role_required(UserRole.ADMIN)
+def update_programme(programme_id: int) -> tuple[Response, int]:
+    """Change a programme's details, or retire/restore it with ``is_active``.
+
+    Programmes are never deleted: sessions, benchmarks and documents keep referring to them.
+    A retired programme cannot be chosen for new sessions, uploads or collections. The last
+    active programme cannot be retired.
+    """
+    programme = get_programme_or_404(programme_id)
+    data = parse_body(ProgrammeUpdate)
+    fields = data.model_fields_set
+    if "name" in fields and data.name is None:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "Some fields are invalid.",
+            422,
+            {"fields": {"name": ["Enter a name."]}},
+        )
+    _check_unique(
+        data.name if "name" in fields else None,
+        data.discipline_code if "discipline_code" in fields else None,
+        exclude_id=programme.id,
+    )
+    if "is_active" in fields and data.is_active is False and programme.is_active:
+        active_count = db.session.scalar(
+            select(func.count()).select_from(Programme).where(Programme.is_active.is_(True))
+        )
+        if active_count <= 1:
+            raise ApiError(
+                "CONFLICT",
+                "At least one programme must stay active.",
+                409,
+                {"fields": {"is_active": ["At least one programme must stay active."]}},
+            )
+
+    changes = {}
+    for field in sorted(fields):
+        value = getattr(data, field)
+        if field == "is_active" and value is None:
+            continue
+        if getattr(programme, field) != value:
+            changes[field] = {"from": getattr(programme, field), "to": value}
+            setattr(programme, field, value)
+    if changes:
+        record_audit(AuditAction.PROGRAMME_UPDATED, "programme", programme.id, changes)
+    db.session.commit()
+    return success(programme_json(programme))
 
 
 @bp.get("/<int:programme_id>")
@@ -120,6 +191,8 @@ def list_benchmarks(programme_id: int) -> tuple[Response, int]:
 @role_required(UserRole.ADMIN)
 def upload_benchmark(programme_id: int) -> tuple[Response, int]:
     programme = get_programme_or_404(programme_id)
+    if not programme.is_active:
+        raise ApiError("CONFLICT", "This programme has been retired.", 409)
 
     try:
         form = NucCoreUploadForm.model_validate(
@@ -148,6 +221,7 @@ def upload_benchmark(programme_id: int) -> tuple[Response, int]:
             upload,
             SourceCategory.NUC_CORE,
             current_user,
+            programme.id,
         )
     except UploadRejectedError as exc:
         raise ApiError(
