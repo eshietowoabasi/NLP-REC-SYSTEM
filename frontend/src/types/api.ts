@@ -844,16 +844,24 @@ export interface HarvestProfile {
   field_slugs: string[]
 }
 
+/** queued → collecting → preparing (adverts being processed) → ready; or failed. */
+export type HarvestPhase = 'queued' | 'collecting' | 'preparing' | 'ready' | 'failed'
+
 export interface HarvestRun {
   id: number
   programme_id: number
   status: 'queued' | 'running' | 'completed' | 'failed'
+  phase: HarvestPhase
   target_count: number
   pages_per_field: number
   examined_count: number
   found_count: number
   imported_count: number
   skipped_count: number
+  /** Imported adverts that can be analysed, are still being processed, or failed processing. */
+  documents_ready: number
+  documents_processing: number
+  documents_failed: number
   error_message: string | null
   created_at: string
   started_at: string | null

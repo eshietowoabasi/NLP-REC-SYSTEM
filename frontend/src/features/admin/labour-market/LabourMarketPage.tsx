@@ -13,6 +13,7 @@ import {
   useSaveHarvestProfile,
   useStartHarvest,
 } from '@/features/labour-market/api'
+import { HARVEST_PHASES } from '@/features/labour-market/labels'
 import { useProgrammes } from '@/features/programmes/api'
 import { formatDateTime } from '@/lib/format'
 
@@ -131,7 +132,8 @@ function ProgrammeHarvester({ programmeId }: { programmeId: number }) {
 
   const latest = state.data.latest_run
 
-  const running = latest?.status === 'queued' || latest?.status === 'running'
+  // A new collection can start once the previous one has finished collecting.
+  const running = latest?.phase === 'queued' || latest?.phase === 'collecting'
 
   const parseCsv = (value: string) =>
     value
@@ -314,16 +316,11 @@ function ProgrammeHarvester({ programmeId }: { programmeId: number }) {
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Badge
-                    variant={
-                      latest.status === 'completed'
-                        ? 'success'
-                        : latest.status === 'failed'
-                          ? 'destructive'
-                          : 'secondary'
-                    }
-                  >
-                    {latest.status}
+                  <Badge variant={HARVEST_PHASES[latest.phase].variant}>
+                    {latest.phase === 'collecting' || latest.phase === 'preparing' ? (
+                      <Loader2 className="animate-spin" aria-hidden="true" />
+                    ) : null}
+                    {HARVEST_PHASES[latest.phase].label}
                   </Badge>
 
                   <span className="text-xs text-muted-foreground">
@@ -331,27 +328,55 @@ function ProgrammeHarvester({ programmeId }: { programmeId: number }) {
                   </span>
                 </div>
 
+                {latest.imported_count > 0 && (
+                  <p className="text-sm text-ink" aria-live="polite">
+                    <strong className="tabular-nums">
+                      {latest.documents_ready} of {latest.imported_count}
+                    </strong>{' '}
+                    {latest.imported_count === 1 ? 'advert is' : 'adverts are'} ready to analyse
+                    {latest.phase === 'preparing'
+                      ? '. The rest are still being prepared and will appear in New analysis when they are ready.'
+                      : '.'}
+                  </p>
+                )}
+
+                {latest.phase === 'ready' && latest.imported_count === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    No new adverts were found. Try more job titles or more pages per field.
+                  </p>
+                )}
+
                 <dl className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <dt className="text-muted-foreground">Examined</dt>
-                    <dd className="font-bold text-ink">{latest.examined_count}</dd>
+                    <dt className="text-muted-foreground">Adverts checked</dt>
+                    <dd className="font-bold text-ink tabular-nums">{latest.examined_count}</dd>
                   </div>
 
                   <div>
-                    <dt className="text-muted-foreground">Matched</dt>
-                    <dd className="font-bold text-ink">{latest.found_count}</dd>
+                    <dt className="text-muted-foreground">Matching job titles</dt>
+                    <dd className="font-bold text-ink tabular-nums">{latest.found_count}</dd>
                   </div>
 
                   <div>
-                    <dt className="text-muted-foreground">Imported</dt>
-                    <dd className="font-bold text-ink">{latest.imported_count}</dd>
+                    <dt className="text-muted-foreground">Added to the library</dt>
+                    <dd className="font-bold text-ink tabular-nums">{latest.imported_count}</dd>
                   </div>
 
                   <div>
                     <dt className="text-muted-foreground">Skipped</dt>
-                    <dd className="font-bold text-ink">{latest.skipped_count}</dd>
+                    <dd className="font-bold text-ink tabular-nums">{latest.skipped_count}</dd>
                   </div>
                 </dl>
+
+                {latest.documents_failed > 0 && (
+                  <Alert variant="warning">
+                    <AlertDescription>
+                      {latest.documents_failed}{' '}
+                      {latest.documents_failed === 1 ? 'advert' : 'adverts'} could not be processed
+                      and will not be used.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
                 {latest.error_message && (
                   <Alert variant="destructive">

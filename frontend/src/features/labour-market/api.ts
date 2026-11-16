@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPatch, apiPost } from '@/lib/api'
 import type { HarvestProfile, HarvestRun, HarvestState } from '@/types/api'
 
+import { isHarvestActive } from './labels'
+
 export const harvestQueryKey = ['labour-market'] as const
 
 export function useHarvestState(programmeId: number | null) {
@@ -10,7 +12,8 @@ export function useHarvestState(programmeId: number | null) {
     enabled: Boolean(programmeId),
     queryKey: [...harvestQueryKey, programmeId],
     queryFn: () => apiGet<HarvestState>(`/harvest/programmes/${programmeId}`),
-    refetchInterval: 3000,
+    // Poll only while a collection is running or its adverts are still being prepared.
+    refetchInterval: (query) => (isHarvestActive(query.state.data?.latest_run) ? 3000 : false),
   })
 }
 
