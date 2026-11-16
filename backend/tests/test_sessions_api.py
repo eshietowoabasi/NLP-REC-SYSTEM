@@ -312,17 +312,19 @@ def test_themes_matching_the_nuc_core_are_flagged_as_duplicates(
 # ------------------------------------------------------------------ failures/retry
 
 
-def test_too_little_text_fails_at_the_themes_stage(planner: ApiClient, admin: ApiClient) -> None:
+def test_too_little_text_is_refused_before_the_session_starts(
+    planner: ApiClient, admin: ApiClient
+) -> None:
     upload_core(admin)
     tiny = upload_text(planner, "tiny.txt", document_text("cloud", 6, seed=1))
 
-    session_id = create(planner, [tiny], run=True).get_json()["data"]["id"]
+    response = create(planner, [tiny], run=True)
 
-    detail = planner.get(f"/api/sessions/{session_id}").get_json()["data"]
-    assert detail["status"] == "failed"
-    assert detail["current_stage"] == "themes"
-    assert "Too little text to discover themes" in detail["error_message"]
-    assert detail["recommendation_count"] == 0
+    assert response.status_code == 422
+    error = response.get_json()["error"]
+    assert error["code"] == "INSUFFICIENT_EVIDENCE"
+    assert error["details"]["passage_count"] < error["details"]["minimum_passages"]
+    assert db.session.query(AnalysisSession).count() == 0
 
 
 def test_unexpected_errors_are_reported_generically(
