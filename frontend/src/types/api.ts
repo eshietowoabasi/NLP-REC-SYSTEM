@@ -74,6 +74,8 @@ export interface User {
   is_active: boolean
   created_at: string
   last_login_at: string | null
+  /** Programmes a planner or viewer works on; [] for admins, who see every programme. */
+  programmes: ProgrammeRef[]
 }
 
 export interface CsrfTokenResponse {
@@ -104,6 +106,8 @@ export interface CreateUserRequest {
   full_name: string
   role: UserRole
   password: string
+  /** Ignored for admins, who see every programme. */
+  programme_ids?: number[]
 }
 
 /** PATCH /api/admin/users/{id} — only supplied fields change. */
@@ -113,6 +117,7 @@ export interface UpdateUserRequest {
   role?: UserRole
   is_active?: boolean
   new_password?: string
+  programme_ids?: number[]
 }
 
 /* ------------------------------------------------------------- documents */

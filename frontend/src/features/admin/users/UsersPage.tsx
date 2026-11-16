@@ -205,6 +205,7 @@ export function UsersPage() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Programmes</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Last sign-in</TableHead>
                 <TableHead className="w-12">
@@ -216,14 +217,14 @@ export function UsersPage() {
               {users.isPending ? (
                 Array.from({ length: 4 }, (_, index) => (
                   <TableRow key={index} aria-hidden="true">
-                    <TableCell colSpan={6}>
+                    <TableCell colSpan={7}>
                       <Skeleton className="h-6 w-full" />
                     </TableCell>
                   </TableRow>
                 ))
               ) : users.data.items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                     {filtersActive ? 'No users match these filters.' : 'No users yet.'}
                   </TableCell>
                 </TableRow>
@@ -298,6 +299,15 @@ function UserRow({ user, isSelf, onEdit, onResetPassword, onToggleActive }: User
       <TableCell className="text-[13px] break-all text-body">{user.email}</TableCell>
       <TableCell>
         <Badge variant={ROLE_BADGES[user.role]}>{ROLE_LABELS[user.role]}</Badge>
+      </TableCell>
+      <TableCell className="text-[13px] text-body">
+        {user.role === 'admin' ? (
+          <span className="text-muted-ink">All programmes</span>
+        ) : user.programmes.length === 0 ? (
+          <span className="text-destructive">None yet</span>
+        ) : (
+          user.programmes.map((programme) => programme.discipline_code ?? programme.name).join(', ')
+        )}
       </TableCell>
       <TableCell>
         {user.is_active ? (
