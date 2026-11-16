@@ -36,6 +36,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useAuth } from '@/features/auth/useAuth'
+import { useProgrammes } from '@/features/programmes/api'
+import { ProgrammeSelect } from '@/features/programmes/ProgrammeSelect'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { formatDate } from '@/lib/format'
 import type { DocumentStatus, DocumentSummary, UploadCategory } from '@/types/api'
@@ -66,6 +68,8 @@ const STATUS_FILTERS: StatusFilter[] = [
 
 export function DocumentsPage() {
   const { canEdit } = useAuth()
+  const programmes = useProgrammes()
+  const [programmeId, setProgrammeId] = useState<number | null>(null)
   const [category, setCategory] = useState<UploadCategory | null>(null)
   const [status, setStatus] = useState<StatusFilter>('active')
   const [search, setSearch] = useState('')
@@ -80,11 +84,13 @@ export function DocumentsPage() {
     category: category ?? undefined,
     status: status === 'active' ? undefined : status,
     search: debouncedSearch || undefined,
+    programme_id: programmeId ?? undefined,
   })
 
   const counts = documents.data?.category_counts
   const total = counts ? Object.values(counts).reduce((sum, n) => sum + n, 0) : 0
-  const filtersActive = category !== null || status !== 'active' || debouncedSearch !== ''
+  const filtersActive =
+    category !== null || status !== 'active' || debouncedSearch !== '' || programmeId !== null
   const libraryEmpty = !filtersActive && documents.data?.pagination.total === 0
 
   const chooseCategory = (next: UploadCategory | null) => {
@@ -145,6 +151,20 @@ export function DocumentsPage() {
           </div>
         </div>
         <div className="grid gap-1.5">
+          <Label htmlFor="document-programme">Programme</Label>
+          <ProgrammeSelect
+            id="document-programme"
+            className="w-56"
+            programmes={programmes.data ?? []}
+            value={programmeId}
+            onChange={(value) => {
+              setProgrammeId(value)
+              setPage(1)
+            }}
+            noneLabel="All programmes"
+          />
+        </div>
+        <div className="grid gap-1.5">
           <Label htmlFor="document-status">Status</Label>
           <Select
             value={status}
@@ -186,6 +206,7 @@ export function DocumentsPage() {
               <TableRow>
                 <TableHead>Document</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Programme</TableHead>
                 <TableHead>Uploaded by</TableHead>
                 <TableHead>Added</TableHead>
                 <TableHead>Status</TableHead>
@@ -198,14 +219,14 @@ export function DocumentsPage() {
               {documents.isPending ? (
                 Array.from({ length: 5 }, (_, index) => (
                   <TableRow key={index} aria-hidden="true">
-                    <TableCell colSpan={6}>
+                    <TableCell colSpan={7}>
                       <Skeleton className="h-6 w-full" />
                     </TableCell>
                   </TableRow>
                 ))
               ) : documents.data.items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-10 text-center text-muted-ink">
+                  <TableCell colSpan={7} className="py-10 text-center text-muted-ink">
                     No documents match these filters.
                   </TableCell>
                 </TableRow>
@@ -232,7 +253,11 @@ export function DocumentsPage() {
         />
       )}
 
-      <UploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />
+      <UploadDialog
+        open={uploadOpen}
+        onOpenChange={setUploadOpen}
+        defaultProgrammeId={programmeId}
+      />
       <DocumentActionDialogs action={action} onClose={() => setAction(null)} />
     </div>
   )
@@ -297,6 +322,13 @@ function DocumentRow({
         <Badge variant={CATEGORY_BADGES[document.source_category]}>
           {documentType(document.source_category)}
         </Badge>
+      </TableCell>
+      <TableCell className="text-[13px] text-body">
+        {document.programme ? (
+          document.programme.name
+        ) : (
+          <span className="text-muted-ink">All programmes</span>
+        )}
       </TableCell>
       <TableCell className="text-[13px] text-body">{document.uploaded_by.full_name}</TableCell>
       <TableCell className="text-[13px] whitespace-nowrap text-body">

@@ -94,6 +94,7 @@ function DocumentDetailView({ document }: { document: DocumentDetail }) {
         'Not given'
       ),
     ],
+    ['Programme', document.programme?.name ?? 'All programmes (general document)'],
     ['Published', formatDate(document.published_on, 'Not given')],
     ['Type', document.file_type.toUpperCase()],
     ['Size', formatBytes(document.file_size)],

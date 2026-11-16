@@ -135,6 +135,15 @@ export interface ProgrammeRef {
   discipline_code: string | null
 }
 
+/** PATCH /api/programmes/{id}: any subset; is_active false retires the programme. */
+export interface ProgrammeUpdate {
+  name?: string
+  discipline_code?: string | null
+  faculty?: string | null
+  description?: string | null
+  is_active?: boolean
+}
+
 export interface Programme extends ProgrammeRef {
   faculty: string | null
   description: string | null
@@ -164,6 +173,8 @@ export interface DocumentSummary {
   uploaded_at: string
   parsed_at: string | null
   uploaded_by: UserRef
+  /** null: a general document that any programme's analyses may use. */
+  programme: ProgrammeRef | null
 }
 
 /** PATCH /api/documents/{id}: any subset. */
@@ -172,6 +183,8 @@ export interface DocumentEditRequest {
   source?: string | null
   source_url?: string | null
   published_on?: string | null
+  /** null makes the document general (usable by every programme). */
+  programme_id?: number | null
 }
 
 export interface PassageSummary {
@@ -207,6 +220,9 @@ export interface DocumentListParams {
   category?: SourceCategory
   status?: DocumentStatus
   search?: string
+  /** That programme's documents, plus general ones unless include_general is false. */
+  programme_id?: number
+  include_general?: boolean
 }
 
 export interface RejectedFile {

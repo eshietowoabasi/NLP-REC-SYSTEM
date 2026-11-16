@@ -105,4 +105,37 @@ describe('UploadDialog', () => {
     const categories = posts.map((post) => (post.body as FormData).get('categories'))
     expect(categories).toEqual(['policy', 'academic'])
   })
+
+  it('sends files to the chosen programme, or as general documents', async () => {
+    const nursing = { id: 2, name: 'Synthetic Nursing Science', discipline_code: 'NSC' }
+    const server = mockApi({
+      'GET /auth/me': ok(plannerUser),
+      'GET /health': ok(healthyStatus),
+      'GET /documents': ok(emptyLibrary),
+      'GET /programmes': ok([nursing]),
+      'POST /documents': ok({ accepted: [makeDocument()], rejected: [] }, 201),
+    })
+    const { user, dialog } = await openDialog()
+
+    // The library shows all programmes, so new files start as general documents.
+    expect(within(dialog).getByLabelText('Programme')).toHaveTextContent(
+      'All programmes (general document)',
+    )
+    await user.upload(within(dialog).getByLabelText('Files to upload'), file('policy.pdf'))
+    await chooseCategory(user, 'policy.pdf', 'Policy documents')
+    await user.click(within(dialog).getByRole('button', { name: 'Upload 1 file' }))
+    await within(dialog).findByText('Uploaded; processing has started.')
+
+    await user.click(within(dialog).getByLabelText('Programme'))
+    await user.click(await screen.findByRole('option', { name: 'Synthetic Nursing Science (NSC)' }))
+    await user.upload(within(dialog).getByLabelText('Files to upload'), file('nurse.pdf'))
+    await chooseCategory(user, 'nurse.pdf', 'Job adverts')
+    await user.click(within(dialog).getByRole('button', { name: 'Upload 1 file' }))
+
+    await waitFor(() => expect(server.calls('POST', '/documents')).toHaveLength(2))
+    const programmeIds = server
+      .calls('POST', '/documents')
+      .map((post) => (post.body as FormData).get('programme_id'))
+    expect(programmeIds).toEqual([null, '2'])
+  })
 })

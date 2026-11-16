@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -17,6 +17,8 @@ import {
 } from '@/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { useProgrammes } from '@/features/programmes/api'
+import { ProgrammeSelect } from '@/features/programmes/ProgrammeSelect'
 import { applyServerErrors } from '@/lib/forms'
 import type { DocumentSummary } from '@/types/api'
 
@@ -33,10 +35,12 @@ const schema = z.object({
       message: 'Enter a web address starting with http:// or https://.',
     }),
   published_on: z.string(),
+  // null: a general document, usable by every programme's analyses.
+  programme_id: z.number().int().nullable(),
 })
 type Values = z.infer<typeof schema>
 
-/** Title, source, original link and date: what readers see wherever the document is quoted. */
+/** Title, source, link and date (shown wherever the document is quoted) and its programme. */
 export function EditDocumentDialog({
   document,
   open,
@@ -57,9 +61,13 @@ export function EditDocumentDialog({
 
 function EditForm({ document, onDone }: { document: DocumentSummary; onDone: () => void }) {
   const edit = useEditDocument(document.id)
+  const programmes = useProgrammes()
+  // A NUC core document always belongs to its benchmark's programme.
+  const canMove = document.source_category !== 'nuc_core'
   const [formError, setFormError] = useState<string | null>(null)
   const {
     register,
+    control,
     handleSubmit,
     setError,
     formState: { errors, isDirty },
@@ -70,6 +78,7 @@ function EditForm({ document, onDone }: { document: DocumentSummary; onDone: () 
       source: document.source ?? '',
       source_url: document.source_url ?? '',
       published_on: document.published_on ?? '',
+      programme_id: document.programme?.id ?? null,
     },
   })
 
@@ -81,6 +90,7 @@ function EditForm({ document, onDone }: { document: DocumentSummary; onDone: () 
         source: values.source || null,
         source_url: values.source_url || null,
         published_on: values.published_on || null,
+        ...(canMove ? { programme_id: values.programme_id } : {}),
       },
       {
         onSuccess: () => {
@@ -89,7 +99,13 @@ function EditForm({ document, onDone }: { document: DocumentSummary; onDone: () 
         },
         onError: (error) =>
           setFormError(
-            applyServerErrors(error, setError, ['title', 'source', 'source_url', 'published_on']),
+            applyServerErrors(error, setError, [
+              'title',
+              'source',
+              'source_url',
+              'published_on',
+              'programme_id',
+            ]),
           ),
       },
     )
@@ -148,6 +164,29 @@ function EditForm({ document, onDone }: { document: DocumentSummary; onDone: () 
           />
           <FieldError errors={[errors.published_on]} />
         </Field>
+        {canMove && (
+          <Field data-invalid={!!errors.programme_id}>
+            <FieldLabel htmlFor="document-programme-edit">Programme</FieldLabel>
+            <Controller
+              control={control}
+              name="programme_id"
+              render={({ field }) => (
+                <ProgrammeSelect
+                  id="document-programme-edit"
+                  programmes={programmes.data ?? []}
+                  value={field.value}
+                  onChange={field.onChange}
+                  noneLabel="All programmes (general document)"
+                />
+              )}
+            />
+            <FieldDescription>
+              Only analyses for this programme can use the document. Analyses already created keep
+              it.
+            </FieldDescription>
+            <FieldError errors={[errors.programme_id]} />
+          </Field>
+        )}
       </FieldGroup>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onDone}>

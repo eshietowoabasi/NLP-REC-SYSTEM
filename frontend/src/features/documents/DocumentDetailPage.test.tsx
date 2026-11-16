@@ -93,6 +93,7 @@ describe('DocumentDetailPage', () => {
       source: 'MyJobMag',
       source_url: null,
       published_on: '2026-09-18',
+      programme_id: 1,
     })
   })
 
