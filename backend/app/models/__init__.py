@@ -17,13 +17,14 @@ from app.models.enums import (
     UserRole,
 )
 from app.models.harvest import JobHarvestRun
-from app.models.programme import Programme
+from app.models.programme import Programme, programme_members
 from app.models.recommendation import CurriculumMap, Recommendation, RecommendationEvidence
 from app.models.report import Report
 from app.models.session import AnalysisSession, DocumentSession, NLPResult
 from app.models.user import User
 
 __all__ = [
+    "programme_members",
     "AnalysisSession",
     "AuditLog",
     "CurriculumMap",

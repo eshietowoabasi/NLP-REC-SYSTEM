@@ -80,6 +80,13 @@ return:
   sessions.
 - Access is enforced on the server for every route. The *Access* line of each endpoint below
   lists the roles allowed: **public**, **any** (any signed-in user), or specific roles.
+- **Programme access** (`app/access.py`): admins reach every programme. Planners and viewers
+  reach only the programmes assigned to them (`programmes` on the User object); their role
+  still decides what they may do there. Sessions, topics, courses, reports, harvests,
+  benchmarks and documents of other programmes answer **404**, as if they did not exist, and
+  lists leave them out. General documents (no programme) are visible to everyone; a
+  document's page only names sessions the user may see. Sessions created before programmes
+  existed count as the default programme's.
 
 ### User object
 
@@ -92,11 +99,13 @@ return:
   "role": "planner",
   "is_active": true,
   "created_at": "2026-09-24T09:00:00+00:00",
-  "last_login_at": "2026-09-24T10:15:00+00:00"
+  "last_login_at": "2026-09-24T10:15:00+00:00",
+  "programmes": [{ "id": 2, "name": "Nursing Science", "discipline_code": "NSC" }]
 }
 ```
 
-`role` is one of `admin`, `planner`, `viewer`. Password hashes and session tokens are never
+`role` is one of `admin`, `planner`, `viewer`. `programmes` lists the programmes a planner or
+viewer works on (always `[]` for admins, who see every programme). Password hashes and session tokens are never
 returned.
 
 ---
@@ -215,9 +224,13 @@ Access: admin. Creates a user.
   "email": "ada@example.com",
   "full_name": "Ada Lovelace",
   "role": "planner",
-  "password": "initial password, 8+ characters"
+  "password": "initial password, 8+ characters",
+  "programme_ids": [2]
 }
 ```
+
+`programme_ids` (optional, ignored for admins) gives a planner or viewer their programmes; an
+unknown id is a `422` on `programme_ids`.
 
 Usernames are 3–64 characters (letters, digits, `.`, `_`, `-`). Usernames and emails are stored
 in lowercase.
@@ -235,9 +248,13 @@ Access: admin. Changes only the fields supplied:
   "email": "new@example.com",
   "role": "viewer",
   "is_active": false,
-  "new_password": "reset to this password"
+  "new_password": "reset to this password",
+  "programme_ids": [1, 2]
 }
 ```
+
+- `programme_ids` replaces the user's programmes (audited as `user.programmes_changed`).
+  Making a user an admin clears them: admins see every programme.
 
 - Deactivating a user or resetting their password ends all their sessions.
 - Admins cannot change their own role or deactivate themselves (`422 SELF_MODIFICATION`), so
@@ -474,12 +491,14 @@ Access: any. `{ "programme": { "id", "name", "discipline_code" }, "profile": { "
 Run object: `{ "id", "programme_id", "status" (queued|running|completed|failed), "phase",
 "target_count", "pages_per_field", "examined_count", "found_count", "imported_count",
 "skipped_count", "documents_ready", "documents_processing", "documents_failed",
+"ready_document_ids",
 "error_message", "created_at", "started_at", "completed_at" }`.
 
 `status` is the collection itself. `phase` is what users see: `queued` → `collecting` →
 `preparing` (collection finished, some imported adverts are still being processed) → `ready`;
 or `failed`. The `documents_*` counts are the run's imported adverts by processing state; only
-ready ones can be picked for a session.
+ready ones can be picked for a session; `ready_document_ids` lists them (oldest first) so New
+analysis can tick them for the planner.
 
 Before a programme's state is returned or a run is started, queued/running runs whose background
 job has ended or disappeared, or that have been going for over 20 minutes, are marked `failed`
@@ -492,8 +511,10 @@ slugs) }`. **200** with the saved profile.
 
 ### `POST /api/harvest/programmes/{id}/runs`
 
-Access: admin. JSON `{ "target_count" (1–30, default 10), "pages_per_field" (1–5, default 2) }`.
-**202** with the queued run. **422** if the profile has no search terms or fields; **409** if a
+Access: admin, planner (planners start collections from New analysis; only admins change the
+profile). JSON `{ "target_count" (1–30, default 10), "pages_per_field" (1–5, default 2) }`.
+**202** with the queued run. **422** if the profile has no search terms or fields (the message
+asks the user to get an admin to set it up); **409** if a
 run for this programme is already queued or running. Clients poll `GET
 /api/harvest/programmes/{id}` while the latest run's `phase` is `queued`, `collecting` or
 `preparing`. Starting a run and changing the profile are audited (`harvest.started`,
@@ -545,12 +566,17 @@ The detail adds:
 
 ### `GET /api/sessions`
 
-Access: any. Paginated, newest first. Filters: `status`, `search` (name).
+Access: any. Sessions of the user's programmes, paginated, newest first. Filters: `status`,
+`search` (name), `programme_id`.
 
 ### `GET /api/sessions/defaults`
 
 Access: any. Values for the New Session form:
-`{ "parameters": {...parameter_config defaults}, "max_documents": 50, "nuc_core_version": {...} | null }`.
+`{ "parameters": {...parameter_config defaults}, "max_documents": 50, "default_programme_id",
+"programmes": [{ "id", "name", "discipline_code" }], "nuc_core_version": {...} | null }`.
+`programmes` are the user's; `default_programme_id` is the default programme if the user may
+use it, else their first programme (null if they have none, in which case creating a session
+is a 422 asking them to get an admin to add them to a programme).
 
 ### `POST /api/sessions`
 
@@ -833,7 +859,8 @@ while it is queued or being generated. Deleting a session also deletes its repor
 
 ### `GET /api/dashboard/summary`
 
-Access: any.
+Access: any. Counts cover the user's programmes; `?programme_id=` narrows them to one of those
+(its documents plus general ones).
 
 ```json
 {

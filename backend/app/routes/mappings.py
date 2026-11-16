@@ -8,10 +8,11 @@ from flask import Blueprint, Response
 from flask_login import current_user
 from sqlalchemy import select
 
+from app.access import can_see_session, get_visible_session
 from app.audit import AuditAction, record_audit
 from app.auth.decorators import EDITOR_ROLES, login_required, role_required
 from app.extensions import db
-from app.models import AnalysisSession, CurriculumMap, PlannerDecision, Recommendation
+from app.models import CurriculumMap, PlannerDecision, Recommendation
 from app.routes.recommendations import get_recommendation_or_404
 from app.schemas.review import MappingIn, MappingOut, RecommendationRef
 from app.settings import get_setting
@@ -46,7 +47,7 @@ def check_code_unique(session_id: int, course_code: str, exclude_id: int | None 
 
 def get_mapping_or_404(mapping_id: int) -> CurriculumMap:
     mapping = db.session.get(CurriculumMap, mapping_id)
-    if mapping is None:
+    if mapping is None or not can_see_session(mapping.recommendation.session_id):
         raise ApiError("NOT_FOUND", "Course mapping not found.", 404)
     return mapping
 
@@ -143,9 +144,7 @@ def delete_mapping(mapping_id: int) -> tuple[Response, int]:
 @login_required
 def proposed_curriculum(session_id: int) -> tuple[Response, int]:
     """Every proposed course of a session, the total credit units and the allowance."""
-    session = db.session.get(AnalysisSession, session_id)
-    if session is None:
-        raise ApiError("NOT_FOUND", "Analysis session not found.", 404)
+    session = get_visible_session(session_id)
     rows = db.session.execute(
         select(CurriculumMap, Recommendation)
         .join(Recommendation, Recommendation.id == CurriculumMap.recommendation_id)

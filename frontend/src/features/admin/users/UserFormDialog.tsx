@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
-import { Controller, useForm, useWatch } from 'react-hook-form'
+import { Controller, useForm, useWatch, type Control } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -30,12 +30,15 @@ import { ROLE_DESCRIPTIONS, ROLE_LABELS, ROLES } from '@/lib/roles'
 import type { User, UserRole } from '@/types/api'
 
 import { useCreateUser, useUpdateUser } from './api'
+import { ProgrammePicker } from './ProgrammePicker'
 
 const roleSchema = z.enum(['admin', 'planner', 'viewer'])
 const detailsSchema = z.object({
   full_name: z.string().trim().min(1, 'Enter the full name.').max(128),
   email: z.email('Enter a valid email address.').trim(),
   role: roleSchema,
+  // Planners and viewers only reach these programmes; admins see every programme.
+  programme_ids: z.array(z.number().int()),
 })
 const createSchema = detailsSchema.extend({
   username: z
@@ -112,7 +115,14 @@ function CreateUserForm({ onDone }: { onDone: () => void }) {
     formState: { errors },
   } = useForm<CreateValues>({
     resolver: zodResolver(createSchema),
-    defaultValues: { username: '', email: '', full_name: '', role: 'planner', password: '' },
+    defaultValues: {
+      username: '',
+      email: '',
+      full_name: '',
+      role: 'planner',
+      password: '',
+      programme_ids: [],
+    },
   })
   const role = useWatch({ control, name: 'role' })
 
@@ -131,6 +141,7 @@ function CreateUserForm({ onDone }: { onDone: () => void }) {
             'full_name',
             'role',
             'password',
+            'programme_ids',
           ]),
         ),
     })
@@ -182,6 +193,12 @@ function CreateUserForm({ onDone }: { onDone: () => void }) {
           <FieldDescription>{ROLE_DESCRIPTIONS[role]}</FieldDescription>
           <FieldError errors={[errors.role]} />
         </Field>
+        <ProgrammesField
+          control={control}
+          role={role}
+          id="programmes"
+          error={errors.programme_ids}
+        />
         <Field data-invalid={!!errors.password}>
           <FieldLabel htmlFor="password">Initial password</FieldLabel>
           <Input
@@ -229,7 +246,12 @@ function EditUserForm({
     formState: { errors, isDirty, dirtyFields },
   } = useForm<EditValues>({
     resolver: zodResolver(detailsSchema),
-    defaultValues: { full_name: user.full_name, email: user.email, role: user.role },
+    defaultValues: {
+      full_name: user.full_name,
+      email: user.email,
+      role: user.role,
+      programme_ids: user.programmes.map((programme) => programme.id),
+    },
   })
   const role = useWatch({ control, name: 'role' })
 
@@ -247,7 +269,9 @@ function EditUserForm({
           onDone()
         },
         onError: (error) =>
-          setFormError(applyServerErrors(error, setError, ['full_name', 'email', 'role'])),
+          setFormError(
+            applyServerErrors(error, setError, ['full_name', 'email', 'role', 'programme_ids']),
+          ),
       },
     )
   })
@@ -256,7 +280,7 @@ function EditUserForm({
     <form onSubmit={onSubmit} noValidate>
       <DialogHeader>
         <DialogTitle>Edit {user.username}</DialogTitle>
-        <DialogDescription>Change the user&apos;s details or role.</DialogDescription>
+        <DialogDescription>Change the user&apos;s details, role or programmes.</DialogDescription>
       </DialogHeader>
       <FieldGroup className="py-4">
         {formError && (
@@ -298,6 +322,12 @@ function EditUserForm({
           </FieldDescription>
           <FieldError errors={[errors.role]} />
         </Field>
+        <ProgrammesField
+          control={control}
+          role={role}
+          id="edit_programmes"
+          error={errors.programme_ids}
+        />
       </FieldGroup>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onDone}>
@@ -309,5 +339,47 @@ function EditUserForm({
         </Button>
       </DialogFooter>
     </form>
+  )
+}
+
+/** Programme ticks for planners and viewers; admins see every programme. */
+function ProgrammesField({
+  control,
+  role,
+  id,
+  error,
+}: {
+  // Both forms share the programme_ids field.
+  control: Control<EditValues> | Control<CreateValues>
+  role: UserRole
+  id: string
+  error?: { message?: string }
+}) {
+  if (role === 'admin') {
+    return (
+      <Field>
+        <FieldLabel>Programmes</FieldLabel>
+        <FieldDescription>Admins see and manage every programme.</FieldDescription>
+      </Field>
+    )
+  }
+  return (
+    <Field data-invalid={!!error}>
+      <FieldLabel htmlFor={id}>Programmes</FieldLabel>
+      <Controller
+        control={control as Control<EditValues>}
+        name="programme_ids"
+        render={({ field }) => (
+          <ProgrammePicker id={id} value={field.value} onChange={field.onChange} />
+        )}
+      />
+      <FieldDescription>
+        {role === 'planner'
+          ? 'The programmes this planner can run reviews for.'
+          : 'The programmes this viewer can read.'}{' '}
+        They see general documents too.
+      </FieldDescription>
+      <FieldError errors={[error]} />
+    </Field>
   )
 }

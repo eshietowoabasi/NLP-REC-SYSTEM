@@ -8,6 +8,13 @@ import type {
   User,
 } from '@/types/api'
 
+/** The default programme in synthetic fixtures. */
+export const syntheticComputing: ProgrammeRef = {
+  id: 1,
+  name: 'Synthetic Computer Science',
+  discipline_code: 'CSC',
+}
+
 export function makeUser(overrides: Partial<User> = {}): User {
   return {
     id: 1,
@@ -18,6 +25,8 @@ export function makeUser(overrides: Partial<User> = {}): User {
     is_active: true,
     created_at: '2026-01-15T09:00:00Z',
     last_login_at: '2026-09-20T08:30:00Z',
+    // Admins see every programme; planners and viewers get the synthetic default below.
+    programmes: overrides.role && overrides.role !== 'admin' ? [syntheticComputing] : [],
     ...overrides,
   }
 }
@@ -37,13 +46,6 @@ export const viewerUser = makeUser({
   full_name: 'Test Viewer',
   role: 'viewer',
 })
-
-/** The default programme in synthetic fixtures. */
-export const syntheticComputing: ProgrammeRef = {
-  id: 1,
-  name: 'Synthetic Computer Science',
-  discipline_code: 'CSC',
-}
 
 export function makeDocument(overrides: Partial<DocumentSummary> = {}): DocumentSummary {
   return {

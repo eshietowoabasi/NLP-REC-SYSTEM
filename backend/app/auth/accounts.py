@@ -14,6 +14,7 @@ from app.audit import AuditAction, record_audit
 from app.auth.passwords import hash_password, verify_password
 from app.extensions import db
 from app.models.enums import UserRole
+from app.models.programme import Programme
 from app.models.user import User
 from app.schemas.users import UserCreate, UserUpdate
 from app.utils.errors import ApiError
@@ -101,6 +102,35 @@ def _ensure_unique(username: str | None, email: str | None, exclude_id: int | No
         )
 
 
+def _programmes(programme_ids: list[int]) -> list[Programme]:
+    """The programmes with these ids (duplicates ignored), or 422 on ``programme_ids``."""
+    wanted = set(programme_ids)
+    found = list(db.session.scalars(select(Programme).where(Programme.id.in_(wanted))))
+    if len(found) != len(wanted):
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "Some fields are invalid.",
+            422,
+            {"fields": {"programme_ids": ["Choose existing programmes."]}},
+        )
+    return sorted(found, key=lambda programme: programme.name)
+
+
+def _set_programmes(user: User, programme_ids: list[int]) -> None:
+    """Replace the user's programmes, auditing the change. Admins keep none (they see all)."""
+    new = [] if user.role == UserRole.ADMIN else _programmes(programme_ids)
+    before = sorted(programme.id for programme in user.programmes)
+    after = sorted(programme.id for programme in new)
+    if before != after:
+        user.programmes = new
+        record_audit(
+            AuditAction.USER_PROGRAMMES_CHANGED,
+            "user",
+            user.id,
+            {"from": before, "to": after},
+        )
+
+
 def create_user(data: UserCreate) -> User:
     """Create a user (admin action)."""
     _ensure_unique(data.username, data.email)
@@ -119,6 +149,7 @@ def create_user(data: UserCreate) -> User:
         user.id,
         {"username": user.username, "role": user.role.value},
     )
+    _set_programmes(user, data.programme_ids)
     return user
 
 
@@ -167,5 +198,10 @@ def update_user(actor: User, user: User, data: UserUpdate) -> User:
         user.password_hash = hash_password(data.new_password)
         user.rotate_session_token()
         record_audit(AuditAction.USER_PASSWORD_RESET, "user", user.id)
+
+    if data.programme_ids is not None or user.role == UserRole.ADMIN:
+        # Becoming an admin clears the list: admins see every programme.
+        current = [programme.id for programme in user.programmes]
+        _set_programmes(user, data.programme_ids if data.programme_ids is not None else current)
 
     return user

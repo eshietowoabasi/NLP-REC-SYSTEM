@@ -15,6 +15,11 @@ from flask_login import current_user
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from app.access import (
+    can_see_session,
+    get_visible_session,
+    session_condition,
+)
 from app.audit import AuditAction, record_audit
 from app.auth.decorators import EDITOR_ROLES, login_required, role_required
 from app.extensions import db
@@ -56,7 +61,7 @@ def report_json(report: Report) -> dict[str, Any]:
 
 def get_report_or_404(report_id: int) -> Report:
     report = db.session.get(Report, report_id)
-    if report is None:
+    if report is None or not can_see_session(report.session_id):
         raise ApiError("NOT_FOUND", "Report not found.", 404)
     return report
 
@@ -75,9 +80,7 @@ def download_name(report: Report) -> str:
 @role_required(*EDITOR_ROLES)
 def create_report(session_id: int) -> tuple[Response, int]:
     """Queue a report of a completed session (202 Accepted; poll the report for its status)."""
-    session = db.session.get(AnalysisSession, session_id)
-    if session is None:
-        raise ApiError("NOT_FOUND", "Analysis session not found.", 404)
+    session = get_visible_session(session_id)
     if session.status != SessionStatus.COMPLETED:
         raise ApiError(
             "RESULTS_NOT_READY", "Reports can only be generated for completed sessions.", 409
@@ -106,10 +109,13 @@ def create_report(session_id: int) -> tuple[Response, int]:
 @bp.get("/reports")
 @login_required
 def list_reports() -> tuple[Response, int]:
-    """Reports, newest first. Filters: ``session_id``, ``status``, ``format``."""
+    """Reports of the user's programmes, newest first. Filters: ``session_id``, ``status``,
+    ``format``."""
     params = parse_query(ReportListQuery)
     query = (
         select(Report)
+        .join(AnalysisSession, AnalysisSession.id == Report.session_id)
+        .where(session_condition())
         .options(selectinload(Report.session), selectinload(Report.created_by))
         .order_by(Report.created_at.desc(), Report.id.desc())
     )

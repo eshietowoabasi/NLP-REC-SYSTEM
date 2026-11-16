@@ -7,6 +7,7 @@ from flask_login import current_user
 from pydantic import ValidationError
 from sqlalchemy import func, select
 
+from app.access import programme_condition, require_programme
 from app.audit import AuditAction, record_audit
 from app.auth.decorators import login_required, role_required
 from app.extensions import db
@@ -39,9 +40,11 @@ def version_json(version: NucCoreVersion | None) -> dict | None:
 
 
 def get_programme_or_404(programme_id: int) -> Programme:
+    """The programme, or 404 if it does not exist or is not one of the user's."""
     programme = db.session.get(Programme, programme_id)
     if programme is None:
         raise ApiError("NOT_FOUND", "Programme not found.", 404)
+    require_programme(programme.id)
     return programme
 
 
@@ -73,9 +76,10 @@ def _check_unique(name: str | None, code: str | None, exclude_id: int | None = N
 @bp.get("")
 @login_required
 def list_programmes() -> tuple[Response, int]:
-    """Active programmes by name; admins may add ``include_inactive=true`` to see retired ones."""
+    """The user's active programmes by name (admins: all; ``include_inactive=true`` adds
+    retired ones)."""
     params = parse_query(ProgrammeListQuery)
-    query = select(Programme).order_by(Programme.name)
+    query = select(Programme).where(programme_condition()).order_by(Programme.name)
     if not (params.include_inactive and current_user.role == UserRole.ADMIN):
         query = query.where(Programme.is_active.is_(True))
     return success([programme_json(programme) for programme in db.session.scalars(query)])

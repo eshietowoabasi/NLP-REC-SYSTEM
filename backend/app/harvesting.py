@@ -99,6 +99,8 @@ class RunProgress:
     documents_ready: int
     documents_processing: int
     documents_failed: int
+    # Ready adverts, oldest first, so New analysis can select them for the planner.
+    ready_document_ids: list[int]
 
 
 def run_progress(run: JobHarvestRun) -> RunProgress:
@@ -122,4 +124,14 @@ def run_progress(run: JobHarvestRun) -> RunProgress:
         phase = "failed"
     else:
         phase = "preparing" if processing > 0 else "ready"
-    return RunProgress(phase, ready, processing, failed)
+    ready_ids = list(
+        db.session.scalars(
+            select(Document.id)
+            .where(
+                Document.harvest_run_id == run.id,
+                Document.processing_status == DocumentStatus.READY,
+            )
+            .order_by(Document.id)
+        )
+    )
+    return RunProgress(phase, ready, processing, failed, ready_ids)

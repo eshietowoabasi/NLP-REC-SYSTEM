@@ -20,17 +20,18 @@ def admin(login_as) -> ApiClient:
 
 
 @pytest.fixture
-def planner(login_as) -> ApiClient:
-    return login_as("planner")
-
-
-@pytest.fixture
 def nursing(app) -> Programme:
     default_programme()  # Computer Science stays the default (lowest id)
     programme = Programme(name="Synthetic Nursing Science", discipline_code="NSC")
     db.session.add(programme)
     db.session.commit()
     return programme
+
+
+@pytest.fixture
+def planner(login_as, nursing: Programme) -> ApiClient:
+    """A planner of both Computer Science (the default) and Synthetic Nursing Science."""
+    return login_as("planner", programmes=[default_programme(), nursing])
 
 
 def upload(client: ApiClient, name: str, text: str, programme_id: int | None = None):

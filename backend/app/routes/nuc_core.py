@@ -16,6 +16,7 @@ from flask_login import current_user
 from pydantic import ValidationError
 from sqlalchemy import select
 
+from app.access import require_programme
 from app.audit import AuditAction, record_audit
 from app.auth.decorators import login_required, role_required
 from app.extensions import db
@@ -45,6 +46,7 @@ def version_json(version: NucCoreVersion | None) -> dict | None:
 def current_nuc_core() -> tuple[Response, int]:
     """The active version (null if none) and the most recent upload (may still be processing)."""
     programme_id = default_programme().id
+    require_programme(programme_id, "No NUC core is available to you.")
     active = db.session.scalar(
         select(NucCoreVersion).where(
             NucCoreVersion.programme_id == programme_id, NucCoreVersion.is_active.is_(True)
@@ -63,6 +65,7 @@ def current_nuc_core() -> tuple[Response, int]:
 @login_required
 def list_versions() -> tuple[Response, int]:
     """Every uploaded version, newest first."""
+    require_programme(default_programme().id, "No NUC core is available to you.")
     versions = db.session.scalars(
         select(NucCoreVersion)
         .where(NucCoreVersion.programme_id == default_programme().id)
@@ -79,6 +82,7 @@ def list_courses() -> tuple[Response, int]:
     Courses matching the ``nuc_course_exclusions`` setting are listed but excluded from the
     overlap comparison.
     """
+    require_programme(default_programme().id, "No NUC core is available to you.")
     active = db.session.scalar(
         select(NucCoreVersion).where(
             NucCoreVersion.programme_id == default_programme().id,

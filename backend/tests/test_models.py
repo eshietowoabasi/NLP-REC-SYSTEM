@@ -128,8 +128,8 @@ def test_scores_must_be_between_0_and_1(owner: User) -> None:
 
 
 def test_only_one_nuc_core_version_per_programme_can_be_active(owner: User) -> None:
-    computing = Programme(name="Computer Science", discipline_code="CSC")
-    nursing = Programme(name="Nursing Science", discipline_code="NSC")
+    computing = Programme(name="Synthetic Computing", discipline_code="SYC")
+    nursing = Programme(name="Synthetic Nursing", discipline_code="SYN")
     db.session.add_all([computing, nursing])
     db.session.flush()
     first = make_document(owner, "nuc1", source_category="nuc_core")

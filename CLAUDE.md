@@ -6,7 +6,7 @@ institutional and academic documents; an NLP pipeline proposes candidate course 
 university-designed **30%** of the NUC CCMAS curriculum, scored against the fixed NUC **70%** core.
 Humans accept/reject/flag; the system never changes the curriculum itself.
 
-Scope: CS, Software Engineering, Cybersecurity, IT. English only. PDF/DOCX/TXT. Corpus 2020–2026.
+Scope: any NUC CCMAS programme (each with its own NUC core, job search and planners). English only. PDF/DOCX/TXT. Corpus 2020–2026.
 Web only (Chrome, Firefox, Edge). Pre-trained models only.
 
 ## Working rules
@@ -82,7 +82,11 @@ Web only (Chrome, Firefox, Edge). Pre-trained models only.
 `admin` (everything incl. NUC core, users, settings, skill patterns, stop words, audit log),
 `planner` (upload/archive, sessions, decisions, title edits, mapping, reports), `viewer`
 (read-only). Enforced **server-side on every route** (`@role_required(...)`); frontend hiding is
-cosmetic.
+cosmetic. **Programme access** (`app/access.py`): admins reach every programme; planners and
+viewers only their assigned programmes (`User.programmes`). Load records with
+`get_visible_session` / `get_visible_document` / `require_programme` and filter lists with
+`session_condition()` / `document_condition()` / `programme_condition()`; out-of-scope records
+are 404. Test users from `make_user` get the default programme unless `programmes=[...]`.
 
 ## API conventions
 

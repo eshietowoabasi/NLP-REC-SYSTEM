@@ -81,8 +81,39 @@ describe('UsersPage', () => {
       email: 'new.planner@example.com',
       role: 'planner',
       password: 'Initial-pass-1',
+      programme_ids: [],
     })
     expect(await screen.findByText('User new.planner created.')).toBeInTheDocument()
+  })
+
+  it('gives planners and viewers their programmes; admins see all', async () => {
+    const nursing = { id: 2, name: 'Synthetic Nursing Science', discipline_code: 'NSC' }
+    const server = usersApi({
+      'GET /programmes': ok([
+        {
+          ...nursing,
+          faculty: null,
+          description: null,
+          country: 'Nigeria',
+          is_active: true,
+          created_at: '2026-11-01T09:00:00Z',
+        },
+      ]),
+      'PATCH /admin/users/:id': (_request, params) =>
+        ok({ ...viewerUser, id: Number(params.id), programmes: [nursing] }),
+    })
+    const { user } = renderApp('/admin/users')
+
+    const table = await screen.findByRole('table')
+    expect(await within(table).findByText('All programmes')).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'Actions for test.viewer' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit details' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(await within(dialog).findByLabelText('Synthetic Nursing Science (NSC)'))
+    await user.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+
+    await waitFor(() => expect(server.calls('PATCH', '/admin/users/3')).toHaveLength(1))
+    expect(server.calls('PATCH', '/admin/users/3')[0].body).toEqual({ programme_ids: [1, 2] })
   })
 
   it('shows server conflicts on the matching field', async () => {

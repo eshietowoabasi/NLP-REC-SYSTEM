@@ -4,14 +4,18 @@ from __future__ import annotations
 
 import secrets
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from flask_login import UserMixin
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
 from app.models.enums import UserRole, enum_type
 from app.utils.time import utcnow
+
+if TYPE_CHECKING:
+    from app.models.programme import Programme
 
 
 def new_session_token() -> str:
@@ -43,6 +47,10 @@ class User(UserMixin, db.Model):
         sa.DateTime(timezone=True), default=utcnow, server_default=sa.func.now()
     )
     last_login_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
+    # Programmes a planner or viewer may see and work on (admins see all; see app/access.py).
+    programmes: Mapped[list[Programme]] = relationship(
+        secondary="programme_members", order_by="Programme.name", lazy="selectin"
+    )
 
     def get_id(self) -> str:
         """Identifier stored in the session cookie by Flask-Login."""
