@@ -24,7 +24,9 @@ def upgrade():
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("country", sa.String(length=80), server_default="Nigeria", nullable=False),
         sa.Column("is_active", sa.Boolean(), server_default=sa.true(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("discipline_code"),
         sa.UniqueConstraint("name"),
@@ -83,7 +85,9 @@ def upgrade():
         ["id"],
         ondelete="RESTRICT",
     )
-    op.create_index("ix_analysis_sessions_programme_id", "analysis_sessions", ["programme_id"], unique=False)
+    op.create_index(
+        "ix_analysis_sessions_programme_id", "analysis_sessions", ["programme_id"], unique=False
+    )
 
 
 def downgrade():
@@ -97,4 +101,3 @@ def downgrade():
     op.drop_index("ix_programmes_name", table_name="programmes")
     op.drop_index("ix_programmes_is_active", table_name="programmes")
     op.drop_table("programmes")
-

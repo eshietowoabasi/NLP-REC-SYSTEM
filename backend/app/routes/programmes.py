@@ -44,9 +44,7 @@ def get_programme_or_404(programme_id: int) -> Programme:
 @login_required
 def list_programmes() -> tuple[Response, int]:
     programmes = db.session.scalars(
-        select(Programme)
-        .where(Programme.is_active.is_(True))
-        .order_by(Programme.name)
+        select(Programme).where(Programme.is_active.is_(True)).order_by(Programme.name)
     ).all()
     return success([programme_json(programme) for programme in programmes])
 
@@ -56,20 +54,20 @@ def list_programmes() -> tuple[Response, int]:
 def create_programme() -> tuple[Response, int]:
     data = parse_body(ProgrammeCreate)
 
-    if db.session.scalar(
-        select(Programme).where(Programme.name.ilike(data.name))
-    ) is not None:
+    if db.session.scalar(select(Programme).where(Programme.name.ilike(data.name))) is not None:
         raise ApiError(
             "CONFLICT",
             "A programme with that name already exists.",
             409,
         )
 
-    if data.discipline_code and db.session.scalar(
-        select(Programme).where(
-            Programme.discipline_code == data.discipline_code
+    if (
+        data.discipline_code
+        and db.session.scalar(
+            select(Programme).where(Programme.discipline_code == data.discipline_code)
         )
-    ) is not None:
+        is not None
+    ):
         raise ApiError(
             "CONFLICT",
             "That discipline code is already in use.",
@@ -113,10 +111,7 @@ def list_benchmarks(programme_id: int) -> tuple[Response, int]:
             "programme": programme_json(programme),
             "active": version_json(active),
             "latest": version_json(latest),
-            "versions": [
-                version_json(version)
-                for version in versions
-            ],
+            "versions": [version_json(version) for version in versions],
         }
     )
 
@@ -128,10 +123,7 @@ def upload_benchmark(programme_id: int) -> tuple[Response, int]:
 
     try:
         form = NucCoreUploadForm.model_validate(
-            {
-                "version_label":
-                    request.form.get("version_label", "")
-            }
+            {"version_label": request.form.get("version_label", "")}
         )
     except ValidationError as exc:
         raise ApiError(
@@ -148,13 +140,7 @@ def upload_benchmark(programme_id: int) -> tuple[Response, int]:
             "VALIDATION_ERROR",
             "Some fields are invalid.",
             422,
-            {
-                "fields": {
-                    "file": [
-                        "Choose a curriculum benchmark document to upload."
-                    ]
-                }
-            },
+            {"fields": {"file": ["Choose a curriculum benchmark document to upload."]}},
         )
 
     try:

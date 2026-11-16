@@ -50,9 +50,7 @@ def test_listing_parser_extracts_jobs():
 
 
 def test_job_page_uses_jobposting_data():
-    body = " ".join(
-        ["Provide professional nursing care."] * 100
-    )
+    body = " ".join(["Provide professional nursing care."] * 100)
 
     html = f"""
     <html>

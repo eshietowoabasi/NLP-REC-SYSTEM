@@ -65,9 +65,7 @@ class JobHarvestRun(db.Model):
         server_default="0",
     )
 
-    error_message: Mapped[str | None] = mapped_column(
-        sa.Text
-    )
+    error_message: Mapped[str | None] = mapped_column(sa.Text)
 
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True),
@@ -75,13 +73,9 @@ class JobHarvestRun(db.Model):
         server_default=sa.func.now(),
     )
 
-    started_at: Mapped[datetime | None] = mapped_column(
-        sa.DateTime(timezone=True)
-    )
+    started_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
 
-    completed_at: Mapped[datetime | None] = mapped_column(
-        sa.DateTime(timezone=True)
-    )
+    completed_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
 
     programme = relationship("Programme")
     requested_by = relationship("User")

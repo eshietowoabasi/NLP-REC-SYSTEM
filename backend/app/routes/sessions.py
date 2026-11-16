@@ -17,8 +17,8 @@ from app.models import (
     NLPResult,
     NLPResultType,
     Passage,
-    Recommendation,
     Programme,
+    Recommendation,
     Report,
     SessionStatus,
 )
@@ -35,10 +35,10 @@ from app.services.storage import get_storage
 from app.sessions import (
     active_nuc_core,
     build_parameters,
-    default_programme,
     check_documents,
     clear_results,
     default_parameters,
+    default_programme,
     link_documents,
 )
 from app.settings import get_setting
@@ -131,8 +131,6 @@ def require_nuc_core(programme_id: int) -> None:
         )
 
 
-
-
 MIN_EVIDENCE_PASSAGES = 10
 
 
@@ -147,9 +145,7 @@ def require_evidence(document_ids: list[int]) -> None:
 
     passage_count = int(
         db.session.scalar(
-            select(func.count(Passage.id)).where(
-                Passage.document_id.in_(document_ids)
-            )
+            select(func.count(Passage.id)).where(Passage.document_id.in_(document_ids))
         )
         or 0
     )

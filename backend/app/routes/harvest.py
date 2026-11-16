@@ -25,7 +25,6 @@ from app.utils.errors import ApiError
 from app.utils.responses import success
 from app.utils.validation import parse_body
 
-
 bp = Blueprint(
     "harvest",
     __name__,
@@ -59,37 +58,18 @@ def run_json(
 
     return {
         "id": run.id,
-        "programme_id":
-            run.programme_id,
+        "programme_id": run.programme_id,
         "status": run.status,
-        "target_count":
-            run.target_count,
-        "pages_per_field":
-            run.pages_per_field,
-        "examined_count":
-            run.examined_count,
-        "found_count":
-            run.found_count,
-        "imported_count":
-            run.imported_count,
-        "skipped_count":
-            run.skipped_count,
-        "error_message":
-            run.error_message,
-        "created_at":
-            run.created_at.isoformat(),
-        "started_at":
-            (
-                run.started_at.isoformat()
-                if run.started_at
-                else None
-            ),
-        "completed_at":
-            (
-                run.completed_at.isoformat()
-                if run.completed_at
-                else None
-            ),
+        "target_count": run.target_count,
+        "pages_per_field": run.pages_per_field,
+        "examined_count": run.examined_count,
+        "found_count": run.found_count,
+        "imported_count": run.imported_count,
+        "skipped_count": run.skipped_count,
+        "error_message": run.error_message,
+        "created_at": run.created_at.isoformat(),
+        "started_at": (run.started_at.isoformat() if run.started_at else None),
+        "completed_at": (run.completed_at.isoformat() if run.completed_at else None),
     }
 
 
@@ -98,19 +78,12 @@ def run_json(
 def harvest_state(
     programme_id: int,
 ) -> tuple[Response, int]:
-    programme = get_programme(
-        programme_id
-    )
+    programme = get_programme(programme_id)
 
     latest = db.session.scalar(
         select(JobHarvestRun)
-        .where(
-            JobHarvestRun.programme_id
-            == programme.id
-        )
-        .order_by(
-            JobHarvestRun.id.desc()
-        )
+        .where(JobHarvestRun.programme_id == programme.id)
+        .order_by(JobHarvestRun.id.desc())
         .limit(1)
     )
 
@@ -119,19 +92,13 @@ def harvest_state(
             "programme": {
                 "id": programme.id,
                 "name": programme.name,
-                "discipline_code":
-                    programme.discipline_code,
+                "discipline_code": programme.discipline_code,
             },
             "profile": {
-                "search_terms":
-                    programme.job_search_terms
-                    or [],
-                "field_slugs":
-                    programme.job_field_slugs
-                    or [],
+                "search_terms": programme.job_search_terms or [],
+                "field_slugs": programme.job_field_slugs or [],
             },
-            "latest_run":
-                run_json(latest),
+            "latest_run": run_json(latest),
         }
     )
 
@@ -141,44 +108,30 @@ def harvest_state(
 def update_harvest_profile(
     programme_id: int,
 ) -> tuple[Response, int]:
-    programme = get_programme(
-        programme_id
-    )
+    programme = get_programme(programme_id)
 
-    data = parse_body(
-        HarvestProfileUpdate
-    )
+    data = parse_body(HarvestProfileUpdate)
 
-    programme.job_search_terms = (
-        data.search_terms
-    )
+    programme.job_search_terms = data.search_terms
 
-    programme.job_field_slugs = (
-        data.field_slugs
-    )
+    programme.job_field_slugs = data.field_slugs
 
     db.session.commit()
 
     return success(
         {
-            "search_terms":
-                programme.job_search_terms,
-            "field_slugs":
-                programme.job_field_slugs,
+            "search_terms": programme.job_search_terms,
+            "field_slugs": programme.job_field_slugs,
         }
     )
 
 
-@bp.post(
-    "/programmes/<int:programme_id>/runs"
-)
+@bp.post("/programmes/<int:programme_id>/runs")
 @role_required(UserRole.ADMIN)
 def start_harvest(
     programme_id: int,
 ) -> tuple[Response, int]:
-    programme = get_programme(
-        programme_id
-    )
+    programme = get_programme(programme_id)
 
     if not programme.job_search_terms:
         raise ApiError(
@@ -197,11 +150,8 @@ def start_harvest(
     latest_running = db.session.scalar(
         select(JobHarvestRun.id)
         .where(
-            JobHarvestRun.programme_id
-                == programme.id,
-            JobHarvestRun.status.in_(
-                ["queued", "running"]
-            ),
+            JobHarvestRun.programme_id == programme.id,
+            JobHarvestRun.status.in_(["queued", "running"]),
         )
         .limit(1)
     )
@@ -213,18 +163,13 @@ def start_harvest(
             409,
         )
 
-    data = parse_body(
-        HarvestRunRequest
-    )
+    data = parse_body(HarvestRunRequest)
 
     run = JobHarvestRun(
         programme_id=programme.id,
-        requested_by_id=
-            current_user.id,
-        target_count=
-            data.target_count,
-        pages_per_field=
-            data.pages_per_field,
+        requested_by_id=current_user.id,
+        target_count=data.target_count,
+        pages_per_field=data.pages_per_field,
         status="queued",
     )
 

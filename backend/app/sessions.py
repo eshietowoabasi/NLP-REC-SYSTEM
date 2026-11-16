@@ -39,12 +39,10 @@ SNAPSHOT_KEYS = (
 )
 PARAMETER_ALIASES = {"score_weights": "weights"}
 
+
 def default_parameters() -> dict[str, Any]:
     # Current default settings copied into each session.
-    return {
-        PARAMETER_ALIASES.get(key, key): get_setting(key)
-        for key in SNAPSHOT_KEYS
-    }
+    return {PARAMETER_ALIASES.get(key, key): get_setting(key) for key in SNAPSHOT_KEYS}
 
 
 def build_parameters(overrides: SessionParameters) -> dict[str, Any]:
@@ -57,6 +55,7 @@ def build_parameters(overrides: SessionParameters) -> dict[str, Any]:
         config["max_recommendations"] = overrides.max_recommendations
     return config
 
+
 def default_programme() -> Programme:
     # Return the default programme, recreating it for legacy/test workflows if needed.
     programme = db.session.scalar(
@@ -66,11 +65,11 @@ def default_programme() -> Programme:
         return programme
 
     programme = Programme(
-        name='Computer Science',
-        discipline_code='CSC',
-        faculty='Faculty of Computing',
-        description='Default programme for legacy SkillBridge workflows.',
-        country='Nigeria',
+        name="Computer Science",
+        discipline_code="CSC",
+        faculty="Faculty of Computing",
+        description="Default programme for legacy SkillBridge workflows.",
+        country="Nigeria",
         is_active=True,
     )
     db.session.add(programme)

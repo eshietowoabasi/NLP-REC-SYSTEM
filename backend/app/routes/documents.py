@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from io import BytesIO
+
 from flask import Blueprint, Response, request, send_file
 from flask_login import current_user
 from sqlalchemy import func, or_, select

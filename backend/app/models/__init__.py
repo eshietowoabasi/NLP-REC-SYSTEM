@@ -3,7 +3,6 @@
 from app.models.audit import AuditLog
 from app.models.configuration import Setting, SkillPattern, StopWord
 from app.models.document import Document, NucCoreVersion, NucCourse, Passage
-from app.models.harvest import JobHarvestRun
 from app.models.enums import (
     DocumentStatus,
     FileType,
@@ -17,6 +16,7 @@ from app.models.enums import (
     SourceCategory,
     UserRole,
 )
+from app.models.harvest import JobHarvestRun
 from app.models.programme import Programme
 from app.models.recommendation import CurriculumMap, Recommendation, RecommendationEvidence
 from app.models.report import Report

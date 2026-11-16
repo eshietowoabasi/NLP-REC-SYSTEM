@@ -7,7 +7,6 @@ Revises: 0006_programmes
 import sqlalchemy as sa
 from alembic import op
 
-
 revision = "0007_labour_market_harvester"
 down_revision = "0006_programmes"
 branch_labels = None

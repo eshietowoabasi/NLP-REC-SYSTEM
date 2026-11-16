@@ -13,13 +13,9 @@ from dataclasses import dataclass
 import requests
 from bs4 import BeautifulSoup
 
-
 BASE_URL = "https://www.myjobmag.com"
 
-USER_AGENT = (
-    "SkillBridge academic curriculum research "
-    "(University of Uyo)"
-)
+USER_AGENT = "SkillBridge academic curriculum research " "(University of Uyo)"
 
 MIN_WORDS = 80
 
@@ -30,10 +26,7 @@ EMAIL_RE = re.compile(
     re.I,
 )
 
-PHONE_RE = re.compile(
-    r"(?:\+?234|0)[\s-]?[789][01]\d"
-    r"(?:[\s-]?\d){7}"
-)
+PHONE_RE = re.compile(r"(?:\+?234|0)[\s-]?[789][01]\d" r"(?:[\s-]?\d){7}")
 
 URL_RE = re.compile(
     r"https?://\S+|www\.\S+",
@@ -66,12 +59,7 @@ class Collection:
 
 
 def normalise(value: str) -> str:
-    return " ".join(
-        value.lower()
-        .replace("–", "-")
-        .replace("—", "-")
-        .split()
-    )
+    return " ".join(value.lower().replace("–", "-").replace("—", "-").split())
 
 
 def title_matches(
@@ -80,11 +68,7 @@ def title_matches(
 ) -> bool:
     text = normalise(title)
 
-    return any(
-        normalise(term) in text
-        for term in search_terms
-        if normalise(term)
-    )
+    return any(normalise(term) in text for term in search_terms if normalise(term))
 
 
 def split_title(value: str) -> tuple[str, str]:
@@ -124,10 +108,7 @@ def _clean_text(value: str) -> str:
 
         lowered = line.lower().rstrip(":")
 
-        if any(
-            lowered.startswith(heading)
-            for heading in STOP_HEADINGS
-        ):
+        if any(lowered.startswith(heading) for heading in STOP_HEADINGS):
             break
 
         line = EMAIL_RE.sub("[email removed]", line)
@@ -154,11 +135,7 @@ def _posting_from_soup(
         except (json.JSONDecodeError, TypeError):
             continue
 
-        queue = (
-            data
-            if isinstance(data, list)
-            else [data]
-        )
+        queue = data if isinstance(data, list) else [data]
 
         while queue:
             candidate = queue.pop(0)
@@ -198,9 +175,7 @@ def parse_listing(page_html: str):
 
         seen.add(href)
 
-        title, company = split_title(
-            link.get_text(" ", strip=True)
-        )
+        title, company = split_title(link.get_text(" ", strip=True))
 
         yield (
             BASE_URL + href,
@@ -219,37 +194,20 @@ def parse_job_page(
 
     heading = soup.find("h1")
 
-    fallback_title = (
-        heading.get_text(" ", strip=True)
-        if heading
-        else ""
-    )
+    fallback_title = heading.get_text(" ", strip=True) if heading else ""
 
-    title, fallback_company = split_title(
-        fallback_title
-    )
+    title, fallback_company = split_title(fallback_title)
 
-    title = html.unescape(
-        str(posting.get("title") or title)
-    ).strip()
+    title = html.unescape(str(posting.get("title") or title)).strip()
 
-    organisation = posting.get(
-        "hiringOrganization"
-    ) or {}
+    organisation = posting.get("hiringOrganization") or {}
 
     company = fallback_company
 
     if isinstance(organisation, dict):
-        company = html.unescape(
-            str(
-                organisation.get("name")
-                or company
-            )
-        ).strip()
+        company = html.unescape(str(organisation.get("name") or company)).strip()
 
-    description = str(
-        posting.get("description") or ""
-    )
+    description = str(posting.get("description") or "")
 
     if not description:
         details = soup.select_one(".job-details")
@@ -267,9 +225,7 @@ def parse_job_page(
 
     location = ""
 
-    raw_locations = posting.get(
-        "jobLocation"
-    ) or []
+    raw_locations = posting.get("jobLocation") or []
 
     if not isinstance(raw_locations, list):
         raw_locations = [raw_locations]
@@ -288,29 +244,19 @@ def parse_job_page(
             address.get("addressRegion"),
         ]
 
-        location = ", ".join(
-            str(part)
-            for part in parts
-            if part
-        )
+        location = ", ".join(str(part) for part in parts if part)
 
         if location:
             break
 
-    date_posted = str(
-        posting.get("datePosted") or ""
-    )[:10]
+    date_posted = str(posting.get("datePosted") or "")[:10]
 
     body = "\n".join(
         part
         for part in (
             f"Job title: {title}",
-            f"Employer: {company}"
-            if company
-            else "",
-            f"Location: {location}"
-            if location
-            else "",
+            f"Employer: {company}" if company else "",
+            f"Location: {location}" if location else "",
             "",
             cleaned,
         )
@@ -334,9 +280,7 @@ class MyJobMagClient:
         self.session.headers.update(
             {
                 "User-Agent": USER_AGENT,
-                "Accept": (
-                    "text/html,application/xhtml+xml"
-                ),
+                "Accept": ("text/html,application/xhtml+xml"),
             }
         )
 
@@ -347,26 +291,18 @@ class MyJobMagClient:
 
         robots_response.raise_for_status()
 
-        self.robots = (
-            urllib.robotparser.RobotFileParser()
-        )
+        self.robots = urllib.robotparser.RobotFileParser()
 
-        self.robots.parse(
-            robots_response.text.splitlines()
-        )
+        self.robots.parse(robots_response.text.splitlines())
 
     def get(self, url: str) -> str:
         if not self.robots.can_fetch(
             USER_AGENT,
             url,
         ):
-            raise PermissionError(
-                f"robots.txt does not allow {url}"
-            )
+            raise PermissionError(f"robots.txt does not allow {url}")
 
-        time.sleep(
-            random.uniform(2.0, 3.5)
-        )
+        time.sleep(random.uniform(2.0, 3.5))
 
         response = self.session.get(
             url,
@@ -378,8 +314,7 @@ class MyJobMagClient:
             429,
         }:
             raise RuntimeError(
-                "The job source asked SkillBridge "
-                "to stop collecting temporarily."
+                "The job source asked SkillBridge " "to stop collecting temporarily."
             )
 
         response.raise_for_status()
@@ -393,29 +328,17 @@ def collect_jobs(
     target_count: int,
     pages_per_field: int,
 ) -> Collection:
-    terms = [
-        normalise(term)
-        for term in search_terms
-        if normalise(term)
-    ]
+    terms = [normalise(term) for term in search_terms if normalise(term)]
 
     fields = [
-        field.strip().lower()
-        for field in field_slugs
-        if FIELD_RE.fullmatch(
-            field.strip().lower()
-        )
+        field.strip().lower() for field in field_slugs if FIELD_RE.fullmatch(field.strip().lower())
     ]
 
     if not terms:
-        raise ValueError(
-            "Add at least one job-search term."
-        )
+        raise ValueError("Add at least one job-search term.")
 
     if not fields:
-        raise ValueError(
-            "Add at least one MyJobMag field."
-        )
+        raise ValueError("Add at least one MyJobMag field.")
 
     client = MyJobMagClient()
 
@@ -428,21 +351,13 @@ def collect_jobs(
             1,
             pages_per_field + 1,
         ):
-            if (
-                len(result.adverts)
-                >= target_count
-            ):
+            if len(result.adverts) >= target_count:
                 return result
 
-            listing_url = (
-                f"{BASE_URL}/jobs-by-field/"
-                f"{field}/{page}"
-            )
+            listing_url = f"{BASE_URL}/jobs-by-field/" f"{field}/{page}"
 
             try:
-                listing_html = client.get(
-                    listing_url
-                )
+                listing_html = client.get(listing_url)
             except PermissionError:
                 result.skipped += 1
                 continue
@@ -451,13 +366,8 @@ def collect_jobs(
                 url,
                 listed_title,
                 _company,
-            ) in parse_listing(
-                listing_html
-            ):
-                if (
-                    len(result.adverts)
-                    >= target_count
-                ):
+            ) in parse_listing(listing_html):
+                if len(result.adverts) >= target_count:
                     return result
 
                 result.examined += 1
@@ -497,8 +407,6 @@ def collect_jobs(
                     result.skipped += 1
                     continue
 
-                result.adverts.append(
-                    advert
-                )
+                result.adverts.append(advert)
 
     return result

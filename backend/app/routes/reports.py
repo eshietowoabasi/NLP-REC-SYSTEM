@@ -6,8 +6,8 @@ authorised download endpoint.
 
 from __future__ import annotations
 
-from io import BytesIO
 import re
+from io import BytesIO
 from typing import Any
 
 from flask import Blueprint, Response, send_file

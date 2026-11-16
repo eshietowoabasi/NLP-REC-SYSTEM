@@ -337,14 +337,8 @@ def run_session(session_id: int) -> None:
         canonical = canonical_lookup(specs, get_nlp(model_name))
 
         text_nlp = get_nlp(model_name)
-        naming = load_naming(
-            config.get("sbert_model")
-            or get_setting("sbert_model")
-        )
-        document_titles = {
-            link.document.id: link.document.title
-            for link in session.document_links
-        }
+        naming = load_naming(config.get("sbert_model") or get_setting("sbert_model"))
+        document_titles = {link.document.id: link.document.title for link in session.document_links}
 
         # Everything needed by the CPU-heavy pipeline is now in ordinary Python
         # objects. End any transaction opened while loading DB-backed settings,
