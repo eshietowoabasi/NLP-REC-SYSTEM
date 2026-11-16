@@ -1,6 +1,5 @@
 --index-url https://pypi.org/simple
 --extra-index-url https://download.pytorch.org/whl/cpu
-
 alembic==1.20.0
     # via
     #   -r requirements.in
@@ -10,10 +9,17 @@ annotated-doc==0.0.5
 annotated-types==0.8.0
     # via pydantic
 anyio==4.15.1
-    # via httpx
+    # via
+    #   httpx
+    #   httpx2
+    #   vercel-blob
+    #   vercel-internal-core
+    #   vercel-oidc
 async-timeout==5.0.1
     # via redis
 bcrypt==5.0.0
+    # via -r requirements.in
+beautifulsoup4==4.15.0
     # via -r requirements.in
 bertopic==0.17.4
     # via -r requirements.in
@@ -109,7 +115,9 @@ greenlet==3.5.6
 gunicorn==26.2.0
     # via -r requirements.in
 h11==0.16.0
-    # via httpcore
+    # via
+    #   httpcore
+    #   httpcore2
 hdbscan==0.8.44
     # via
     #   -r requirements.in
@@ -118,10 +126,17 @@ hf-xet==1.6.0
     # via huggingface-hub
 httpcore==1.0.9
     # via httpx
+httpcore2==2.16.2
+    # via httpx2
 httpx==0.28.1
     # via
     #   huggingface-hub
     #   weasel
+httpx2==2.16.2
+    # via
+    #   vercel-blob
+    #   vercel-internal-core
+    #   vercel-oidc
 huggingface-hub==1.33.0
     # via
     #   sentence-transformers
@@ -132,6 +147,7 @@ idna==3.20
     #   anyio
     #   email-validator
     #   httpx
+    #   httpx2
     #   requests
 itsdangerous==2.2.0
     # via
@@ -156,7 +172,9 @@ llvmlite==0.49.0
     #   numba
     #   pynndescent
 lxml==6.1.3
-    # via python-docx
+    # via
+    #   -r requirements.in
+    #   python-docx
 mako==1.4.3
     # via alembic
 markdown-it-py==4.2.0
@@ -238,6 +256,7 @@ pydantic==2.13.5
     #   -r requirements.in
     #   spacy
     #   thinc
+    #   vercel-blob
     #   weasel
 pydantic-core==2.46.5
     # via pydantic
@@ -274,7 +293,9 @@ regex==2026.9.10
     #   nltk
     #   transformers
 requests==2.34.2
-    # via spacy
+    # via
+    #   -r requirements.in
+    #   spacy
 rich==15.0.0
     # via typer
 rq==2.12.0
@@ -311,6 +332,8 @@ six==1.17.0
     # via python-dateutil
 smart-open==8.0.1
     # via weasel
+soupsieve==2.10
+    # via beautifulsoup4
 spacy==3.8.16
     # via -r requirements.in
 spacy-legacy==3.0.12
@@ -359,7 +382,10 @@ tqdm==4.70.1
 transformers==5.17.0
     # via sentence-transformers
 truststore==0.10.4
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   httpcore2
+    #   httpx2
 typer==0.27.2
     # via
     #   spacy
@@ -369,7 +395,9 @@ typing-extensions==4.16.0
     # via
     #   alembic
     #   anyio
+    #   beautifulsoup4
     #   flask-limiter
+    #   httpx2
     #   huggingface-hub
     #   limits
     #   psycopg
@@ -380,16 +408,23 @@ typing-extensions==4.16.0
     #   sqlalchemy
     #   torch
     #   typing-inspection
+    #   vercel-internal-core
 typing-inspection==0.4.4
     # via pydantic
 umap-learn==0.5.12
     # via
     #   -r requirements.in
     #   bertopic
-vercel-blob==0.5.0
-    # via -r requirements.in
 urllib3==2.8.0
     # via requests
+vercel-blob==0.5.0
+    # via -r requirements.in
+vercel-headers==0.8.0
+    # via vercel-oidc
+vercel-internal-core==0.2.2
+    # via vercel-blob
+vercel-oidc==0.12.0
+    # via vercel-blob
 wasabi==1.1.3
     # via
     #   spacy
@@ -416,6 +451,3 @@ wtforms==3.2.2
     # via flask-wtf
 zopfli==0.4.3
     # via fonttools
-
-beautifulsoup4==4.15.0
-    # via -r requirements.in
