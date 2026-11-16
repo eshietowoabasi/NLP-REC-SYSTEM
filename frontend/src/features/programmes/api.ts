@@ -1,15 +1,37 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { documentsQueryKey } from '@/features/documents/api'
-import { apiGet, apiPost, apiUpload } from '@/lib/api'
-import type { NucCoreVersion, Programme, ProgrammeBenchmarkState } from '@/types/api'
+import { apiGet, apiPatch, apiPost, apiUpload } from '@/lib/api'
+import type {
+  NucCoreVersion,
+  Programme,
+  ProgrammeBenchmarkState,
+  ProgrammeUpdate,
+} from '@/types/api'
 
 export const programmesQueryKey = ['programmes'] as const
 
-export function useProgrammes() {
+/** Active programmes; ``includeInactive`` adds retired ones (admins only). */
+export function useProgrammes({ includeInactive = false }: { includeInactive?: boolean } = {}) {
   return useQuery({
-    queryKey: [...programmesQueryKey, 'list'],
-    queryFn: () => apiGet<Programme[]>('/programmes'),
+    queryKey: [...programmesQueryKey, 'list', includeInactive],
+    queryFn: () =>
+      apiGet<Programme[]>('/programmes', includeInactive ? { include_inactive: true } : undefined),
+  })
+}
+
+/** Programme lists also appear in New analysis (session defaults). */
+function invalidateProgrammeLists(queryClient: ReturnType<typeof useQueryClient>) {
+  void queryClient.invalidateQueries({ queryKey: ['sessions', 'defaults'] })
+  return queryClient.invalidateQueries({ queryKey: programmesQueryKey })
+}
+
+export function useUpdateProgramme(programmeId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (changes: ProgrammeUpdate) =>
+      apiPatch<Programme>(`/programmes/${programmeId}`, changes),
+    onSuccess: () => invalidateProgrammeLists(queryClient),
   })
 }
 
@@ -33,10 +55,7 @@ export function useCreateProgramme() {
       country?: string
     }) => apiPost<Programme>('/programmes', input),
 
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: programmesQueryKey,
-      }),
+    onSuccess: () => invalidateProgrammeLists(queryClient),
   })
 }
 
