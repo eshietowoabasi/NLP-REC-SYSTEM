@@ -10,6 +10,21 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.extensions import db
 from app.utils.time import utcnow
 
+# Which programmes a planner or viewer works on. Admins need no rows: they see everything.
+programme_members = sa.Table(
+    "programme_members",
+    db.metadata,
+    sa.Column(
+        "user_id", sa.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
+    ),
+    sa.Column(
+        "programme_id",
+        sa.ForeignKey("programmes.id", ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
+    ),
+)
+
 
 class Programme(db.Model):
     """A discipline or academic programme analysed by SkillBridge."""

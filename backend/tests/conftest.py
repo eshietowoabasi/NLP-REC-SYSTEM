@@ -215,7 +215,11 @@ def api(app: Flask) -> ApiClient:
 
 @pytest.fixture
 def make_user(app: Flask) -> Callable[..., User]:
-    """Factory for synthetic users: ``make_user("planner", username="p1")``."""
+    """Factory for synthetic users: ``make_user("planner", username="p1")``.
+
+    Planners and viewers work on the default programme unless ``programmes=[...]`` is given
+    (as after migration 0011); admins see every programme.
+    """
 
     def _make(
         role: UserRole | str = UserRole.VIEWER,
@@ -223,9 +227,14 @@ def make_user(app: Flask) -> Callable[..., User]:
         username: str | None = None,
         password: str = TEST_PASSWORD,
         is_active: bool = True,
+        programmes: list[Any] | None = None,
         **fields: Any,
     ) -> User:
+        from app.sessions import default_programme
+
         role = UserRole(role)
+        if programmes is None:
+            programmes = [] if role == UserRole.ADMIN else [default_programme()]
         username = username or f"test-{role.value}-{db.session.query(User).count() + 1}"
         user = User(
             username=username,
@@ -234,6 +243,7 @@ def make_user(app: Flask) -> Callable[..., User]:
             role=role,
             is_active=is_active,
             password_hash=hash_password(password),
+            programmes=programmes,
             **fields,
         )
         db.session.add(user)
