@@ -63,7 +63,7 @@ describe('LabourMarketPage', () => {
 
     expect(await screen.findByText('Preparing adverts')).toBeInTheDocument()
     expect(screen.getByText('2 of 5')).toBeInTheDocument()
-    expect(screen.getByText(/still being prepared and will appear in New analysis/)).toBeVisible()
+    expect(screen.getByText(/still being prepared and will appear in New/)).toBeVisible()
     // Collecting has finished, so another collection may be started.
     expect(screen.getByRole('button', { name: /Collect jobs now/ })).toBeEnabled()
   })
