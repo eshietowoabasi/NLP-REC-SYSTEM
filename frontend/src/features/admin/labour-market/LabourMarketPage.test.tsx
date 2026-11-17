@@ -12,6 +12,7 @@ const nursing: Programme = {
   discipline_code: 'NSC',
   faculty: null,
   description: null,
+  nuc_discipline: 'allied_health_sciences',
   country: 'Nigeria',
   is_active: true,
   created_at: '2026-11-01T09:00:00Z',

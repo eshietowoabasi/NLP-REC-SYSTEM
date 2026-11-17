@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { adminUser, healthyStatus, page } from '@/test/fixtures'
 import { fail, mockApi, ok } from '@/test/server'
 import { renderApp } from '@/test/utils'
-import type { SettingItem, SkillPattern, StopWord } from '@/types/api'
+import type { DisciplineList, SettingItem, SkillPattern, StopWord } from '@/types/api'
 
 /* Synthetic fixtures. */
 const item = <K extends SettingItem['key']>(key: K, value: unknown, extra = {}): SettingItem => ({
@@ -42,6 +42,7 @@ const patterns: SkillPattern[] = [
     label: 'TOOL',
     pattern: 'docker',
     canonical_name: 'Docker',
+    discipline: 'computing',
     is_active: true,
     created_at: '2026-09-01T00:00:00Z',
   },
@@ -50,6 +51,7 @@ const patterns: SkillPattern[] = [
     label: 'LANGUAGE',
     pattern: [{ LOWER: 'go' }, { LOWER: 'developer' }],
     canonical_name: 'Go',
+    discipline: null,
     is_active: false,
     created_at: '2026-09-01T00:00:00Z',
   },
@@ -59,12 +61,21 @@ const stopWords: StopWord[] = [
   { id: 1, word: 'applicant', is_active: true, created_at: '2026-09-01T00:00:00Z' },
 ]
 
+const disciplineList: DisciplineList = {
+  general_skills: 2,
+  disciplines: [
+    { value: 'computing', name: 'Computing', skills: 150 },
+    { value: 'allied_health_sciences', name: 'Allied Health Sciences', skills: 40 },
+  ],
+}
+
 function settingsApi(extra: Parameters<typeof mockApi>[0] = {}) {
   return mockApi({
     'GET /auth/me': ok(adminUser),
     'GET /health': ok(healthyStatus),
     'GET /admin/settings': ok({ settings }),
     'GET /admin/skill-patterns': ok(page(patterns)),
+    'GET /programmes/disciplines': ok(disciplineList),
     'GET /admin/stop-words': ok(page(stopWords)),
     ...extra,
   })
@@ -250,7 +261,51 @@ describe('Settings: skill patterns', () => {
     expect(server.calls('POST', '/admin/skill-patterns')[0].body).toEqual({
       label: 'SKILL',
       canonical_name: 'Rust',
+      discipline: null,
       pattern: [{ LOWER: 'rust' }, { LOWER: 'developer' }],
+    })
+  })
+
+  it("shows each pattern's skills list, filters by it and adds to a discipline", async () => {
+    const server = settingsApi({
+      'POST /admin/skill-patterns': ok(
+        {
+          ...patterns[0],
+          id: 4,
+          canonical_name: 'Wound Care',
+          discipline: 'allied_health_sciences',
+        },
+        201,
+      ),
+    })
+    const { user } = renderApp('/admin/settings')
+
+    await user.click(await screen.findByRole('tab', { name: 'Skills list' }))
+    const table = await screen.findByRole('table', { name: 'Skill patterns' })
+    expect(await within(table).findByText('Computing')).toBeInTheDocument()
+    expect(within(table).getByText('General')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('combobox', { name: 'Skills list' }))
+    await user.click(await screen.findByRole('option', { name: 'Allied Health Sciences' }))
+    await waitFor(() =>
+      expect(server.calls('GET', '/admin/skill-patterns').at(-1)?.params.discipline).toBe(
+        'allied_health_sciences',
+      ),
+    )
+
+    await user.click(screen.getByRole('button', { name: /Add pattern/ }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByLabelText('Canonical name'), 'Wound Care')
+    await user.type(within(dialog).getByLabelText('Phrase'), 'wound care')
+    await user.click(within(dialog).getByRole('combobox', { name: 'Skills list' }))
+    await user.click(await screen.findByRole('option', { name: 'Allied Health Sciences' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Save pattern' }))
+
+    await waitFor(() => expect(server.calls('POST', '/admin/skill-patterns')).toHaveLength(1))
+    expect(server.calls('POST', '/admin/skill-patterns')[0].body).toMatchObject({
+      canonical_name: 'Wound Care',
+      pattern: 'wound care',
+      discipline: 'allied_health_sciences',
     })
   })
 

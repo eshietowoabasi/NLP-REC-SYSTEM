@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Archive, ArchiveRestore, Loader2, Pencil } from 'lucide-react'
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -30,10 +30,11 @@ import {
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { useUpdateProgramme } from '@/features/programmes/api'
+import { useDisciplines, useUpdateProgramme } from '@/features/programmes/api'
+import { DisciplineSelect } from '@/features/programmes/DisciplineSelect'
 import { ApiError } from '@/lib/api'
 import { applyServerErrors } from '@/lib/forms'
-import type { Programme } from '@/types/api'
+import type { NucDiscipline, Programme } from '@/types/api'
 
 const schema = z.object({
   name: z.string().trim().min(2, 'At least 2 characters.').max(160, 'At most 160 characters.'),
@@ -44,6 +45,7 @@ const schema = z.object({
     .refine((v) => v === '' || v.length >= 2, 'At least 2 characters.'),
   faculty: z.string().trim().max(160, 'At most 160 characters.'),
   description: z.string().trim().max(2000, 'At most 2,000 characters.'),
+  nuc_discipline: z.string().nullable(),
 })
 type Values = z.infer<typeof schema>
 
@@ -52,6 +54,8 @@ export function ProgrammeDetailsCard({ programme }: { programme: Programme }) {
   const [editing, setEditing] = useState(false)
   const [confirmRetire, setConfirmRetire] = useState(false)
   const update = useUpdateProgramme(programme.id)
+  const disciplines = useDisciplines()
+  const discipline = disciplines.data?.disciplines.find((d) => d.value === programme.nuc_discipline)
 
   const setActive = (isActive: boolean) =>
     update.mutate(
@@ -81,6 +85,22 @@ export function ProgrammeDetailsCard({ programme }: { programme: Programme }) {
         <CardDescription>{programme.faculty ?? 'Faculty not given'}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <p className="text-sm text-body">
+          <span className="font-semibold text-ink">NUC discipline: </span>
+          {discipline
+            ? `${discipline.name}, ${discipline.skills} skills plus ${disciplines.data?.general_skills ?? 0} general ones`
+            : programme.nuc_discipline === null
+              ? 'Not set'
+              : '…'}
+        </p>
+        {programme.nuc_discipline === null && (
+          <Alert variant="warning">
+            <AlertDescription>
+              Choose the NUC discipline so employer demand is measured with the right skills list.
+              Until then only general skills count.
+            </AlertDescription>
+          </Alert>
+        )}
         {programme.description && <p className="text-sm text-body">{programme.description}</p>}
         {!programme.is_active && (
           <p className="text-sm text-body-soft">
@@ -147,6 +167,7 @@ function EditProgrammeForm({ programme, onDone }: { programme: Programme; onDone
   const [formError, setFormError] = useState<string | null>(null)
   const {
     register,
+    control,
     handleSubmit,
     setError,
     formState: { errors, isDirty },
@@ -157,6 +178,7 @@ function EditProgrammeForm({ programme, onDone }: { programme: Programme; onDone
       discipline_code: programme.discipline_code ?? '',
       faculty: programme.faculty ?? '',
       description: programme.description ?? '',
+      nuc_discipline: programme.nuc_discipline,
     },
   })
 
@@ -168,6 +190,7 @@ function EditProgrammeForm({ programme, onDone }: { programme: Programme; onDone
         discipline_code: values.discipline_code || null,
         faculty: values.faculty || null,
         description: values.description || null,
+        nuc_discipline: values.nuc_discipline as NucDiscipline | null,
       },
       {
         onSuccess: () => {
@@ -181,6 +204,7 @@ function EditProgrammeForm({ programme, onDone }: { programme: Programme; onDone
               'discipline_code',
               'faculty',
               'description',
+              'nuc_discipline',
             ]),
           ),
       },
@@ -216,6 +240,24 @@ function EditProgrammeForm({ programme, onDone }: { programme: Programme; onDone
             {...register('discipline_code')}
           />
           <FieldError errors={[errors.discipline_code]} />
+        </Field>
+        <Field data-invalid={!!errors.nuc_discipline}>
+          <FieldLabel htmlFor="programme-discipline">NUC discipline</FieldLabel>
+          <Controller
+            control={control}
+            name="nuc_discipline"
+            render={({ field }) => (
+              <DisciplineSelect
+                id="programme-discipline"
+                className="w-full"
+                value={field.value as NucDiscipline | null}
+                onChange={field.onChange}
+                noneLabel="Not set (general skills only)"
+                showCounts
+              />
+            )}
+          />
+          <FieldError errors={[errors.nuc_discipline]} />
         </Field>
         <Field data-invalid={!!errors.faculty}>
           <FieldLabel htmlFor="programme-faculty">Faculty</FieldLabel>

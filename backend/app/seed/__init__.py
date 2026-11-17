@@ -16,7 +16,7 @@ from app.extensions import db
 from app.models.configuration import Setting, SkillPattern, StopWord
 from app.models.enums import SkillLabel, UserRole
 from app.models.user import User
-from app.seed.skill_patterns import iter_skill_patterns
+from app.seed.discipline_skills import iter_discipline_patterns
 from app.seed.stop_words import DOMAIN_STOP_WORDS
 from app.settings import DEFAULT_SETTINGS
 
@@ -69,18 +69,29 @@ def seed_settings() -> int:
 
 
 def seed_skill_patterns() -> int:
-    """Insert the starter skill patterns that are not stored yet. Returns the number added."""
+    """Insert the starter skill patterns (general and per discipline) that are not stored yet.
+
+    Returns the number added. Existing rows, including ones an admin changed or deactivated,
+    are left alone.
+    """
     existing = {
-        (label, db_pattern_key(pattern))
-        for label, pattern in db.session.execute(select(SkillPattern.label, SkillPattern.pattern))
+        (label, db_pattern_key(pattern), discipline)
+        for label, pattern, discipline in db.session.execute(
+            select(SkillPattern.label, SkillPattern.pattern, SkillPattern.discipline)
+        )
     }
     added = 0
-    for label, canonical, pattern in iter_skill_patterns():
-        key = (SkillLabel(label), db_pattern_key(pattern))
+    for discipline, label, canonical, pattern in iter_discipline_patterns():
+        key = (SkillLabel(label), db_pattern_key(pattern), discipline)
         if key in existing:
             continue
         db.session.add(
-            SkillPattern(label=SkillLabel(label), pattern=pattern, canonical_name=canonical)
+            SkillPattern(
+                label=SkillLabel(label),
+                pattern=pattern,
+                canonical_name=canonical,
+                discipline=discipline,
+            )
         )
         existing.add(key)
         added += 1

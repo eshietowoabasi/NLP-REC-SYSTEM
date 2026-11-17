@@ -175,7 +175,10 @@ def _pattern_text() -> sa.ColumnElement[str]:
     return SkillPattern.pattern.op("#>>", return_type=sa.Text)(sa.literal_column("'{}'::text[]"))
 
 
-def _check_pattern_unique(label: str, pattern: Any, exclude_id: int | None = None) -> None:
+def _check_pattern_unique(
+    label: str, pattern: Any, discipline: str | None, exclude_id: int | None = None
+) -> None:
+    """409 if the same label and pattern already exist in that discipline's list."""
     if isinstance(pattern, str):
         same = sa.and_(
             sa.func.jsonb_typeof(SkillPattern.pattern) == "string",
@@ -183,15 +186,20 @@ def _check_pattern_unique(label: str, pattern: Any, exclude_id: int | None = Non
         )
     else:
         same = SkillPattern.pattern == sa.cast(json.dumps(pattern), JSONB)
-    query = select(SkillPattern.id).where(SkillPattern.label == label, same)
+    in_list = (
+        SkillPattern.discipline.is_(None)
+        if discipline is None
+        else SkillPattern.discipline == discipline
+    )
+    query = select(SkillPattern.id).where(SkillPattern.label == label, same, in_list)
     if exclude_id is not None:
         query = query.where(SkillPattern.id != exclude_id)
     if db.session.scalar(query) is not None:
         raise ApiError(
             "CONFLICT",
-            "This pattern already exists for that label.",
+            "This pattern already exists in that list for that label.",
             409,
-            {"fields": {"pattern": ["This pattern already exists for that label."]}},
+            {"fields": {"pattern": ["This pattern already exists in that list for that label."]}},
         )
 
 
@@ -209,13 +217,18 @@ def _get_pattern_or_404(pattern_id: int) -> SkillPattern:
 @bp.get("/skill-patterns")
 @role_required(UserRole.ADMIN)
 def list_skill_patterns() -> tuple[Response, int]:
-    """Skill patterns by canonical name. Filters: ``label``, ``is_active``, ``search``."""
+    """Skill patterns by canonical name. Filters: ``label``, ``discipline`` (or ``general``),
+    ``is_active``, ``search``."""
     params = parse_query(SkillPatternListQuery)
     query = select(SkillPattern).order_by(
         sa.func.lower(SkillPattern.canonical_name), SkillPattern.id
     )
     if params.label is not None:
         query = query.where(SkillPattern.label == params.label)
+    if params.discipline == "general":
+        query = query.where(SkillPattern.discipline.is_(None))
+    elif params.discipline is not None:
+        query = query.where(SkillPattern.discipline == params.discipline)
     if params.is_active is not None:
         query = query.where(SkillPattern.is_active.is_(params.is_active))
     if params.search:
@@ -232,9 +245,12 @@ def list_skill_patterns() -> tuple[Response, int]:
 def create_skill_pattern() -> tuple[Response, int]:
     """Add a pattern; it is used by sessions run afterwards."""
     data = parse_body(SkillPatternIn)
-    _check_pattern_unique(str(data.label), data.pattern)
+    _check_pattern_unique(str(data.label), data.pattern, data.discipline)
     pattern = SkillPattern(
-        label=data.label, pattern=data.pattern, canonical_name=data.canonical_name
+        label=data.label,
+        pattern=data.pattern,
+        canonical_name=data.canonical_name,
+        discipline=data.discipline,
     )
     db.session.add(pattern)
     db.session.flush()
@@ -242,7 +258,12 @@ def create_skill_pattern() -> tuple[Response, int]:
         AuditAction.SKILL_PATTERN_CREATED,
         "skill_pattern",
         pattern.id,
-        {"label": str(data.label), "pattern": data.pattern, "canonical_name": data.canonical_name},
+        {
+            "label": str(data.label),
+            "pattern": data.pattern,
+            "canonical_name": data.canonical_name,
+            "discipline": _plain(data.discipline),
+        },
     )
     db.session.commit()
     return success(_pattern_json(pattern), 201)
@@ -251,25 +272,30 @@ def create_skill_pattern() -> tuple[Response, int]:
 @bp.patch("/skill-patterns/<int:pattern_id>")
 @role_required(UserRole.ADMIN)
 def update_skill_pattern(pattern_id: int) -> tuple[Response, int]:
-    """Edit a pattern or (de)activate it."""
+    """Edit a pattern, move it to another discipline's list (null: general) or (de)activate it."""
     pattern = _get_pattern_or_404(pattern_id)
     data = parse_body(SkillPatternUpdate)
     label = str(data.label or pattern.label)
     new_pattern = data.pattern if data.pattern is not None else pattern.pattern
-    if data.label is not None or data.pattern is not None:
+    moving = "discipline" in data.model_fields_set and data.discipline != pattern.discipline
+    discipline = data.discipline if "discipline" in data.model_fields_set else pattern.discipline
+    if data.label is not None or data.pattern is not None or moving:
         try:
             check_pattern(label, new_pattern)
         except ValueError as exc:
             raise ApiError(
                 "VALIDATION_ERROR", str(exc), 422, {"fields": {"pattern": [str(exc)]}}
             ) from exc
-        _check_pattern_unique(label, new_pattern, exclude_id=pattern.id)
+        _check_pattern_unique(label, new_pattern, discipline, exclude_id=pattern.id)
     changes: dict[str, Any] = {}
     for field in ("label", "pattern", "canonical_name", "is_active"):
         value = getattr(data, field)
         if value is not None and value != getattr(pattern, field):
             changes[field] = {"from": _plain(getattr(pattern, field)), "to": _plain(value)}
             setattr(pattern, field, value)
+    if moving:
+        changes["discipline"] = {"from": _plain(pattern.discipline), "to": _plain(discipline)}
+        pattern.discipline = discipline
     if changes:
         record_audit(AuditAction.SKILL_PATTERN_UPDATED, "skill_pattern", pattern.id, changes)
     db.session.commit()

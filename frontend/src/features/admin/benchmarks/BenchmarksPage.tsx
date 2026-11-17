@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -23,7 +24,9 @@ import {
   useProgrammes,
   useUploadProgrammeBenchmark,
 } from '@/features/programmes/api'
+import { DisciplineSelect } from '@/features/programmes/DisciplineSelect'
 import { formatDateTime } from '@/lib/format'
+import type { NucDiscipline } from '@/types/api'
 
 import { ProgrammeDetailsCard } from './ProgrammeDetailsCard'
 
@@ -106,6 +109,7 @@ function CreateProgrammeCard() {
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const [faculty, setFaculty] = useState('')
+  const [discipline, setDiscipline] = useState<NucDiscipline | null>(null)
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -115,6 +119,7 @@ function CreateProgrammeCard() {
         name: name.trim(),
         discipline_code: code.trim() || null,
         faculty: faculty.trim() || null,
+        nuc_discipline: discipline,
         country: 'Nigeria',
       },
       {
@@ -124,6 +129,7 @@ function CreateProgrammeCard() {
           setName('')
           setCode('')
           setFaculty('')
+          setDiscipline(null)
         },
       },
     )
@@ -160,6 +166,17 @@ function CreateProgrammeCard() {
             value={faculty}
             onChange={(event) => setFaculty(event.target.value)}
           />
+
+          <div className="grid gap-1.5">
+            <Label htmlFor="new-programme-discipline">NUC discipline</Label>
+            <DisciplineSelect
+              id="new-programme-discipline"
+              className="w-full"
+              value={discipline}
+              onChange={setDiscipline}
+              noneLabel="Choose later (general skills only)"
+            />
+          </div>
 
           {create.isError && <p className="text-sm text-destructive">{create.error.message}</p>}
 

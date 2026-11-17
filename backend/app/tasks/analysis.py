@@ -14,8 +14,9 @@ from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
+from app.access import session_programme_id
 from app.extensions import db
 from app.models import (
     AnalysisSession,
@@ -24,7 +25,9 @@ from app.models import (
     NLPResult,
     NLPResultType,
     NucCourse,
+    NucDiscipline,
     Passage,
+    Programme,
     Recommendation,
     RecommendationEvidence,
     SessionStatus,
@@ -234,9 +237,18 @@ def load_courses(
     ], len(usable) - len(kept)
 
 
-def load_skill_patterns() -> list[SkillPatternSpec]:
-    """The active skill patterns."""
-    patterns = db.session.scalars(select(SkillPattern).where(SkillPattern.is_active.is_(True)))
+def load_skill_patterns(discipline: NucDiscipline | str | None) -> list[SkillPatternSpec]:
+    """The active skill patterns for a programme of this NUC discipline.
+
+    General patterns (no discipline) always apply; a programme without a discipline uses only
+    those, so it is never scored on another field's skills.
+    """
+    applies = SkillPattern.discipline.is_(None)
+    if discipline is not None:
+        applies = or_(applies, SkillPattern.discipline == discipline)
+    patterns = db.session.scalars(
+        select(SkillPattern).where(SkillPattern.is_active.is_(True), applies)
+    )
     return [
         SkillPatternSpec(str(getattr(p.label, "value", p.label)), p.pattern, p.canonical_name)
         for p in patterns
@@ -331,7 +343,9 @@ def run_session(session_id: int) -> None:
         courses, excluded_courses = load_courses(
             core_document_id, CourseExclusions.from_setting(get_setting("nuc_course_exclusions"))
         )
-        specs = load_skill_patterns()
+        # Sessions from before programmes existed count as the default programme's.
+        programme = db.session.get(Programme, session_programme_id(session))
+        specs = load_skill_patterns(programme.nuc_discipline if programme else None)
         model_name = config.get("spacy_model", "en_core_web_sm")
         skill_nlp = build_skill_pipeline(model_name, specs)
         canonical = canonical_lookup(specs, get_nlp(model_name))

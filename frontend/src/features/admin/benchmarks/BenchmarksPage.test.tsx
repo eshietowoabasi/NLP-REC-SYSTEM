@@ -12,6 +12,7 @@ const programme = (overrides: Partial<Programme> = {}): Programme => ({
   discipline_code: 'NSC',
   faculty: 'Synthetic Faculty of Nursing',
   description: null,
+  nuc_discipline: 'allied_health_sciences',
   country: 'Nigeria',
   is_active: true,
   created_at: '2026-11-01T09:00:00Z',
@@ -52,6 +53,7 @@ describe('BenchmarksPage', () => {
       discipline_code: 'NSC',
       faculty: 'Synthetic College of Health',
       description: null,
+      nuc_discipline: 'allied_health_sciences',
     })
     expect(server.calls('GET', '/programmes')[0].params).toEqual({ include_inactive: true })
   })

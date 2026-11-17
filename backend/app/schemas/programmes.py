@@ -7,6 +7,7 @@ from typing import Annotated
 
 from pydantic import StringConstraints
 
+from app.models.enums import NucDiscipline
 from app.schemas.common import RequestModel, ResponseModel
 
 
@@ -19,6 +20,8 @@ class ProgrammeCreate(RequestModel):
     description: (
         Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)] | None
     ) = None
+    # The NUC CCMAS discipline; it chooses the programme's skills list.
+    nuc_discipline: NucDiscipline | None = None
     country: Annotated[
         str, StringConstraints(strip_whitespace=True, min_length=2, max_length=80)
     ] = "Nigeria"
@@ -38,6 +41,7 @@ class ProgrammeUpdate(RequestModel):
     description: (
         Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)] | None
     ) = None
+    nuc_discipline: NucDiscipline | None = None
     is_active: bool | None = None
 
 
@@ -52,6 +56,7 @@ class ProgrammeOut(ResponseModel):
     discipline_code: str | None
     faculty: str | None
     description: str | None
+    nuc_discipline: NucDiscipline | None
     country: str
     is_active: bool
     created_at: datetime
@@ -61,3 +66,11 @@ class ProgrammeRef(ResponseModel):
     id: int
     name: str
     discipline_code: str | None
+
+
+class DisciplineOut(ResponseModel):
+    """A NUC discipline and the size of its skills list (active patterns, by skill)."""
+
+    value: NucDiscipline
+    name: str
+    skills: int

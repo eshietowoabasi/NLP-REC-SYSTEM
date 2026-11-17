@@ -432,8 +432,16 @@ A programme (e.g. Computer Science, Nursing Science) owns its own curriculum ben
 versions) and its own labour-market harvest profile. Sessions take an optional `programme_id`
 (default: the default programme) and are compared with that programme's active benchmark.
 
-Programme object: `{ "id", "name", "discipline_code", "faculty", "description", "country",
-"is_active", "created_at" }`.
+Programme object: `{ "id", "name", "discipline_code", "faculty", "description",
+"nuc_discipline", "country", "is_active", "created_at" }`. `nuc_discipline` is one of the 17 NUC
+CCMAS disciplines (e.g. `computing`, `allied_health_sciences`, `engineering_and_technology`) or
+`null`; it picks the programme's skills list. `POST` and `PATCH` accept it.
+
+### `GET /api/programmes/disciplines`
+
+Access: any. `{ "general_skills": 26, "disciplines": [{ "value": "allied_health_sciences",
+"name": "Allied Health Sciences", "skills": 29 }, ...] }`: all 17 disciplines with how many
+distinct active skills each list has.
 
 **Documents and programmes.** Every document has a `programme` (`{ "id", "name",
 "discipline_code" }`) or `null`, meaning a general document (e.g. national policy) that any
@@ -920,25 +928,31 @@ sessions created afterwards; passage size and models apply to documents uploaded
 
 ### Skill pattern object
 
-`{ "id", "label", "pattern", "canonical_name", "is_active", "created_at" }`. `label` is SKILL,
-TOOL, LANGUAGE or CERT; `pattern` is a phrase (matched case-insensitively) or a spaCy token
-pattern (a list of 1–10 token objects).
+`{ "id", "label", "pattern", "canonical_name", "discipline", "is_active", "created_at" }`.
+`label` is SKILL, TOOL, LANGUAGE or CERT; `pattern` is a phrase (matched case-insensitively) or
+a spaCy token pattern (a list of 1–10 token objects). `discipline` is the NUC discipline whose
+programmes count the skill (see `GET /api/programmes/disciplines`), or `null` for a general
+skill every programme counts. An analysis uses the active general patterns plus those of its
+programme's `nuc_discipline` (general only when the programme has none).
 
 ### `GET /api/admin/skill-patterns`
 
-Access: admin. Paginated, by canonical name. Filters: `label`, `is_active`, `search` (canonical
-name or pattern text).
+Access: admin. Paginated, by canonical name. Filters: `label`, `discipline` (a discipline or
+`general`), `is_active`, `search` (canonical name or pattern text).
 
 ### `POST /api/admin/skill-patterns`
 
-Access: admin. `{ "label", "pattern", "canonical_name" }`. Token patterns are validated by
+Access: admin. `{ "label", "pattern", "canonical_name", "discipline" }` (`discipline` optional,
+default general). Token patterns are validated by
 spaCy; problems are returned under `details.fields.pattern` (e.g. "token 1 LOWERX: Extra inputs
 are not permitted"). **409** if the same pattern (phrases compared case-insensitively) already
-exists for the label. **201**; audited as `skill_pattern.created`.
+exists for the label in the same list (the same phrase may sit in several disciplines' lists).
+**201**; audited as `skill_pattern.created`.
 
 ### `PATCH /api/admin/skill-patterns/{id}`
 
-Access: admin. Any of `label`, `pattern`, `canonical_name`, `is_active`. Same validation;
+Access: admin. Any of `label`, `pattern`, `canonical_name`, `discipline` (`null` moves it to the
+general list), `is_active`. Same validation;
 audited as `skill_pattern.updated`. Patterns are used by sessions run afterwards.
 
 ## Admin: stop words

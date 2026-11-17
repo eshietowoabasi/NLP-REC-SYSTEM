@@ -49,7 +49,15 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { SKILL_LABELS } from '@/features/review/labels'
 import { ApiError } from '@/lib/api'
 import { applyServerErrors } from '@/lib/forms'
-import type { FieldErrorDetails, PatternToken, SkillLabel, SkillPattern } from '@/types/api'
+import { useDisciplines } from '@/features/programmes/api'
+import { DisciplineSelect } from '@/features/programmes/DisciplineSelect'
+import type {
+  FieldErrorDetails,
+  NucDiscipline,
+  PatternToken,
+  SkillLabel,
+  SkillPattern,
+} from '@/types/api'
 
 import { useSaveSkillPattern, useSkillPatterns, useToggleSkillPattern } from './api'
 
@@ -64,6 +72,12 @@ function patternText(pattern: SkillPattern['pattern']) {
 export function SkillPatternsPanel() {
   const [search, setSearch] = useState('')
   const [label, setLabel] = useState<'all' | SkillLabel>('all')
+  const [discipline, setDiscipline] = useState<'all' | 'general' | NucDiscipline>('all')
+  const disciplines = useDisciplines()
+  const disciplineName = (value: NucDiscipline | null) =>
+    value === null
+      ? 'General'
+      : (disciplines.data?.disciplines.find((d) => d.value === value)?.name ?? value)
   const [status, setStatus] = useState<'all' | 'active' | 'inactive'>('all')
   const [page, setPage] = useState(1)
   const [editing, setEditing] = useState<SkillPattern | 'new' | null>(null)
@@ -72,6 +86,7 @@ export function SkillPatternsPanel() {
     per_page: PER_PAGE,
     search: search.trim(),
     label: label === 'all' ? undefined : label,
+    discipline: discipline === 'all' ? undefined : discipline,
     is_active: status === 'all' ? undefined : status === 'active',
   })
   const toggle = useToggleSkillPattern()
@@ -119,6 +134,26 @@ export function SkillPatternsPanel() {
                 onChange={(event) => setFilter(setSearch)(event.target.value)}
               />
             </div>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="pattern-discipline">Skills list</Label>
+            <Select
+              value={discipline}
+              onValueChange={(v) => setFilter(setDiscipline)(v as typeof discipline)}
+            >
+              <SelectTrigger id="pattern-discipline" className="w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All lists</SelectItem>
+                <SelectItem value="general">General (every programme)</SelectItem>
+                {disciplines.data?.disciplines.map((d) => (
+                  <SelectItem key={d.value} value={d.value}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="pattern-label">Type</Label>
@@ -178,6 +213,7 @@ export function SkillPatternsPanel() {
               <TableRow>
                 <TableHead>Canonical name</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Skills list</TableHead>
                 <TableHead>Pattern</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">
@@ -189,7 +225,7 @@ export function SkillPatternsPanel() {
               {patterns.isPending
                 ? Array.from({ length: 4 }, (_, i) => (
                     <TableRow key={i}>
-                      <TableCell colSpan={5}>
+                      <TableCell colSpan={6}>
                         <Skeleton className="h-6 w-full" />
                       </TableCell>
                     </TableRow>
@@ -198,6 +234,9 @@ export function SkillPatternsPanel() {
                     <TableRow key={pattern.id}>
                       <TableCell className="font-medium">{pattern.canonical_name}</TableCell>
                       <TableCell>{SKILL_LABELS[pattern.label]}</TableCell>
+                      <TableCell className="text-[13px] text-body">
+                        {disciplineName(pattern.discipline)}
+                      </TableCell>
                       <TableCell className="max-w-96 whitespace-normal">
                         {typeof pattern.pattern === 'string' ? (
                           <span>&ldquo;{pattern.pattern}&rdquo;</span>
@@ -267,6 +306,8 @@ const schema = z
   .object({
     label: z.enum(['SKILL', 'TOOL', 'LANGUAGE', 'CERT']),
     canonical_name: z.string().trim().min(1, 'Enter the canonical name.').max(128),
+    // null: a general skill, used by every programme.
+    discipline: z.string().nullable(),
     kind: z.enum(['phrase', 'tokens']),
     phrase: z.string().trim().max(100, 'At most 100 characters.'),
     tokens: z.string().trim(),
@@ -317,6 +358,7 @@ function PatternForm({ pattern, onDone }: { pattern: SkillPattern | null; onDone
     defaultValues: {
       label: pattern?.label ?? 'SKILL',
       canonical_name: pattern?.canonical_name ?? '',
+      discipline: pattern?.discipline ?? null,
       kind: isPhrase ? 'phrase' : 'tokens',
       phrase: pattern && typeof pattern.pattern === 'string' ? pattern.pattern : '',
       tokens:
@@ -332,6 +374,7 @@ function PatternForm({ pattern, onDone }: { pattern: SkillPattern | null; onDone
     const body = {
       label: values.label,
       canonical_name: values.canonical_name,
+      discipline: values.discipline as NucDiscipline | null,
       pattern:
         values.kind === 'phrase' ? values.phrase : (parseTokens(values.tokens) as PatternToken[]),
     }
@@ -341,7 +384,11 @@ function PatternForm({ pattern, onDone }: { pattern: SkillPattern | null; onDone
         onDone()
       },
       onError: (error) => {
-        const message = applyServerErrors(error, setError, ['label', 'canonical_name'])
+        const message = applyServerErrors(error, setError, [
+          'label',
+          'canonical_name',
+          'discipline',
+        ])
         // Server errors on "pattern" belong to whichever input is showing.
         const patternErrors =
           error instanceof ApiError
@@ -408,6 +455,26 @@ function PatternForm({ pattern, onDone }: { pattern: SkillPattern | null; onDone
             <FieldError errors={[errors.label]} />
           </Field>
         </div>
+        <Field data-invalid={!!errors.discipline}>
+          <FieldLabel htmlFor="pattern-skills-list">Skills list</FieldLabel>
+          <Controller
+            control={control}
+            name="discipline"
+            render={({ field }) => (
+              <DisciplineSelect
+                id="pattern-skills-list"
+                className="w-full"
+                value={field.value as NucDiscipline | null}
+                onChange={field.onChange}
+                noneLabel="General (every programme)"
+              />
+            )}
+          />
+          <FieldDescription>
+            Only programmes of this discipline count it. General skills count for every programme.
+          </FieldDescription>
+          <FieldError errors={[errors.discipline]} />
+        </Field>
         <FieldSet>
           <FieldLegend variant="label">Pattern</FieldLegend>
           <Controller

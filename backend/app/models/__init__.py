@@ -4,9 +4,11 @@ from app.models.audit import AuditLog
 from app.models.configuration import Setting, SkillPattern, StopWord
 from app.models.document import Document, NucCoreVersion, NucCourse, Passage
 from app.models.enums import (
+    NUC_DISCIPLINE_NAMES,
     DocumentStatus,
     FileType,
     NLPResultType,
+    NucDiscipline,
     OverlapStatus,
     PlannerDecision,
     ReportFormat,
@@ -48,6 +50,8 @@ __all__ = [
     "ReportStatus",
     "SessionStatus",
     "Setting",
+    "NUC_DISCIPLINE_NAMES",
+    "NucDiscipline",
     "SkillLabel",
     "SkillPattern",
     "SourceCategory",

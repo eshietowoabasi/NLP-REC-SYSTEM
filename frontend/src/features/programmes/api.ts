@@ -3,7 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { documentsQueryKey } from '@/features/documents/api'
 import { apiGet, apiPatch, apiPost, apiUpload } from '@/lib/api'
 import type {
+  DisciplineList,
   NucCoreVersion,
+  NucDiscipline,
   Programme,
   ProgrammeBenchmarkState,
   ProgrammeUpdate,
@@ -52,6 +54,7 @@ export function useCreateProgramme() {
       discipline_code?: string | null
       faculty?: string | null
       description?: string | null
+      nuc_discipline?: NucDiscipline | null
       country?: string
     }) => apiPost<Programme>('/programmes', input),
 
@@ -91,5 +94,14 @@ export function useUploadProgrammeBenchmark() {
         queryKey: [...programmesQueryKey, variables.programmeId, 'benchmarks'],
       })
     },
+  })
+}
+
+/** The 17 NUC disciplines with the size of each skills list. */
+export function useDisciplines() {
+  return useQuery({
+    queryKey: [...programmesQueryKey, 'disciplines'],
+    queryFn: () => apiGet<DisciplineList>('/programmes/disciplines'),
+    staleTime: 5 * 60_000,
   })
 }
