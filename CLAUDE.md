@@ -56,7 +56,7 @@ Web only (Chrome, Firefox, Edge). Pre-trained models only.
 9. Novelty = `1 − max cosine(candidate, NUC core passages)`, clipped to [0,1].
    `max_sim > threshold` (default 0.80, strictly greater) → "Potential Duplicate", else
    "No Significant Overlap". Store closest NUC passage id.
-10. Skill (NER) score: per candidate, sum over its top skills of (distinct documents mentioning
+10. Skill (NER) score (patterns = general + the programme's NUC discipline list): per candidate, sum over its top skills of (distinct documents mentioning
     the skill × share of the skill's mentions in this theme) → `log1p` → min-max over the
     candidates that have skills; no skills → 0 (Phase 6, see `docs/SCORING_COMPARISON.md`).
 11. Theme (topic) score: `(document-weighted topic passages / non-outlier total) ×
