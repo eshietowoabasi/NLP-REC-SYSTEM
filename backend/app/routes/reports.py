@@ -69,11 +69,11 @@ def get_report_or_404(report_id: int) -> Report:
 def download_name(report: Report) -> str:
     """A readable, filesystem-safe file name.
 
-    For example ``NLP-RS report - 2026 review - 25 Sep 2026.pdf``.
+    For example ``SkillBridge report - 2026 review - 25 Sep 2026.pdf``.
     """
     name = re.sub(r"[^\w\- ]+", "", report.session.session_name).strip()[:80] or "session"
     date = report.created_at.strftime("%d %b %Y")
-    return f"NLP-RS report - {name} - {date}.{report.format}"
+    return f"SkillBridge report - {name} - {date}.{report.format}"
 
 
 @bp.post("/sessions/<int:session_id>/reports")

@@ -877,7 +877,7 @@ Access: any. **404** if unknown.
 ### `GET /api/reports/{id}/download`
 
 Access: any. The file as an attachment named
-`NLP-RS report - <session> - <date>.<pdf|docx>`. **409** `REPORT_NOT_READY` until the report
+`SkillBridge report - <session> - <date>.<pdf|docx>`. **409** `REPORT_NOT_READY` until the report
 has completed; **404** if the file is missing.
 
 ### `DELETE /api/reports/{id}`

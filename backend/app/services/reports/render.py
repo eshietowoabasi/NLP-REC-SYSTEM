@@ -99,7 +99,7 @@ def render_docx(doc: ReportDocument) -> bytes:
         section.page_width, section.page_height = Mm(210), Mm(297)
         section.left_margin = section.right_margin = Mm(18)
         section.top_margin, section.bottom_margin = Mm(20), Mm(18)
-        section.header.paragraphs[0].text = f"NLP-RS · {doc.subtitle}"
+        section.header.paragraphs[0].text = f"SkillBridge · {doc.subtitle}"
         section.header.paragraphs[0].runs[0].font.size = Pt(8)
         section.header.paragraphs[0].runs[0].font.color.rgb = MUTED
     style = document.styles["Normal"]
