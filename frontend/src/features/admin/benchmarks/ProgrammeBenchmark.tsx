@@ -1,4 +1,4 @@
-import { BookOpen, Loader2, Plus, Upload } from 'lucide-react'
+import { BookOpen, Loader2, Upload } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -18,183 +17,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  useCreateProgramme,
-  useProgrammeBenchmarks,
-  useProgrammes,
-  useUploadProgrammeBenchmark,
-} from '@/features/programmes/api'
-import { DisciplineSelect } from '@/features/programmes/DisciplineSelect'
+import { useProgrammeBenchmarks, useUploadProgrammeBenchmark } from '@/features/programmes/api'
 import { formatDateTime } from '@/lib/format'
-import type { NucDiscipline } from '@/types/api'
 
-import { ProgrammeDetailsCard } from './ProgrammeDetailsCard'
-
-export function BenchmarksPage() {
-  // Admins manage retired programmes here too (to restore them).
-  const programmes = useProgrammes({ includeInactive: true })
-  const [chosenProgrammeId, setProgrammeId] = useState(0)
-  // Until the admin picks one, show the first programme.
-  const programmeId = chosenProgrammeId || programmes.data?.[0]?.id || 0
-  const selected = programmes.data?.find((programme) => programme.id === programmeId)
-
-  if (programmes.isPending) {
-    return <Skeleton className="h-72 w-full" />
-  }
-
-  if (programmes.isError) {
-    return (
-      <Alert variant="destructive">
-        <AlertTitle>Could not load programmes</AlertTitle>
-        <AlertDescription>{programmes.error.message}</AlertDescription>
-      </Alert>
-    )
-  }
-
-  return (
-    <div className="mx-auto max-w-6xl space-y-5">
-      <div className="space-y-1">
-        <h2 className="page-title">Programmes &amp; curriculum benchmarks</h2>
-
-        <p className="max-w-3xl page-lead">
-          Manage the disciplines SkillBridge can analyse. Each programme has its own curriculum
-          benchmark, so labour-market evidence is compared with the correct academic framework.
-        </p>
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Select programme</CardTitle>
-            <CardDescription>
-              Choose the programme whose curriculum benchmark you want to manage.
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent>
-            {programmes.data.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No programmes have been created yet.</p>
-            ) : (
-              <select
-                value={programmeId}
-                onChange={(event) => setProgrammeId(Number(event.target.value))}
-                className="h-11 w-full max-w-lg rounded-xl border border-input bg-white px-3.5 text-sm font-medium text-ink outline-none focus:border-ring focus:ring-3 focus:ring-ring/25"
-                aria-label="Programme"
-              >
-                {programmes.data.map((programme) => (
-                  <option key={programme.id} value={programme.id}>
-                    {programme.name}
-                    {programme.discipline_code ? ` (${programme.discipline_code})` : ''}
-                    {programme.is_active ? '' : ' (retired)'}
-                  </option>
-                ))}
-              </select>
-            )}
-          </CardContent>
-        </Card>
-
-        <CreateProgrammeCard />
-      </div>
-
-      {selected && <ProgrammeDetailsCard programme={selected} />}
-
-      {programmeId > 0 && <ProgrammeBenchmark programmeId={programmeId} />}
-    </div>
-  )
-}
-
-function CreateProgrammeCard() {
-  const create = useCreateProgramme()
-
-  const [name, setName] = useState('')
-  const [code, setCode] = useState('')
-  const [faculty, setFaculty] = useState('')
-  const [discipline, setDiscipline] = useState<NucDiscipline | null>(null)
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault()
-
-    create.mutate(
-      {
-        name: name.trim(),
-        discipline_code: code.trim() || null,
-        faculty: faculty.trim() || null,
-        nuc_discipline: discipline,
-        country: 'Nigeria',
-      },
-      {
-        onSuccess: (programme) => {
-          toast.success(`${programme.name} added.`)
-
-          setName('')
-          setCode('')
-          setFaculty('')
-          setDiscipline(null)
-        },
-      },
-    )
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Add programme</CardTitle>
-
-        <CardDescription>Add another discipline for analysis.</CardDescription>
-      </CardHeader>
-
-      <CardContent>
-        <form className="space-y-3" onSubmit={submit}>
-          <Input
-            aria-label="Programme name"
-            placeholder="e.g. Nursing Science"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            required
-          />
-
-          <Input
-            aria-label="Discipline code"
-            placeholder="Code, e.g. NSC"
-            value={code}
-            onChange={(event) => setCode(event.target.value)}
-          />
-
-          <Input
-            aria-label="Faculty"
-            placeholder="Faculty (optional)"
-            value={faculty}
-            onChange={(event) => setFaculty(event.target.value)}
-          />
-
-          <div className="grid gap-1.5">
-            <Label htmlFor="new-programme-discipline">NUC discipline</Label>
-            <DisciplineSelect
-              id="new-programme-discipline"
-              className="w-full"
-              value={discipline}
-              onChange={setDiscipline}
-              noneLabel="Choose later (general skills only)"
-            />
-          </div>
-
-          {create.isError && <p className="text-sm text-destructive">{create.error.message}</p>}
-
-          <Button type="submit" disabled={create.isPending || !name.trim()}>
-            {create.isPending ? (
-              <Loader2 className="animate-spin" aria-hidden="true" />
-            ) : (
-              <Plus aria-hidden="true" />
-            )}
-            Add programme
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
-  )
-}
-
-function ProgrammeBenchmark({ programmeId }: { programmeId: number }) {
+/** The programme's NUC core: the active version, its history and uploading a new one. */
+export function ProgrammeBenchmark({ programmeId }: { programmeId: number }) {
   const state = useProgrammeBenchmarks(programmeId)
 
   const upload = useUploadProgrammeBenchmark()
@@ -252,11 +79,12 @@ function ProgrammeBenchmark({ programmeId }: { programmeId: number }) {
               <span className="flex size-11 items-center justify-center rounded-xl bg-teal-tint">
                 <BookOpen className="size-5 text-teal" aria-hidden="true" />
               </span>
-
-              {programme.name}
+              NUC core curriculum
             </CardTitle>
 
-            <CardDescription>{programme.faculty ?? programme.country}</CardDescription>
+            <CardDescription>
+              The CCMAS document every {programme.name} topic is compared with.
+            </CardDescription>
           </CardHeader>
 
           <CardContent>
