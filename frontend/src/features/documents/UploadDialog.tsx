@@ -158,8 +158,7 @@ export function UploadDialog({ open, onOpenChange, defaultProgrammeId = null }: 
             disabled={uploading}
           />
           <p className="text-xs text-muted-foreground">
-            Analyses for a programme use its own documents and general ones, such as national
-            policy.
+            Reviews for a programme use its own documents and general ones, such as national policy.
           </p>
         </div>
 

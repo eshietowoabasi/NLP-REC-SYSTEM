@@ -181,8 +181,7 @@ function EditForm({ document, onDone }: { document: DocumentSummary; onDone: () 
               )}
             />
             <FieldDescription>
-              Only analyses for this programme can use the document. Analyses already created keep
-              it.
+              Only reviews for this programme can use the document. Reviews already created keep it.
             </FieldDescription>
             <FieldError errors={[errors.programme_id]} />
           </Field>

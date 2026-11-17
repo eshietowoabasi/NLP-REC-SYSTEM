@@ -283,7 +283,7 @@ function ProgrammeBenchmark({ programmeId }: { programmeId: number }) {
                 <AlertTitle>No active curriculum benchmark</AlertTitle>
 
                 <AlertDescription>
-                  Analyses for {programme.name}
+                  Reviews for {programme.name}
                   can be created, but cannot run until a benchmark has been uploaded and processed.
                 </AlertDescription>
               </Alert>

@@ -367,7 +367,7 @@ export function SessionReviewHeader({
         <h2 className="page-title">{title}</h2>
         <nav
           aria-label="Session review"
-          className="flex flex-wrap gap-1.5 rounded-[14px] bg-sand-deep p-1"
+          className="flex max-w-full gap-1 overflow-x-auto rounded-[14px] bg-sand-deep p-1 sm:gap-1.5"
         >
           {links.map((link) => (
             <NavLink
@@ -375,7 +375,7 @@ export function SessionReviewHeader({
               to={link.to}
               className={({ isActive }) =>
                 cn(
-                  'flex h-10 items-center rounded-[10px] px-[18px] text-sm font-semibold text-body-soft hover:text-ink focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none',
+                  'flex h-10 shrink-0 items-center rounded-[10px] px-3 text-sm font-semibold whitespace-nowrap text-body-soft hover:text-ink focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none sm:px-[18px]',
                   isActive && 'bg-white font-extrabold text-ink',
                 )
               }

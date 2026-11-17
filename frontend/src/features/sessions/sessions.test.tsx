@@ -212,6 +212,15 @@ describe('SessionDetailPage', () => {
     expect(within(stages).getByText('Topics').closest('li')).toHaveAttribute('aria-current', 'step')
     expect(within(stages).getByText('Scoring').parentElement).toHaveTextContent('not started')
     expect(screen.getByText('55%')).toBeInTheDocument()
+
+    // The review steps after the analysis cannot be opened yet.
+    const steps = within(screen.getByRole('navigation', { name: 'Session progress' }))
+    expect(steps.getByRole('link', { name: 'Step 2: Analyse, 55% done' })).toHaveAttribute(
+      'aria-current',
+      'step',
+    )
+    expect(steps.queryByRole('link', { name: /Step 3: Review/ })).not.toBeInTheDocument()
+    expect(steps.getByRole('group', { name: /Step 3: Review, after the analysis/ })).toBeVisible()
   })
 
   it('explains a failure and retries', async () => {

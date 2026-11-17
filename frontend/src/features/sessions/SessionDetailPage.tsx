@@ -92,7 +92,7 @@ function SessionView({ session }: { session: SessionDetail }) {
         to="/sessions"
         className="inline-flex items-center gap-1.5 text-[13px] font-bold text-primary hover:underline"
       >
-        <ArrowLeft className="size-4" aria-hidden="true" /> Analyses
+        <ArrowLeft className="size-4" aria-hidden="true" /> Reviews
       </Link>
 
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -148,6 +148,8 @@ function SessionView({ session }: { session: SessionDetail }) {
         </Alert>
       )}
 
+      <SessionProgress sessionId={session.id} />
+
       {session.status === 'completed' && (
         <Alert variant="success">
           <CheckCircle2 aria-hidden="true" />
@@ -180,7 +182,6 @@ function SessionView({ session }: { session: SessionDetail }) {
           </AlertDescription>
         </Alert>
       )}
-      {session.status === 'completed' && <SessionProgress sessionId={session.id} />}
 
       <div
         className={cn(
