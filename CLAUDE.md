@@ -202,6 +202,8 @@ are 404. Test users from `make_user` get the default programme unless `programme
   (`ProgrammeSwitcher`); read it with `useCurrentProgramme()` (provider `ProgrammeProvider` in
   `AppShell`, remembered per user in localStorage). Lists, Home and New review default to it.
   Navigation names: Home, Reviews, Library, Reports; admin Programmes, Job collection.
+  Programme setup checks live in `features/programmes/readiness.ts` (`READINESS_CHECKS`), shared by
+  Home and the admin Programmes page (`features/admin/programmes/`, tabs via `?programme=&tab=`).
 - Charts (Recharts): colours from the `--viz-*` tokens in `index.css` (terracotta for
   magnitude on a divider-coloured track, amber only for "Potential Duplicate" with icon + label), a table beside
   every chart, hover tooltips. Chart-heavy routes are lazy-loaded.
