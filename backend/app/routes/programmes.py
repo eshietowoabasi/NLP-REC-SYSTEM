@@ -11,9 +11,18 @@ from app.access import programme_condition, require_programme
 from app.audit import AuditAction, record_audit
 from app.auth.decorators import login_required, role_required
 from app.extensions import db
-from app.models import NucCoreVersion, Programme, SourceCategory, UserRole
+from app.models import (
+    NUC_DISCIPLINE_NAMES,
+    NucCoreVersion,
+    NucDiscipline,
+    Programme,
+    SkillPattern,
+    SourceCategory,
+    UserRole,
+)
 from app.schemas.documents import NucCoreUploadForm, NucCoreVersionOut
 from app.schemas.programmes import (
+    DisciplineOut,
     ProgrammeCreate,
     ProgrammeListQuery,
     ProgrammeOut,
@@ -71,6 +80,31 @@ def _check_unique(name: str | None, code: str | None, exclude_id: int | None = N
             409,
             {"fields": {"discipline_code": ["That discipline code is already in use."]}},
         )
+
+
+@bp.get("/disciplines")
+@login_required
+def list_disciplines() -> tuple[Response, int]:
+    """The 17 NUC CCMAS disciplines with how many distinct skills each list has; ``general``
+    counts the skills every programme uses."""
+    counts = dict(
+        db.session.execute(
+            select(SkillPattern.discipline, func.count(func.distinct(SkillPattern.canonical_name)))
+            .where(SkillPattern.is_active.is_(True))
+            .group_by(SkillPattern.discipline)
+        ).all()
+    )
+    return success(
+        {
+            "general_skills": counts.get(None, 0),
+            "disciplines": [
+                DisciplineOut(
+                    value=d, name=NUC_DISCIPLINE_NAMES[d], skills=counts.get(d, 0)
+                ).model_dump(mode="json")
+                for d in NucDiscipline
+            ],
+        }
+    )
 
 
 @bp.get("")

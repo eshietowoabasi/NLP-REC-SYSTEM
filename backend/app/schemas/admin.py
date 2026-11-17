@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import (
     AfterValidator,
@@ -16,7 +16,7 @@ from pydantic import (
     model_validator,
 )
 
-from app.models.enums import SkillLabel
+from app.models.enums import NucDiscipline, SkillLabel
 from app.schemas.common import PaginationQuery, RequestModel, ResponseModel
 from app.schemas.documents import UserRef
 from app.schemas.sessions import WeightsIn
@@ -165,6 +165,8 @@ class SkillPatternIn(RequestModel):
     label: SkillLabel
     pattern: Phrase | Annotated[list[PatternToken], Field(min_length=1, max_length=10)]
     canonical_name: CanonicalName
+    # The NUC discipline whose programmes use it; null (default): every programme.
+    discipline: NucDiscipline | None = None
 
     @field_validator("pattern")
     @classmethod
@@ -184,12 +186,14 @@ class SkillPatternUpdate(RequestModel):
     )
     canonical_name: CanonicalName | None = None
     is_active: bool | None = None
+    # null moves the pattern to the general list (every programme).
+    discipline: NucDiscipline | None = None
 
     @model_validator(mode="after")
     def _something(self) -> SkillPatternUpdate:
         if not self.model_fields_set:
             raise ValueError("Send at least one field to change.")
-        for key in self.model_fields_set:
+        for key in self.model_fields_set - {"discipline"}:
             if getattr(self, key) is None:
                 raise ValueError(f"{key} cannot be empty.")
         return self
@@ -197,6 +201,8 @@ class SkillPatternUpdate(RequestModel):
 
 class SkillPatternListQuery(PaginationQuery):
     label: SkillLabel | None = None
+    # A discipline, or "general" for the patterns every programme uses.
+    discipline: NucDiscipline | Literal["general"] | None = None
     is_active: bool | None = None
     search: str | None = Field(default=None, max_length=100)
 
@@ -206,6 +212,7 @@ class SkillPatternOut(ResponseModel):
     label: SkillLabel
     pattern: str | list[PatternToken]
     canonical_name: str
+    discipline: NucDiscipline | None
     is_active: bool
     created_at: datetime
 
