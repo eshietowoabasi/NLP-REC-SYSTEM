@@ -1,6 +1,20 @@
 import { AxiosError, type AxiosAdapter, type AxiosResponse } from 'axios'
 
 import { api } from '@/lib/api'
+import type { Programme } from '@/types/api'
+
+/** Synthetic: the programme every test workspace starts in (matches fixtures' syntheticComputing). */
+const syntheticProgramme: Programme = {
+  id: 1,
+  name: 'Synthetic Computer Science',
+  discipline_code: 'CSC',
+  faculty: null,
+  description: null,
+  nuc_discipline: 'computing',
+  country: 'Nigeria',
+  is_active: true,
+  created_at: '2026-01-15T09:00:00Z',
+}
 
 /**
  * A tiny in-memory API for tests, installed as the Axios adapter so the real request and
@@ -11,8 +25,9 @@ import { api } from '@/lib/api'
  *     'PATCH /admin/users/:id': (req, params) => ok({ ...user, id: Number(params.id) }),
  *   })
  *
- * GET /auth/csrf answers with a test token unless a handler overrides it; unmatched requests
- * get a 404 error envelope.
+ * GET /auth/csrf answers with a test token, GET /programmes with one synthetic programme and
+ * GET /programmes/readiness with [], unless a handler overrides them; unmatched requests get a
+ * 404 error envelope.
  */
 
 export interface MockRequest {
@@ -90,6 +105,11 @@ export function mockApi(handlers: Record<string, Handler>) {
       }
     } else if (method === 'GET' && url === '/auth/csrf') {
       result = ok({ csrf_token: TEST_CSRF_TOKEN })
+    } else if (method === 'GET' && url === '/programmes') {
+      // The sidebar's programme switcher: one synthetic programme unless a test overrides it.
+      result = ok([syntheticProgramme])
+    } else if (method === 'GET' && url === '/programmes/readiness') {
+      result = ok([])
     } else {
       result = fail(404, 'NOT_FOUND', `No mock for ${method} ${url}`)
     }

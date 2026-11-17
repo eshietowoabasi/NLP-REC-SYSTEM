@@ -8,6 +8,7 @@ import type {
   NucDiscipline,
   Programme,
   ProgrammeBenchmarkState,
+  ProgrammeReadiness,
   ProgrammeUpdate,
 } from '@/types/api'
 
@@ -103,5 +104,22 @@ export function useDisciplines() {
     queryKey: [...programmesQueryKey, 'disciplines'],
     queryFn: () => apiGet<DisciplineList>('/programmes/disciplines'),
     staleTime: 5 * 60_000,
+  })
+}
+
+/** Readiness of every programme the user may see (sidebar dots, admin list). */
+export function useProgrammesReadiness() {
+  return useQuery({
+    queryKey: [...programmesQueryKey, 'readiness'],
+    queryFn: () => apiGet<ProgrammeReadiness[]>('/programmes/readiness'),
+  })
+}
+
+/** What one programme has and lacks before a review (Home checklist). */
+export function useProgrammeReadiness(programmeId: number | undefined) {
+  return useQuery({
+    queryKey: [...programmesQueryKey, 'readiness', programmeId],
+    queryFn: () => apiGet<ProgrammeReadiness>(`/programmes/${programmeId}/readiness`),
+    enabled: programmeId !== undefined,
   })
 }

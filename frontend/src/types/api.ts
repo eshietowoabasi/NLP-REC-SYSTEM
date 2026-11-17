@@ -160,6 +160,18 @@ export type NucDiscipline =
   | 'social_sciences'
   | 'veterinary_medicine'
 
+/** GET /api/programmes/{id}/readiness: what a programme has and lacks before a review. */
+export interface ProgrammeReadiness {
+  programme_id: number
+  nuc_core: { id: number; version_label: string } | null
+  discipline: { value: NucDiscipline; name: string } | null
+  job_search: { ready: boolean; search_terms: string[] }
+  documents_ready: number
+  planners: number
+  /** NUC core, discipline, and job collection or 5+ ready documents. */
+  ready: boolean
+}
+
 /** GET /api/programmes/disciplines */
 export interface DisciplineList {
   general_skills: number
@@ -359,6 +371,7 @@ export interface SessionListParams {
   per_page?: number
   status?: SessionStatus
   search?: string
+  programme_id?: number
 }
 
 /* ------------------------------------------------ session results (evidence) */

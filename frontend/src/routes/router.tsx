@@ -39,7 +39,7 @@ export const routes: RouteObject[] = [
               () => import('@/features/dashboard/DashboardPage'),
               (m) => m.DashboardPage,
             ),
-            handle: title('Dashboard'),
+            handle: title('Home'),
           },
           {
             path: 'profile',
@@ -55,7 +55,7 @@ export const routes: RouteObject[] = [
               () => import('@/features/documents/DocumentsPage'),
               (m) => m.DocumentsPage,
             ),
-            handle: title('Documents'),
+            handle: title('Library'),
           },
           {
             path: 'documents/:documentId',
@@ -63,7 +63,7 @@ export const routes: RouteObject[] = [
               () => import('@/features/documents/DocumentDetailPage'),
               (m) => m.DocumentDetailPage,
             ),
-            handle: title('Document', 'Documents'),
+            handle: title('Document', 'Library'),
           },
           {
             path: 'sessions',
@@ -71,7 +71,7 @@ export const routes: RouteObject[] = [
               () => import('@/features/sessions/SessionsPage'),
               (m) => m.SessionsPage,
             ),
-            handle: title('Analyses'),
+            handle: title('Reviews'),
           },
           {
             path: 'sessions/new',
@@ -83,7 +83,7 @@ export const routes: RouteObject[] = [
                   () => import('@/features/sessions/NewSessionPage'),
                   (m) => m.NewSessionPage,
                 ),
-                handle: title('New analysis', 'Analyses'),
+                handle: title('New review', 'Reviews'),
               },
             ],
           },
@@ -93,7 +93,7 @@ export const routes: RouteObject[] = [
               () => import('@/features/sessions/SessionDetailPage'),
               (m) => m.SessionDetailPage,
             ),
-            handle: title('Analysis', 'Analyses'),
+            handle: title('Review', 'Reviews'),
           },
           {
             path: 'sessions/:sessionId/evidence',
@@ -101,7 +101,7 @@ export const routes: RouteObject[] = [
               () => import('@/features/review/EvidencePage'),
               (m) => m.EvidencePage,
             ),
-            handle: title('Evidence', 'Analyses'),
+            handle: title('Evidence', 'Reviews'),
           },
           {
             path: 'sessions/:sessionId/recommendations',
@@ -109,7 +109,7 @@ export const routes: RouteObject[] = [
               () => import('@/features/review/RecommendationsPage'),
               (m) => m.RecommendationsPage,
             ),
-            handle: title('Suggested topics', 'Analyses'),
+            handle: title('Suggested topics', 'Reviews'),
           },
           {
             path: 'sessions/:sessionId/curriculum',
@@ -117,7 +117,7 @@ export const routes: RouteObject[] = [
               () => import('@/features/review/CurriculumPage'),
               (m) => m.CurriculumPage,
             ),
-            handle: title('Proposed courses', 'Analyses'),
+            handle: title('Proposed courses', 'Reviews'),
           },
           {
             path: 'recommendations/:recommendationId',
@@ -125,7 +125,7 @@ export const routes: RouteObject[] = [
               () => import('@/features/review/RecommendationDetailPage'),
               (m) => m.RecommendationDetailPage,
             ),
-            handle: title('Topic', 'Analyses'),
+            handle: title('Topic', 'Reviews'),
           },
           {
             path: 'recommendations/:recommendationId/mapping',
@@ -137,7 +137,7 @@ export const routes: RouteObject[] = [
                   () => import('@/features/review/MappingPage'),
                   (m) => m.MappingPage,
                 ),
-                handle: title('Design course', 'Analyses'),
+                handle: title('Design course', 'Reviews'),
               },
             ],
           },
@@ -159,7 +159,7 @@ export const routes: RouteObject[] = [
                   () => import('@/features/admin/users/UsersPage'),
                   (m) => m.UsersPage,
                 ),
-                handle: title('Users', 'Administration'),
+                handle: title('Users', 'Admin'),
               },
               {
                 path: 'labour-market',
@@ -167,7 +167,7 @@ export const routes: RouteObject[] = [
                   () => import('@/features/admin/labour-market/LabourMarketPage'),
                   (m) => m.LabourMarketPage,
                 ),
-                handle: title('Labour market', 'Administration'),
+                handle: title('Job collection', 'Admin'),
               },
               {
                 path: 'benchmarks',
@@ -175,7 +175,7 @@ export const routes: RouteObject[] = [
                   () => import('@/features/admin/benchmarks/BenchmarksPage'),
                   (m) => m.BenchmarksPage,
                 ),
-                handle: title('Curriculum benchmarks', 'Administration'),
+                handle: title('Programmes', 'Admin'),
               },
               {
                 path: 'nuc-core',
@@ -183,7 +183,7 @@ export const routes: RouteObject[] = [
                   () => import('@/features/admin/nuc-core/NucCorePage'),
                   (m) => m.NucCorePage,
                 ),
-                handle: title('NUC core curriculum', 'Administration'),
+                handle: title('NUC core curriculum', 'Admin'),
               },
               {
                 path: 'settings',
@@ -191,7 +191,7 @@ export const routes: RouteObject[] = [
                   () => import('@/features/admin/settings/SettingsPage'),
                   (m) => m.SettingsPage,
                 ),
-                handle: title('Settings', 'Administration'),
+                handle: title('Settings', 'Admin'),
               },
               {
                 path: 'audit-log',
@@ -199,7 +199,7 @@ export const routes: RouteObject[] = [
                   () => import('@/features/admin/audit/AuditLogPage'),
                   (m) => m.AuditLogPage,
                 ),
-                handle: title('Activity log', 'Administration'),
+                handle: title('Activity log', 'Admin'),
               },
             ],
           },
