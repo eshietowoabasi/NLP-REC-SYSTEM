@@ -165,15 +165,7 @@ def start_harvest(
         raise ApiError(
             "VALIDATION_ERROR",
             "Job collection is not set up for this programme yet. Ask an admin to add job"
-            " titles on the Labour Market page.",
-            422,
-        )
-
-    if not programme.job_field_slugs:
-        raise ApiError(
-            "VALIDATION_ERROR",
-            "Job collection is not set up for this programme yet. Ask an admin to choose job"
-            " fields on the Labour Market page.",
+            " titles on the Programmes page (Job collection).",
             422,
         )
 
