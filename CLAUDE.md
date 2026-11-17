@@ -190,11 +190,17 @@ are 404. Test users from `make_user` get the default programme unless `programme
   out of 100 with the helpers in `review/labels.ts`; "flagged" is displayed as "Discuss later".
 - SkillBridge design (Phase 6, `docs/design/skillbridge-design/DESIGN_SPEC.md`): use the brand tokens in
   `index.css` (`terracotta`, `amber`, `ink`, `sand`, `line`, `muted-ink` …, shadcn variables mapped onto
-  them; light only), the restyled shadcn primitives (Badge variants success/warning/info/neutral/brand,
+  them; light content with a dark "night" sidebar and hero: `night*`, `ember*` tokens, `font-mono` via
+  the `num` utility for figures, `lift` for hover cards, `night-grid` backgrounds; animations
+  `rise`/`fill`/`slide-in`/`live` respect reduced motion), the restyled shadcn primitives (Badge variants success/warning/info/neutral/brand,
   Alert variants success/warning/info, Toggle `chip`/`segment`, `TableCard`) and the shared pieces in
   `components/shared/` (`PageHeader`, `EmptyState`, `FilterChip`, `DocumentRef`) and
   `components/brand/Logo`. Page titles are `h2.page-title`; the top bar's `h1` comes from the route's
   `handle` (`title`, `crumb`). Never show file names; reference documents with `DocumentRef`.
+- Current programme: the workspace follows one programme chosen in the sidebar
+  (`ProgrammeSwitcher`); read it with `useCurrentProgramme()` (provider `ProgrammeProvider` in
+  `AppShell`, remembered per user in localStorage). Lists, Home and New review default to it.
+  Navigation names: Home, Reviews, Library, Reports; admin Programmes, Job collection.
 - Charts (Recharts): colours from the `--viz-*` tokens in `index.css` (terracotta for
   magnitude on a divider-coloured track, amber only for "Potential Duplicate" with icon + label), a table beside
   every chart, hover tooltips. Chart-heavy routes are lazy-loaded.

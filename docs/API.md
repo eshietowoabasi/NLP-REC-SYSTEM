@@ -449,6 +449,26 @@ programme may use. A session may only use its own programme's documents and gene
 others are refused with 422 on `document_ids` ("“…” belongs to Computer Science, not Nursing
 Science."). Migration `0010_document_programmes` gave existing documents the default programme.
 
+### `GET /api/programmes/readiness`
+
+Access: any. One readiness object per programme the user can see, saying what is still missing
+before a planner can analyse it:
+
+```json
+{ "programme_id": 2, "nuc_core": { "id": 4, "version_label": "CCMAS 2023" },
+  "discipline": { "value": "allied_health_sciences", "name": "Allied Health Sciences" },
+  "job_search": { "ready": true, "search_terms": ["nurse", "nursing"] },
+  "documents_ready": 7, "planners": 2, "ready": true }
+```
+
+`ready` needs an active NUC core version, a discipline (skills list) and either a job-collection
+profile with search terms or at least 5 processed documents of its own or general ones.
+`nuc_core` and `discipline` are `null` when missing.
+
+### `GET /api/programmes/{id}/readiness`
+
+Access: any. The same object for one programme; **404** if the user cannot see it.
+
 ### `GET /api/programmes`
 
 Access: any. Active programmes, ordered by name. Admins may add `?include_inactive=true` to
@@ -575,7 +595,8 @@ The detail adds:
 ### `GET /api/sessions`
 
 Access: any. Sessions of the user's programmes, paginated, newest first. Filters: `status`,
-`search` (name), `programme_id`.
+`search` (name), `programme_id`. Sessions created before programmes existed (no programme)
+count as the default programme's, here and in the dashboard summary.
 
 ### `GET /api/sessions/defaults`
 
