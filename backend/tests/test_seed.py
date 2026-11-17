@@ -7,8 +7,9 @@ from flask import Flask
 from sqlalchemy import select
 
 from app.extensions import db
-from app.models import Setting, SkillPattern, StopWord, User
+from app.models import NucDiscipline, Setting, SkillPattern, StopWord, User
 from app.seed import AdminSeed, SeedError, run_seed
+from app.seed.discipline_skills import iter_discipline_patterns
 from app.seed.skill_patterns import iter_skill_patterns
 from app.seed.stop_words import DOMAIN_STOP_WORDS
 from app.settings import DEFAULT_SETTINGS
@@ -27,7 +28,7 @@ def test_seed_creates_everything_once() -> None:
     assert first == {
         "admin_created": True,
         "settings": len(DEFAULT_SETTINGS),
-        "skill_patterns": len(iter_skill_patterns()),
+        "skill_patterns": len(iter_discipline_patterns()),
         "stop_words": len(set(DOMAIN_STOP_WORDS)),
     }
     assert second == {"admin_created": False, "settings": 0, "skill_patterns": 0, "stop_words": 0}
@@ -41,6 +42,30 @@ def test_seed_has_a_substantial_skill_vocabulary() -> None:
 
     assert len({canonical for _, canonical, _ in rows}) >= 150
     assert labels == {"SKILL", "TOOL", "CERT", "LANGUAGE"}
+
+
+def test_every_nuc_discipline_has_its_own_skills_list() -> None:
+    rows = iter_discipline_patterns()
+    skills: dict[object, set[str]] = {}
+    for discipline, _label, canonical, _pattern in rows:
+        skills.setdefault(discipline, set()).add(canonical)
+
+    assert set(skills) == {None, *NucDiscipline}
+    assert all(len(names) >= 12 for names in skills.values())
+    # General workplace skills are shared, not repeated in the computing list.
+    assert "Microsoft Excel" in skills[None]
+    assert "Microsoft Excel" not in skills[NucDiscipline.COMPUTING]
+
+
+def test_every_seeded_pattern_is_valid() -> None:
+    from app.services.ner.skills import validate_pattern
+
+    problems = [
+        (canonical, pattern)
+        for _d, label, canonical, pattern in iter_discipline_patterns()
+        if validate_pattern(label, pattern)
+    ]
+    assert problems == []
 
 
 def test_token_patterns_survive_a_second_seed_despite_jsonb_key_order() -> None:
