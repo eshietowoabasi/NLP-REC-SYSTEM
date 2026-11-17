@@ -1,4 +1,4 @@
-"""Default catalogue of course-style topic names (the ``topic_name_catalogue`` setting).
+"""Computing course-style topic names (the computing list of ``topic_name_catalogues``).
 
 Discovered topics are labelled with the closest of these names (by SBERT similarity) so that
 lecturers see "Software Testing and Quality Assurance" rather than keyword lists. Sources: the

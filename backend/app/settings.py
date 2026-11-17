@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.extensions import db
-from app.seed.topic_names import TOPIC_NAMES
+from app.seed.discipline_topic_names import DISCIPLINE_TOPIC_NAMES
 
 
 @dataclass(frozen=True)
@@ -75,9 +75,10 @@ SETTING_DEFINITIONS: tuple[SettingDefinition, ...] = (
         "keywords (case-insensitive), e.g. general studies, SIWES and project courses.",
     ),
     SettingDefinition(
-        "topic_name_catalogue",
-        list(TOPIC_NAMES),
-        "Course-style names given to topics (the closest one by meaning, if close enough).",
+        "topic_name_catalogues",
+        {str(d): list(names) for d, names in DISCIPLINE_TOPIC_NAMES.items()},
+        "Course-style names given to topics, one list per NUC discipline (a programme's topics "
+        "take the closest name in its discipline's list, if close enough).",
     ),
     SettingDefinition(
         "credit_unit_allowance",
@@ -88,6 +89,9 @@ SETTING_DEFINITIONS: tuple[SettingDefinition, ...] = (
 
 DEFAULT_SETTINGS: dict[str, Any] = {item.key: item.default for item in SETTING_DEFINITIONS}
 
+#: Settings holding one value per NUC discipline; disciplines not stored keep their default.
+PER_DISCIPLINE_SETTINGS = frozenset({"topic_name_catalogues"})
+
 
 def get_setting(key: str) -> Any:
     """Return the stored value of a setting, or its default if it has not been stored."""
@@ -96,4 +100,9 @@ def get_setting(key: str) -> Any:
     if key not in DEFAULT_SETTINGS:
         raise KeyError(f"Unknown setting '{key}'")
     row = db.session.get(Setting, key)
-    return row.value if row is not None else DEFAULT_SETTINGS[key]
+    if row is None:
+        return DEFAULT_SETTINGS[key]
+    if key in PER_DISCIPLINE_SETTINGS:
+        # A stored list replaces the default for its discipline only.
+        return {**DEFAULT_SETTINGS[key], **row.value}
+    return row.value

@@ -200,9 +200,14 @@ def _name_vectors(model_name: str, names: tuple[str, ...]) -> NDArray[np.float32
     return get_encoder(model_name).encode(list(names))
 
 
-def load_naming(model_name: str) -> TopicNaming:
-    """The course-name catalogue (setting) with its embeddings, cached per model and list."""
-    names = tuple(get_setting("topic_name_catalogue") or ())
+def load_naming(model_name: str, discipline: NucDiscipline | str | None) -> TopicNaming | None:
+    """The discipline's course-style names (setting) with their embeddings, cached per model
+    and list; None for a programme without a discipline or an empty list (keyword titles)."""
+    if discipline is None:
+        return None
+    names = tuple(get_setting("topic_name_catalogues").get(str(discipline)) or ())
+    if not names:
+        return None
     return TopicNaming(
         names=list(names),
         name_vectors=_name_vectors(model_name, names),
@@ -351,7 +356,10 @@ def run_session(session_id: int) -> None:
         canonical = canonical_lookup(specs, get_nlp(model_name))
 
         text_nlp = get_nlp(model_name)
-        naming = load_naming(config.get("sbert_model") or get_setting("sbert_model"))
+        naming = load_naming(
+            config.get("sbert_model") or get_setting("sbert_model"),
+            programme.nuc_discipline if programme else None,
+        )
         document_titles = {link.document.id: link.document.title for link in session.document_links}
 
         # Everything needed by the CPU-heavy pipeline is now in ordinary Python
