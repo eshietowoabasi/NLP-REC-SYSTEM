@@ -34,6 +34,7 @@ from app.services.reports.render import (
     render_pdf,
 )
 from app.services.storage import get_storage
+from app.sessions import default_programme
 from tests.conftest import ApiClient
 from tests.review_data import ReviewSession, build_review_session
 
@@ -148,12 +149,29 @@ def blocks_of(doc, key):
 # ------------------------------------------------------------------------ content
 
 
+def test_the_report_names_the_programme_it_was_made_for() -> None:
+    data = report_data(
+        programme_name="Synthetic Nursing Science", programme_faculty="Synthetic Faculty"
+    )
+    doc = build_report(data, ["overlap"])
+
+    assert doc.subtitle == "Synthetic Nursing Science · Synthetic <2026> review"
+    assert doc.meta[:2] == [
+        ("Programme", "Synthetic Nursing Science, Synthetic Faculty"),
+        ("Review", "Synthetic <2026> review"),
+    ]
+    first = blocks_of(doc, "overlap")[0]
+    assert "of the Synthetic Nursing Science NUC core (Synthetic core v1)" in first.text
+
+
 def test_sections_follow_the_standard_order_whatever_the_request_order() -> None:
     doc = build_report(report_data(), ["proposed_courses", "corpus_summary", "overlap"])
 
     assert [s.key for s in doc.sections] == ["corpus_summary", "overlap", "proposed_courses"]
     assert doc.subtitle == "Synthetic <2026> review"
     assert ("NUC core reference", "Synthetic core v1") in doc.meta
+    # Without a programme (older data) the report names the review only.
+    assert not any(label == "Programme" for label, _ in doc.meta)
     with pytest.raises(ValueError, match="Unknown report sections"):
         build_report(report_data(), ["summary"])
 
@@ -331,9 +349,11 @@ def test_generate_and_download_a_docx_report(planner: ApiClient, review: ReviewS
     download = planner.get(f"/api/reports/{report_id}/download")
     assert download.status_code == 200
     assert download.mimetype.endswith("wordprocessingml.document")
-    assert "NLP-RS report - Synthetic review - " in download.headers["Content-Disposition"]
+    assert "SkillBridge report - Synthetic review - " in download.headers["Content-Disposition"]
     document = DocxDocument(io.BytesIO(download.data))
     text = "\n".join(p.text for p in document.paragraphs)
+    # A review from before programmes existed belongs to the default programme.
+    assert f"{default_programme().name} · Synthetic review" in text
     assert "Synthetic description of Cloud Security and Kubernetes." in text
     entry = db.session.scalars(
         select(AuditLog).where(AuditLog.action_type == "report.generated")

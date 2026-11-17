@@ -11,6 +11,7 @@ import logging
 
 from sqlalchemy import func, select
 
+from app.access import session_programme_id
 from app.extensions import db
 from app.models import (
     AnalysisSession,
@@ -19,6 +20,7 @@ from app.models import (
     DocumentSession,
     NLPResult,
     Passage,
+    Programme,
     Recommendation,
     Report,
     ReportFormat,
@@ -89,7 +91,11 @@ def load_report_data(session: AnalysisSession, generated_by: str) -> ReportData:
         .order_by(CurriculumMap.course_code)
     ).all()
     allowance = get_setting("credit_unit_allowance")
+    programme_id = session_programme_id(session)
+    programme = db.session.get(Programme, programme_id) if programme_id is not None else None
     return ReportData(
+        programme_name=programme.name if programme else None,
+        programme_faculty=programme.faculty if programme else None,
         session_name=session.session_name,
         completed_at=session.completed_at,
         generated_at=utcnow(),

@@ -162,6 +162,9 @@ class ReportData:
     recommendations: list[RecommendationRow]
     mappings: list[MappingRow]
     credit_unit_allowance: int | None
+    #: The programme the review belongs to, e.g. "Nursing Science", and its faculty.
+    programme_name: str | None = None
+    programme_faculty: str | None = None
 
 
 # --------------------------------------------------------------------------- helpers
@@ -340,7 +343,8 @@ def overlap(data: ReportData) -> list[Block]:
     compared_with = "every course" if by_course else "every extract"
     return [
         Paragraph(
-            f"Each topic was compared, by meaning, with {compared_with} of the NUC core "
+            f"Each topic was compared, by meaning, with {compared_with} of the "
+            f"{data.programme_name + ' ' if data.programme_name else ''}NUC core "
             f"({data.nuc_core_version or 'unknown version'}). Topics more than "
             f"{fmt_percent(threshold)} similar to it are marked “May already be in NUC core”: "
             f"{duplicates} of "
@@ -525,8 +529,12 @@ def build_report(data: ReportData, sections: list[str]) -> ReportDocument:
     if unknown:
         raise ValueError(f"Unknown report sections: {', '.join(sorted(unknown))}")
     weights = data.parameters.get("weights", {})
+    programme = data.programme_name
+    if programme and data.programme_faculty:
+        programme = f"{programme}, {data.programme_faculty}"
     meta = [
-        ("Analysis session", data.session_name),
+        *([("Programme", programme)] if programme else []),
+        ("Review", data.session_name),
         ("Analysis completed", fmt_datetime(data.completed_at)),
         ("NUC core reference", data.nuc_core_version or "—"),
         (
@@ -545,7 +553,11 @@ def build_report(data: ReportData, sections: list[str]) -> ReportDocument:
     chosen = [key for key in REPORT_SECTIONS if key in sections]
     return ReportDocument(
         title="Curriculum Recommendation Report",
-        subtitle=data.session_name,
+        subtitle=(
+            f"{data.programme_name} · {data.session_name}"
+            if data.programme_name
+            else data.session_name
+        ),
         meta=meta,
         sections=[Section(key, REPORT_SECTIONS[key], BUILDERS[key](data)) for key in chosen],
     )
