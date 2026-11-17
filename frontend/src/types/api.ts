@@ -735,7 +735,7 @@ export type SettingKey =
   | 'evidence_per_recommendation'
   | 'max_documents_per_session'
   | 'nuc_course_exclusions'
-  | 'topic_name_catalogue'
+  | 'topic_name_catalogues'
   | 'credit_unit_allowance'
 
 export interface NumberRange {
@@ -762,7 +762,8 @@ export interface SettingValues {
   evidence_per_recommendation: number
   max_documents_per_session: number
   nuc_course_exclusions: CourseExclusions
-  topic_name_catalogue: string[]
+  /** Course-style topic names, one list per NUC discipline. */
+  topic_name_catalogues: Partial<Record<NucDiscipline, string[]>>
   credit_unit_allowance: number | null
 }
 

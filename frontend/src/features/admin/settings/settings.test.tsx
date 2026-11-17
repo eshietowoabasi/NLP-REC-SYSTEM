@@ -32,7 +32,10 @@ const settings: SettingItem[] = [
   item('evidence_per_recommendation', 8),
   item('max_documents_per_session', 50),
   item('nuc_course_exclusions', { code_prefixes: ['GST'], title_keywords: ['SIWES', 'Seminar'] }),
-  item('topic_name_catalogue', ['Software Testing and Quality Assurance', 'Cloud Computing']),
+  item('topic_name_catalogues', {
+    computing: ['Software Testing and Quality Assurance', 'Cloud Computing'],
+    allied_health_sciences: ['Infection Prevention and Control', 'Midwifery'],
+  }),
   item('credit_unit_allowance', null),
 ]
 
@@ -130,25 +133,32 @@ describe('Settings: general', () => {
     })
   })
 
-  it('edits the course-style topic names, one per line', async () => {
+  it('edits the course-style topic names of one discipline, one per line', async () => {
     const server = settingsApi({
-      'PUT /admin/settings': ok({ settings, changed: ['topic_name_catalogue'] }),
+      'PUT /admin/settings': ok({ settings, changed: ['topic_name_catalogues'] }),
     })
     const { user } = renderApp('/admin/settings')
 
     await user.click(await screen.findByRole('tab', { name: 'Course-style topic names' }))
-    const names = await screen.findByLabelText('Topic names')
-    expect(names).toHaveValue('Software Testing and Quality Assurance\nCloud Computing')
-    await user.type(names, '\n  Data Mining  \n')
+    // The current programme (Computer Science) decides the list shown first.
+    expect(await screen.findByLabelText('Topic names for Computing')).toHaveValue(
+      'Software Testing and Quality Assurance\nCloud Computing',
+    )
+    await user.click(screen.getByRole('combobox', { name: 'Discipline' }))
+    await user.click(
+      await screen.findByRole('option', { name: /Allied Health Sciences \(2 names\)/ }),
+    )
+    const names = await screen.findByLabelText('Topic names for Allied Health Sciences')
+    expect(names).toHaveValue('Infection Prevention and Control\nMidwifery')
+    await user.type(names, '\n  Wound Care  \n')
     await user.click(screen.getByRole('button', { name: 'Save settings' }))
 
     await waitFor(() => expect(server.calls('PUT', '/admin/settings')).toHaveLength(1))
     expect(server.calls('PUT', '/admin/settings')[0].body).toEqual({
-      topic_name_catalogue: [
-        'Software Testing and Quality Assurance',
-        'Cloud Computing',
-        'Data Mining',
-      ],
+      topic_name_catalogues: {
+        computing: ['Software Testing and Quality Assurance', 'Cloud Computing'],
+        allied_health_sciences: ['Infection Prevention and Control', 'Midwifery', 'Wound Care'],
+      },
     })
   })
 
