@@ -7,7 +7,12 @@ from pydantic import Field
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
-from app.access import document_condition, require_programme, session_condition
+from app.access import (
+    document_condition,
+    in_programme_condition,
+    require_programme,
+    session_condition,
+)
 from app.auth.decorators import login_required
 from app.extensions import db
 from app.models import (
@@ -58,7 +63,7 @@ def summary() -> tuple[Response, int]:
     in_documents = [document_condition()]
     if params.programme_id is not None:
         require_programme(params.programme_id)
-        in_sessions.append(AnalysisSession.programme_id == params.programme_id)
+        in_sessions.append(in_programme_condition(params.programme_id))
         in_documents.append(
             or_(
                 Document.programme_id == params.programme_id,

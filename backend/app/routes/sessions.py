@@ -8,7 +8,12 @@ from flask import Blueprint, Response
 from flask_login import current_user
 from sqlalchemy import func, select
 
-from app.access import get_visible_session, programme_condition, session_condition
+from app.access import (
+    get_visible_session,
+    in_programme_condition,
+    programme_condition,
+    session_condition,
+)
 from app.audit import AuditAction, record_audit
 from app.auth.decorators import EDITOR_ROLES, login_required, role_required
 from app.extensions import db
@@ -192,7 +197,8 @@ def list_sessions() -> tuple[Response, int]:
         .order_by(AnalysisSession.created_at.desc(), AnalysisSession.id.desc())
     )
     if params.programme_id is not None:
-        query = query.where(AnalysisSession.programme_id == params.programme_id)
+        # Sessions from before programmes existed belong to the default programme.
+        query = query.where(in_programme_condition(params.programme_id))
     if params.status is not None:
         query = query.where(AnalysisSession.status == params.status)
     if params.search:

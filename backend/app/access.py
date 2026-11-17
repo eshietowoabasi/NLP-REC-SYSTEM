@@ -76,6 +76,14 @@ def session_condition() -> ColumnElement[bool]:
     return condition
 
 
+def in_programme_condition(programme_id: int) -> ColumnElement[bool]:
+    """WHERE clause keeping one programme's sessions (legacy ones when it is the default)."""
+    condition = AnalysisSession.programme_id == programme_id
+    if programme_id == _default_programme_id():
+        condition = or_(condition, AnalysisSession.programme_id.is_(None))
+    return condition
+
+
 def session_programme_id(session: AnalysisSession) -> int | None:
     """The session's programme, counting a legacy session (no programme) as the default's."""
     return session.programme_id if session.programme_id is not None else _default_programme_id()
@@ -121,6 +129,7 @@ __all__ = [
     "get_visible_document",
     "get_visible_session",
     "programme_condition",
+    "in_programme_condition",
     "programme_scope",
     "require_programme",
     "session_condition",
