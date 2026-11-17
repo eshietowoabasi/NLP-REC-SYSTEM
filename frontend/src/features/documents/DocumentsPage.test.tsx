@@ -132,15 +132,21 @@ describe('DocumentsPage', () => {
     })
     const { user } = renderApp('/documents')
 
+    // The library starts on the programme chosen in the sidebar (here the only one).
     const table = await screen.findByRole('table', { name: 'Documents' })
-    expect(await within(table).findByText('National policy')).toBeInTheDocument()
-    expect(within(table).getByText('All programmes')).toBeInTheDocument()
-
-    await user.click(screen.getByLabelText('Programme'))
-    await user.click(await screen.findByRole('option', { name: 'Synthetic Nursing Science (NSC)' }))
-
     expect(await within(table).findByText('Nurse advert')).toBeInTheDocument()
     expect(within(table).getByText('Synthetic Nursing Science')).toBeInTheDocument()
+    expect(server.calls('GET', '/documents').at(-1)?.params.programme_id).toBe(2)
+
+    await user.click(screen.getByRole('combobox', { name: 'Programme' }))
+    await user.click(await screen.findByRole('option', { name: 'All programmes' }))
+
+    expect(await within(table).findByText('National policy')).toBeInTheDocument()
+    expect(within(table).getByText('All programmes')).toBeInTheDocument()
+    expect(server.calls('GET', '/documents').at(-1)?.params.programme_id).toBeUndefined()
+
+    await user.click(screen.getByRole('combobox', { name: 'Programme' }))
+    await user.click(await screen.findByRole('option', { name: 'Synthetic Nursing Science (NSC)' }))
     const lastList = server.calls('GET', '/documents').at(-1)
     expect(lastList?.params.programme_id).toBe(2)
   })

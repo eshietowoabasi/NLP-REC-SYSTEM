@@ -65,9 +65,9 @@ describe('DashboardPage', () => {
     )
     expect(screen.getByText('10 ready · 1 processing · 1 failed')).toBeInTheDocument()
     // Every card is a link; without a session to review they fall back to the lists.
-    const awaiting = screen.getByRole('link', { name: 'Awaiting review: 18. Analyses' })
+    const awaiting = screen.getByRole('link', { name: 'Awaiting review: 18. Reviews' })
     expect(awaiting).toHaveAttribute('href', '/sessions')
-    expect(awaiting).toHaveTextContent('of 30 recommendations · 7 accepted')
+    expect(awaiting).toHaveTextContent('of 30 topics · 7 accepted')
     expect(screen.getByRole('link', { name: 'Courses designed: 4. Reports' })).toHaveTextContent(
       '2 reports generated',
     )
@@ -76,9 +76,11 @@ describe('DashboardPage', () => {
       'href',
       '/sessions/5',
     )
-    expect(screen.getByRole('link', { name: /New analysis session/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /New review/ })).toBeInTheDocument()
     expect(screen.getByText('NUC core: Synthetic core v1')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Welcome, Test' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: /^Good (morning|afternoon|evening), Test$/ }),
+    ).toBeInTheDocument()
   })
 
   it('links the cards to the session awaiting review and its proposed curriculum', async () => {
@@ -110,7 +112,7 @@ describe('DashboardPage', () => {
     ).toHaveAttribute('href', '/sessions/4/curriculum')
   })
 
-  it('explains the three steps until the help is dismissed', async () => {
+  it('explains the five steps until the help is dismissed', async () => {
     window.localStorage.removeItem('nlprs.howThisWorks.dismissed')
     dashboardApi(plannerUser, summary())
     const { user, unmount } = renderApp('/')
@@ -120,7 +122,7 @@ describe('DashboardPage', () => {
       within(help)
         .getAllByRole('listitem')
         .map((li) => li.firstChild?.textContent),
-    ).toEqual(['1. Review', '2. Design courses', '3. Report'])
+    ).toEqual(['1. Evidence', '2. Analyse', '3. Review', '4. Design courses', '5. Report'])
     await user.click(within(help).getByRole('button', { name: 'Hide “How this works”' }))
     expect(screen.queryByRole('region', { name: 'How this works' })).not.toBeInTheDocument()
     unmount()
@@ -144,11 +146,11 @@ describe('DashboardPage', () => {
     )
     renderApp('/')
 
-    expect(await screen.findByText('Start by uploading documents')).toBeInTheDocument()
+    expect(await screen.findByText('Start by gathering evidence')).toBeInTheDocument()
     expect(screen.getByText('No active NUC core reference')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Upload it now' })).toHaveAttribute(
       'href',
-      '/admin/nuc-core',
+      '/admin/benchmarks',
     )
   })
 
@@ -169,7 +171,7 @@ describe('DashboardPage', () => {
     renderApp('/')
 
     await screen.findByRole('table', { name: 'Recent sessions' })
-    expect(screen.queryByRole('link', { name: /New analysis session/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /New review/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /Upload documents/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /Continue reviewing/ })).not.toBeInTheDocument()
     const readOnly = screen.getByRole('region', { name: 'Summary' })
@@ -201,5 +203,35 @@ describe('DashboardPage', () => {
       'href',
       '/sessions/5/recommendations?decision=undecided',
     )
+  })
+
+  it('follows the programme chosen in the sidebar and says what it lacks', async () => {
+    const server = mockApi({
+      'GET /auth/me': ok(plannerUser),
+      'GET /health': ok(healthyStatus),
+      'GET /dashboard/summary': ok(summary()),
+      'GET /programmes/:id/readiness': (_request, params) =>
+        ok({
+          programme_id: Number(params.id),
+          nuc_core: null,
+          discipline: { value: 'computing', name: 'Computing' },
+          job_search: { ready: true, search_terms: ['developer'] },
+          documents_ready: 12,
+          planners: 2,
+          ready: false,
+        }),
+    })
+    renderApp('/')
+
+    const readiness = await screen.findByRole('region', {
+      name: 'Synthetic Computer Science needs setting up before a review',
+    })
+    expect(within(readiness).getByText('Not uploaded yet')).toBeInTheDocument()
+    expect(within(readiness).getByText('An admin uploads the CCMAS document.')).toBeInTheDocument()
+    expect(within(readiness).getByText('3 of 4 ready')).toBeInTheDocument()
+    expect(server.calls('GET', '/dashboard/summary')[0].params).toEqual({ programme_id: 1 })
+    expect(
+      screen.getByRole('button', { name: /Programme: Synthetic Computer Science/ }),
+    ).toBeInTheDocument()
   })
 })

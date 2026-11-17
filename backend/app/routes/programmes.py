@@ -5,7 +5,7 @@ from __future__ import annotations
 from flask import Blueprint, Response, request
 from flask_login import current_user
 from pydantic import ValidationError
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from app.access import programme_condition, require_programme
 from app.audit import AuditAction, record_audit
@@ -13,12 +13,16 @@ from app.auth.decorators import login_required, role_required
 from app.extensions import db
 from app.models import (
     NUC_DISCIPLINE_NAMES,
+    Document,
+    DocumentStatus,
     NucCoreVersion,
     NucDiscipline,
     Programme,
     SkillPattern,
     SourceCategory,
+    User,
     UserRole,
+    programme_members,
 )
 from app.schemas.documents import NucCoreUploadForm, NucCoreVersionOut
 from app.schemas.programmes import (
@@ -29,6 +33,7 @@ from app.schemas.programmes import (
     ProgrammeUpdate,
 )
 from app.services.ingestion.validation import UploadRejectedError
+from app.sessions import active_nuc_core
 from app.tasks.queue import enqueue
 from app.uploads import discard, store_upload
 from app.utils.errors import ApiError
@@ -105,6 +110,80 @@ def list_disciplines() -> tuple[Response, int]:
             ],
         }
     )
+
+
+# Fewer ready documents than this and a review is unlikely to find topics.
+MIN_READY_DOCUMENTS = 5
+
+
+def readiness_json(programme: Programme) -> dict:
+    """What a programme has, and lacks, before planners can run a useful review.
+
+    Ready means: an active NUC core, a NUC discipline (its skills list), and either job
+    collection set up or at least ``MIN_READY_DOCUMENTS`` ready documents to analyse.
+    """
+    version = active_nuc_core(programme.id)
+    documents_ready = (
+        db.session.scalar(
+            select(func.count(Document.id)).where(
+                Document.processing_status == DocumentStatus.READY,
+                Document.source_category != SourceCategory.NUC_CORE,
+                or_(Document.programme_id == programme.id, Document.programme_id.is_(None)),
+            )
+        )
+        or 0
+    )
+    planners = (
+        db.session.scalar(
+            select(func.count(User.id))
+            .join(programme_members, programme_members.c.user_id == User.id)
+            .where(
+                programme_members.c.programme_id == programme.id,
+                User.role == UserRole.PLANNER,
+                User.is_active.is_(True),
+            )
+        )
+        or 0
+    )
+    discipline = programme.nuc_discipline
+    job_search = bool(programme.job_search_terms and programme.job_field_slugs)
+    return {
+        "programme_id": programme.id,
+        "nuc_core": (
+            {"id": version.id, "version_label": version.version_label} if version else None
+        ),
+        "discipline": (
+            {"value": discipline, "name": NUC_DISCIPLINE_NAMES[NucDiscipline(discipline)]}
+            if discipline
+            else None
+        ),
+        "job_search": {
+            "ready": job_search,
+            "search_terms": programme.job_search_terms,
+        },
+        "documents_ready": documents_ready,
+        "planners": planners,
+        "ready": bool(
+            version and discipline and (job_search or documents_ready >= MIN_READY_DOCUMENTS)
+        ),
+    }
+
+
+@bp.get("/readiness")
+@login_required
+def list_readiness() -> tuple[Response, int]:
+    """Readiness of every programme the user may see (active ones; admins: all)."""
+    programmes = db.session.scalars(
+        select(Programme).where(programme_condition()).order_by(Programme.name)
+    )
+    return success([readiness_json(programme) for programme in programmes])
+
+
+@bp.get("/<int:programme_id>/readiness")
+@login_required
+def programme_readiness(programme_id: int) -> tuple[Response, int]:
+    """What this programme has and lacks before a review (see ``readiness_json``)."""
+    return success(readiness_json(get_programme_or_404(programme_id)))
 
 
 @bp.get("")

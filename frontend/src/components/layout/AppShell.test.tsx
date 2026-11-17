@@ -19,17 +19,18 @@ describe('AppShell', () => {
     signedInAs(adminUser)
     renderApp('/')
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('data-active', 'true')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Home' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('data-active', 'true')
     expect(await screen.findByText('API connected')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Account menu' })).toHaveTextContent('Test Admin')
-    await waitFor(() => expect(document.title).toBe('Dashboard · SkillBridge'))
+    await waitFor(() => expect(document.title).toBe('Home · SkillBridge'))
   })
 
-  it('shows the Administration section to admins only', async () => {
+  it('shows the Admin section to admins only', async () => {
     signedInAs(adminUser)
     const { unmount } = renderApp('/')
-    expect(await screen.findByText('Administration')).toBeInTheDocument()
+    const nav = await screen.findByLabelText('Main navigation')
+    expect(await within(nav).findByText('Admin')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('href', '/admin/users')
     unmount()
 
@@ -37,7 +38,9 @@ describe('AppShell', () => {
     renderApp('/')
     // "Workspace" is both the sidebar group and the top bar's breadcrumb.
     expect(await screen.findAllByText('Workspace')).toHaveLength(2)
-    expect(screen.queryByText('Administration')).not.toBeInTheDocument()
+    expect(
+      within(screen.getByLabelText('Main navigation')).queryByText('Admin'),
+    ).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument()
   })
 

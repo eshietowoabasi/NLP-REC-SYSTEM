@@ -27,6 +27,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useAuth } from '@/features/auth/useAuth'
+import { useCurrentProgramme } from '@/features/programmes/useCurrentProgramme'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { formatDateTime } from '@/lib/format'
 import type { SessionStatus, SessionSummary } from '@/types/api'
@@ -47,8 +48,10 @@ export function SessionsPage() {
   const [page, setPage] = useState(1)
   const [deleting, setDeleting] = useState<SessionSummary | null>(null)
   const debouncedSearch = useDebouncedValue(search.trim())
+  const { programme } = useCurrentProgramme()
 
   const sessions = useSessions({
+    programme_id: programme?.id,
     page,
     per_page: PER_PAGE,
     status: status === 'all' ? undefined : status,
@@ -60,13 +63,13 @@ export function SessionsPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-[18px]">
       <PageHeader
-        title="Analyses"
-        description="Each session analyses a set of documents and proposes ranked course topics."
+        title="Reviews"
+        description={`Each review analyses a set of ${programme ? `${programme.name} ` : ''}documents and proposes ranked course topics.`}
         actions={
           canEdit && (
             <Button asChild>
               <Link to="/sessions/new">
-                <Plus aria-hidden="true" /> New analysis
+                <Plus aria-hidden="true" /> New review
               </Link>
             </Button>
           )

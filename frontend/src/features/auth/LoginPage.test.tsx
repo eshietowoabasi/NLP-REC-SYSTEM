@@ -79,7 +79,7 @@ describe('LoginPage', () => {
     await user.type(screen.getByLabelText('Password'), 'Correct-pass-1')
     await user.click(screen.getByRole('button', { name: 'Sign in' }))
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Home' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/')
   })
 
@@ -87,7 +87,7 @@ describe('LoginPage', () => {
     mockApi({ 'GET /auth/me': ok(plannerUser), 'GET /health': ok(healthyStatus) })
     const { router } = renderApp('/login')
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Home' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/')
   })
 })

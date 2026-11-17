@@ -17,9 +17,10 @@ import {
 import { useAuth } from '@/features/auth/useAuth'
 
 import { NAV_SECTIONS, type NavItem } from './navigation'
+import { ProgrammeSwitcher } from './ProgrammeSwitcher'
 
 const ITEM_CLASSES =
-  'h-11 gap-3 rounded-xl px-3 text-sm font-medium text-body hover:bg-sand hover:text-ink data-[active=true]:bg-terracotta-tint data-[active=true]:font-bold data-[active=true]:text-terracotta [&>svg]:size-[18px] group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:p-3!'
+  'h-10 gap-3 rounded-lg px-3 text-sm font-semibold text-night-text transition-colors hover:bg-night-raised hover:text-white data-[active=true]:bg-night-raised data-[active=true]:font-bold data-[active=true]:text-white data-[active=true]:shadow-[inset_2px_0_0_var(--color-ember)] [&>svg]:size-[18px] group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:p-2.5!'
 
 function SidebarNavLink({ item }: { item: NavItem }) {
   const { pathname } = useLocation()
@@ -37,7 +38,7 @@ function SidebarNavLink({ item }: { item: NavItem }) {
   )
 }
 
-/** SkillBridge sidebar (Sidebar.dc.html): logo, Workspace, Administration (admins) and help. */
+/** Dark SkillBridge sidebar: logo, programme switcher, Workspace, Admin (admins) and help. */
 export function AppSidebar() {
   const { user } = useAuth()
   const sections = NAV_SECTIONS.filter(
@@ -45,25 +46,34 @@ export function AppSidebar() {
   )
 
   return (
-    <Sidebar collapsible="icon" aria-label="Main navigation" className="border-r border-line">
+    <Sidebar collapsible="icon" aria-label="Main navigation" className="border-r-0">
       <SidebarHeader className="px-4 pt-[22px] pb-1 group-data-[collapsible=icon]:px-2">
         <Link
           to="/"
-          aria-label="SkillBridge dashboard"
+          aria-label="SkillBridge home"
           className="flex items-center rounded-xl px-2 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
         >
           <Logo
             size={38}
-            subtitle="UNIUYO · Computer Science"
+            tone="dark"
+            subtitle="University of Uyo"
             className="group-data-[collapsible=icon]:hidden"
           />
-          <LogoMark size={30} title="" className="hidden group-data-[collapsible=icon]:block" />
+          <LogoMark
+            size={30}
+            tone="dark"
+            title=""
+            className="hidden group-data-[collapsible=icon]:block"
+          />
         </Link>
+        <div className="mt-4 group-data-[collapsible=icon]:mt-2">
+          <ProgrammeSwitcher />
+        </div>
       </SidebarHeader>
       <SidebarContent className="gap-[18px] px-2 pt-3">
         {sections.map((section) => (
           <SidebarGroup key={section.id} className="py-0">
-            <SidebarGroupLabel className="h-auto px-3 pb-1.5 text-[11px] font-bold tracking-[0.1em] text-faint uppercase">
+            <SidebarGroupLabel className="h-auto px-3 pb-1.5 text-[10.5px] font-extrabold tracking-[0.1em] text-night-muted uppercase">
               {section.label}
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -93,15 +103,15 @@ export function AppSidebar() {
       <SidebarFooter className="px-4 pb-[22px] group-data-[collapsible=icon]:hidden">
         <section
           aria-label="New here?"
-          className="flex flex-col gap-1.5 rounded-2xl bg-amber-tint p-4 text-amber-ink"
+          className="flex flex-col gap-1.5 rounded-xl border border-night-line bg-night-raised p-3.5 text-night-text"
         >
-          <p className="text-[13px] font-extrabold">New here?</p>
+          <p className="text-[13px] font-extrabold text-white">New here?</p>
           <p className="text-xs leading-normal">
-            Review topics, design courses, then download your report.
+            Gather evidence, review topics, design courses, then download your report.
           </p>
           <Link
             to="/?help=1"
-            className="inline-flex items-center gap-1 text-xs font-bold text-terracotta-dark hover:underline"
+            className="inline-flex items-center gap-1 text-xs font-bold text-ember-soft hover:underline"
           >
             See how it works <ArrowRight className="size-3.5" aria-hidden="true" />
           </Link>

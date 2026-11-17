@@ -117,9 +117,9 @@ describe('UploadDialog', () => {
     })
     const { user, dialog } = await openDialog()
 
-    // The library shows all programmes, so new files start as general documents.
+    // The library follows the sidebar's programme, so new files start there.
     expect(within(dialog).getByLabelText('Programme')).toHaveTextContent(
-      'All programmes (general document)',
+      'Synthetic Nursing Science (NSC)',
     )
     await user.upload(within(dialog).getByLabelText('Files to upload'), file('policy.pdf'))
     await chooseCategory(user, 'policy.pdf', 'Policy documents')
@@ -127,7 +127,9 @@ describe('UploadDialog', () => {
     await within(dialog).findByText('Uploaded; processing has started.')
 
     await user.click(within(dialog).getByLabelText('Programme'))
-    await user.click(await screen.findByRole('option', { name: 'Synthetic Nursing Science (NSC)' }))
+    await user.click(
+      await screen.findByRole('option', { name: 'All programmes (general document)' }),
+    )
     await user.upload(within(dialog).getByLabelText('Files to upload'), file('nurse.pdf'))
     await chooseCategory(user, 'nurse.pdf', 'Job adverts')
     await user.click(within(dialog).getByRole('button', { name: 'Upload 1 file' }))
@@ -136,6 +138,6 @@ describe('UploadDialog', () => {
     const programmeIds = server
       .calls('POST', '/documents')
       .map((post) => (post.body as FormData).get('programme_id'))
-    expect(programmeIds).toEqual([null, '2'])
+    expect(programmeIds).toEqual(['2', null])
   })
 })

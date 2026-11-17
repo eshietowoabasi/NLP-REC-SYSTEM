@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/table'
 import { useAuth } from '@/features/auth/useAuth'
 import { useProgrammes } from '@/features/programmes/api'
+import { useCurrentProgramme } from '@/features/programmes/useCurrentProgramme'
 import { ProgrammeSelect } from '@/features/programmes/ProgrammeSelect'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { formatDate } from '@/lib/format'
@@ -69,7 +70,10 @@ const STATUS_FILTERS: StatusFilter[] = [
 export function DocumentsPage() {
   const { canEdit } = useAuth()
   const programmes = useProgrammes()
-  const [programmeId, setProgrammeId] = useState<number | null>(null)
+  const { programme: current } = useCurrentProgramme()
+  // Follows the sidebar's programme until the user picks another filter (null: all).
+  const [chosenProgrammeId, setProgrammeId] = useState<number | null | undefined>(undefined)
+  const programmeId = chosenProgrammeId === undefined ? (current?.id ?? null) : chosenProgrammeId
   const [category, setCategory] = useState<UploadCategory | null>(null)
   const [status, setStatus] = useState<StatusFilter>('active')
   const [search, setSearch] = useState('')
@@ -90,7 +94,10 @@ export function DocumentsPage() {
   const counts = documents.data?.category_counts
   const total = counts ? Object.values(counts).reduce((sum, n) => sum + n, 0) : 0
   const filtersActive =
-    category !== null || status !== 'active' || debouncedSearch !== '' || programmeId !== null
+    category !== null ||
+    status !== 'active' ||
+    debouncedSearch !== '' ||
+    (chosenProgrammeId !== undefined && chosenProgrammeId !== null)
   const libraryEmpty = !filtersActive && documents.data?.pagination.total === 0
 
   const chooseCategory = (next: UploadCategory | null) => {

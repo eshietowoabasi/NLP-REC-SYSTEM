@@ -33,6 +33,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { FilterChip } from '@/components/shared/FilterChip'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { useAuth } from '@/features/auth/useAuth'
+import { useCurrentProgramme } from '@/features/programmes/useCurrentProgramme'
 import { useDocuments } from '@/features/documents/api'
 import {
   CATEGORY_LABELS,
@@ -110,12 +111,18 @@ export function NewSessionPage() {
 
 function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
   const navigate = useNavigate()
+  const { programme: current } = useCurrentProgramme()
   const create = useCreateSession()
   const [step, setStep] = useState(0)
   const [formError, setFormError] = useState<string | null>(null)
   const schema = useMemo(() => makeSchema(defaults.max_documents), [defaults.max_documents])
   const initial: SessionForm = {
-    programme_id: defaults.default_programme_id ?? defaults.programmes?.[0]?.id ?? 0,
+    // The programme chosen in the sidebar, if this user can start reviews for it.
+    programme_id:
+      (current && defaults.programmes?.some((p) => p.id === current.id) ? current.id : null) ??
+      defaults.default_programme_id ??
+      defaults.programmes?.[0]?.id ??
+      0,
     session_name: '',
     document_ids: [],
     weights: defaults.parameters.weights,

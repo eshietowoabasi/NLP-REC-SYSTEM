@@ -221,3 +221,71 @@ def test_the_signed_in_user_sees_their_programmes(nurse_planner: ApiClient) -> N
     me = nurse_planner.get("/api/auth/me").get_json()["data"]
 
     assert [p["name"] for p in me["programmes"]] == ["Synthetic Nursing Science"]
+
+
+def test_programme_readiness_says_what_is_missing(login_as, nursing: Programme) -> None:
+    from app.models import NucCoreVersion
+
+    admin = login_as("admin")
+    login_as("planner", username="nurse-a", programmes=[nursing])
+
+    missing = admin.get(f"/api/programmes/{nursing.id}/readiness").get_json()["data"]
+    assert missing["ready"] is False
+    assert missing["nuc_core"] is None
+    assert missing["discipline"] is None
+    assert missing["job_search"]["ready"] is False
+    assert missing["planners"] == 1
+
+    owner = db.session.scalar(select(User).where(User.username == "nurse-a"))
+    core = Document(
+        uploaded_by_id=owner.id,
+        programme_id=nursing.id,
+        title="Synthetic nursing core",
+        original_filename="core.txt",
+        stored_filename="synthetic-core.txt",
+        file_type="txt",
+        file_size=10,
+        content_hash="n" * 64,
+        source_category="nuc_core",
+        processing_status="ready",
+    )
+    db.session.add(core)
+    db.session.flush()
+    db.session.add(
+        NucCoreVersion(
+            programme_id=nursing.id,
+            document_id=core.id,
+            version_label="Synthetic CCMAS",
+            is_active=True,
+            uploaded_by_id=owner.id,
+        )
+    )
+    nursing.nuc_discipline = "allied_health_sciences"
+    nursing.job_search_terms = ["nurse"]
+    nursing.job_field_slugs = ["medical"]
+    db.session.commit()
+
+    ready = admin.get(f"/api/programmes/{nursing.id}/readiness").get_json()["data"]
+    assert ready["ready"] is True
+    assert ready["nuc_core"]["version_label"] == "Synthetic CCMAS"
+    assert ready["discipline"] == {
+        "value": "allied_health_sciences",
+        "name": "Allied Health Sciences",
+    }
+
+    every = admin.get("/api/programmes/readiness").get_json()["data"]
+    assert {r["programme_id"] for r in every} == {nursing.id, default_programme().id}
+
+
+def test_a_programmes_reviews_include_those_from_before_programmes(
+    login_as, computing_review: ReviewSession
+) -> None:
+    # build_review_session leaves programme_id empty, like sessions created before 0006.
+    planner = login_as("planner", username="cs-reader")
+    computing = default_programme().id
+
+    listed = planner.get(f"/api/sessions?programme_id={computing}").get_json()["data"]["items"]
+    summary = planner.get(f"/api/dashboard/summary?programme_id={computing}").get_json()["data"]
+
+    assert [s["id"] for s in listed] == [computing_review.session.id]
+    assert summary["sessions"]["total"] == 1
