@@ -140,18 +140,47 @@ export interface ProgrammeRef {
   discipline_code: string | null
 }
 
+/** The 17 disciplines of the NUC CCMAS; a programme's discipline picks its skills list. */
+export type NucDiscipline =
+  | 'administration_and_management'
+  | 'agriculture'
+  | 'allied_health_sciences'
+  | 'architecture'
+  | 'arts'
+  | 'basic_medical_sciences'
+  | 'communication_and_media_studies'
+  | 'computing'
+  | 'education'
+  | 'engineering_and_technology'
+  | 'environmental_sciences'
+  | 'law'
+  | 'medicine_and_dentistry'
+  | 'pharmaceutical_science'
+  | 'sciences'
+  | 'social_sciences'
+  | 'veterinary_medicine'
+
+/** GET /api/programmes/disciplines */
+export interface DisciplineList {
+  general_skills: number
+  disciplines: { value: NucDiscipline; name: string; skills: number }[]
+}
+
 /** PATCH /api/programmes/{id}: any subset; is_active false retires the programme. */
 export interface ProgrammeUpdate {
   name?: string
   discipline_code?: string | null
   faculty?: string | null
   description?: string | null
+  nuc_discipline?: NucDiscipline | null
   is_active?: boolean
 }
 
 export interface Programme extends ProgrammeRef {
   faculty: string | null
   description: string | null
+  /** null until an admin sets it; the programme then uses general skills only. */
+  nuc_discipline: NucDiscipline | null
   country: string
   is_active: boolean
   created_at: string
@@ -751,6 +780,8 @@ export interface SkillPattern {
   /** A phrase, or a spaCy token pattern. */
   pattern: string | PatternToken[]
   canonical_name: string
+  /** The NUC discipline whose programmes use it; null: general (every programme). */
+  discipline: NucDiscipline | null
   is_active: boolean
   created_at: string
 }
@@ -759,12 +790,15 @@ export interface SkillPatternRequest {
   label: SkillLabel
   pattern: string | PatternToken[]
   canonical_name: string
+  discipline: NucDiscipline | null
 }
 
 export interface SkillPatternListParams {
   page?: number
   per_page?: number
   label?: SkillLabel
+  /** A discipline, or 'general' for the skills every programme uses. */
+  discipline?: NucDiscipline | 'general'
   is_active?: boolean
   search?: string
 }
