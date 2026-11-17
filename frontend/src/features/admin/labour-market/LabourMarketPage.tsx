@@ -52,11 +52,11 @@ export function LabourMarketPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-5">
       <div className="space-y-1">
-        <h2 className="page-title">Labour Market Harvester</h2>
+        <h2 className="page-title">Job collection</h2>
 
         <p className="max-w-3xl page-lead">
-          Define the roles that belong to each academic programme, then let SkillBridge collect live
-          job adverts and send them directly into the NLP ingestion pipeline.
+          Tell SkillBridge which job titles belong to each programme. It collects current job
+          adverts and prepares them for reviews, just like uploaded documents.
         </p>
       </div>
 
@@ -91,7 +91,7 @@ export function LabourMarketPage() {
   )
 }
 
-function ProgrammeHarvester({ programmeId }: { programmeId: number }) {
+export function ProgrammeHarvester({ programmeId }: { programmeId: number }) {
   const state = useHarvestState(programmeId)
 
   const save = useSaveHarvestProfile()
@@ -311,7 +311,7 @@ function ProgrammeHarvester({ programmeId }: { programmeId: number }) {
           <CardContent>
             {!latest ? (
               <p className="text-sm text-muted-foreground">
-                No labour-market collection has been run for this programme yet.
+                No job collection has run for this programme yet.
               </p>
             ) : (
               <div className="space-y-4">

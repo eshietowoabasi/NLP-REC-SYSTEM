@@ -172,8 +172,8 @@ export const routes: RouteObject[] = [
               {
                 path: 'benchmarks',
                 ...page(
-                  () => import('@/features/admin/benchmarks/BenchmarksPage'),
-                  (m) => m.BenchmarksPage,
+                  () => import('@/features/admin/programmes/ProgrammesPage'),
+                  (m) => m.ProgrammesPage,
                 ),
                 handle: title('Programmes', 'Admin'),
               },

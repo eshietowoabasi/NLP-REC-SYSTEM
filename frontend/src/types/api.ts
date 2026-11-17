@@ -905,6 +905,7 @@ export interface UserListParams {
   role?: UserRole
   is_active?: 'true' | 'false'
   search?: string
+  programme_id?: number
 }
 
 export interface HarvestProfile {

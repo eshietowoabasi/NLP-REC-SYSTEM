@@ -26,6 +26,7 @@ from app.extensions import db
 from app.models.audit import AuditLog
 from app.models.configuration import Setting, SkillPattern, StopWord
 from app.models.enums import UserRole
+from app.models.programme import Programme
 from app.models.user import User
 from app.schemas.admin import (
     AuditLogOut,
@@ -63,7 +64,8 @@ def _user_json(user: User) -> dict:
 @bp.get("/users")
 @role_required(UserRole.ADMIN)
 def list_users() -> tuple[Response, int]:
-    """List users. Filters: ``role``, ``is_active`` (true/false), ``search``."""
+    """List users. Filters: ``role``, ``is_active`` (true/false), ``search``, ``programme_id``
+    (planners and viewers assigned to that programme)."""
     params = parse_query(UserListQuery)
     query = select(User).order_by(User.created_at.desc(), User.id.desc())
     if params.role is not None:
@@ -79,6 +81,8 @@ def list_users() -> tuple[Response, int]:
                 User.full_name.ilike(pattern),
             )
         )
+    if params.programme_id is not None:
+        query = query.where(User.programmes.any(Programme.id == params.programme_id))
     users, meta = paginate(query, params.page, params.per_page)
     return success({"items": [_user_json(user) for user in users], "pagination": meta})
 

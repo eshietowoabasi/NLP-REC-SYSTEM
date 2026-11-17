@@ -72,3 +72,4 @@ class UserListQuery(PaginationQuery):
     role: UserRole | None = None
     is_active: Literal["true", "false"] | None = None
     search: str | None = Field(default=None, max_length=100)
+    programme_id: int | None = Field(default=None, ge=1)

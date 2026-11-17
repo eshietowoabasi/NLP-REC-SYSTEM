@@ -210,6 +210,7 @@ Access: admin. Paginated list of users, newest first.
 | `role` | `admin`, `planner` or `viewer` |
 | `is_active` | `true` or `false` |
 | `search` | Case-insensitive match on username, email or full name |
+| `programme_id` | Planners and viewers assigned to that programme (admins are never listed: they reach every programme) |
 | `page`, `per_page` | Pagination |
 
 **200** `{ "items": [User, ...], "pagination": { ... } }`

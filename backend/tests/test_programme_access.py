@@ -289,3 +289,14 @@ def test_a_programmes_reviews_include_those_from_before_programmes(
 
     assert [s["id"] for s in listed] == [computing_review.session.id]
     assert summary["sessions"]["total"] == 1
+
+
+def test_admins_list_the_people_of_one_programme(login_as, make_user, nursing: Programme) -> None:
+    admin = login_as("admin")
+    make_user("planner", username="cs-planner")
+    make_user("planner", username="nsc-planner", programmes=[nursing])
+    make_user("viewer", username="both-viewer", programmes=[nursing, default_programme()])
+
+    listed = admin.get(f"/api/admin/users?programme_id={nursing.id}").get_json()["data"]
+
+    assert sorted(user["username"] for user in listed["items"]) == ["both-viewer", "nsc-planner"]

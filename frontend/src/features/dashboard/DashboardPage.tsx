@@ -27,12 +27,13 @@ import {
 } from '@/components/ui/table'
 import { useAuth } from '@/features/auth/useAuth'
 import { useProgrammeReadiness } from '@/features/programmes/api'
+import { READINESS_CHECKS, readyCount } from '@/features/programmes/readiness'
 import { useCurrentProgramme } from '@/features/programmes/useCurrentProgramme'
 import { SessionStatusBadge } from '@/features/sessions/SessionStatusBadge'
 import { SystemStatusCard } from '@/features/system/SystemStatusCard'
 import { firstName, formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import type { DashboardSummary, Programme, ProgrammeReadiness } from '@/types/api'
+import type { DashboardSummary, Programme } from '@/types/api'
 
 import { useDashboardSummary } from './api'
 
@@ -302,51 +303,13 @@ function Overview({
   )
 }
 
-const CHECKS: {
-  key: string
-  label: string
-  ok: (r: ProgrammeReadiness) => boolean
-  detail: (r: ProgrammeReadiness) => string
-  fix: string
-}[] = [
-  {
-    key: 'core',
-    label: 'NUC core',
-    ok: (r) => r.nuc_core !== null,
-    detail: (r) => r.nuc_core?.version_label ?? 'Not uploaded yet',
-    fix: 'An admin uploads the CCMAS document.',
-  },
-  {
-    key: 'skills',
-    label: 'Skills list',
-    ok: (r) => r.discipline !== null,
-    detail: (r) => (r.discipline ? r.discipline.name : 'Discipline not chosen'),
-    fix: 'An admin chooses the NUC discipline.',
-  },
-  {
-    key: 'jobs',
-    label: 'Job collection',
-    ok: (r) => r.job_search.ready,
-    detail: (r) =>
-      r.job_search.ready ? r.job_search.search_terms.slice(0, 3).join(', ') : 'Not set up',
-    fix: 'An admin adds the job titles to look for.',
-  },
-  {
-    key: 'documents',
-    label: 'Documents',
-    ok: (r) => r.documents_ready >= 5,
-    detail: (r) => `${r.documents_ready} ready to analyse`,
-    fix: 'Collect adverts or upload at least 5 documents.',
-  },
-]
-
 /** Whether the programme has what a useful review needs, and who fixes what is missing. */
 function Readiness({ programme }: { programme: Programme }) {
   const readiness = useProgrammeReadiness(programme.id)
   const { isAdmin } = useAuth()
   if (!readiness.data) return null
   const r = readiness.data
-  const done = CHECKS.filter((check) => check.ok(r)).length
+  const done = readyCount(r)
 
   return (
     <section
@@ -370,7 +333,7 @@ function Readiness({ programme }: { programme: Programme }) {
           <span className="num text-xs text-muted-ink">{done} of 4 ready</span>
           {isAdmin && !r.ready && (
             <Link
-              to="/admin/benchmarks"
+              to={`/admin/benchmarks?programme=${programme.id}`}
               className="text-[13px] font-bold text-primary hover:underline"
             >
               Set up programme
@@ -379,7 +342,7 @@ function Readiness({ programme }: { programme: Programme }) {
         </div>
       </div>
       <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        {CHECKS.map((check) => {
+        {READINESS_CHECKS.map((check) => {
           const ok = check.ok(r)
           return (
             <li
