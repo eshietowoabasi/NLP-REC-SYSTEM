@@ -14,7 +14,22 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { formatDateTime } from '@/lib/format'
 import { applyServerErrors } from '@/lib/forms'
-import type { SettingItem, SettingKey, SettingValues, SettingsUpdate } from '@/types/api'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { useDisciplines } from '@/features/programmes/api'
+import { useCurrentProgramme } from '@/features/programmes/useCurrentProgramme'
+import type {
+  NucDiscipline,
+  SettingItem,
+  SettingKey,
+  SettingValues,
+  SettingsUpdate,
+} from '@/types/api'
 import { formatWeight } from '@/features/review/labels'
 
 import { useUpdateSettings } from './api'
@@ -61,12 +76,15 @@ const schema = z.object({
     .refine((v) => splitList(v, /[,\s]+/).every((p) => /^[A-Za-z]{2,4}$/.test(p)), {
       message: 'Course-code prefixes are 2 to 4 letters, separated by commas.',
     }),
-  topic_names: z
-    .string()
-    .refine((v) => splitList(v, /\n/).every((n) => n.length >= 2 && n.length <= 120), {
-      message: 'Each name needs 2 to 120 characters (one per line).',
-    })
-    .refine((v) => splitList(v, /\n/).length <= 400, { message: 'At most 400 names.' }),
+  topic_names: z.record(
+    z.string(),
+    z
+      .string()
+      .refine((v) => splitList(v, /\n/).every((n) => n.length >= 2 && n.length <= 120), {
+        message: 'Each name needs 2 to 120 characters (one per line).',
+      })
+      .refine((v) => splitList(v, /\n/).length <= 400, { message: 'At most 400 names.' }),
+  ),
   excluded_keywords: z
     .string()
     .refine((v) => splitList(v, /\n/).every((k) => k.length >= 2 && k.length <= 80), {
@@ -98,7 +116,9 @@ function toForm(settings: ByKey): FormValues {
     max_documents_per_session: value('max_documents_per_session'),
     excluded_prefixes: value('nuc_course_exclusions').code_prefixes.join(', '),
     excluded_keywords: value('nuc_course_exclusions').title_keywords.join('\n'),
-    topic_names: value('topic_name_catalogue').join('\n'),
+    topic_names: Object.fromEntries(
+      Object.entries(value('topic_name_catalogues')).map(([d, names]) => [d, names.join('\n')]),
+    ),
     credit_unit_allowance:
       value('credit_unit_allowance') === null ? '' : String(value('credit_unit_allowance')),
     passage_sentences: { ...value('passage_sentences') },
@@ -112,7 +132,9 @@ function fromForm(values: FormValues): SettingValues {
   const { excluded_prefixes, excluded_keywords, topic_names, ...rest } = values
   return {
     ...rest,
-    topic_name_catalogue: splitList(topic_names, /\n/),
+    topic_name_catalogues: Object.fromEntries(
+      Object.entries(topic_names).map(([d, text]) => [d, splitList(text, /\n/)]),
+    ) as SettingValues['topic_name_catalogues'],
     nuc_course_exclusions: {
       code_prefixes: splitList(excluded_prefixes, /[,\s]+/).map((p) => p.toUpperCase()),
       title_keywords: splitList(excluded_keywords, /\n/),
@@ -179,6 +201,19 @@ export function GeneralSettingsForm({
     setError,
     formState: { errors, isDirty },
   } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: toForm(byKey) })
+  const { programme } = useCurrentProgramme()
+  const disciplines = useDisciplines()
+  const [namesDiscipline, setNamesDiscipline] = useState<NucDiscipline>(
+    programme?.nuc_discipline ?? 'computing',
+  )
+  const topicNames = useWatch({ control, name: 'topic_names' })
+  const disciplineOptions =
+    disciplines.data?.disciplines.map(({ value, name }) => ({ value, name })) ??
+    (Object.keys(topicNames) as NucDiscipline[]).map((value) => ({ value, name: value }))
+  const disciplineName = (value: NucDiscipline) =>
+    disciplineOptions.find((option) => option.value === value)?.name ?? value
+  const namesCount = (value: NucDiscipline) => splitList(topicNames[value] ?? '', /\n/).length
+  const namesError = errors.topic_names?.[namesDiscipline]
   const weights = useWatch({ control, name: 'score_weights' })
   const sbertModel = useWatch({ control, name: 'sbert_model' })
   const sum = (weights.ner || 0) + (weights.topic || 0) + (weights.novelty || 0)
@@ -526,25 +561,47 @@ export function GeneralSettingsForm({
           <CardHeader>
             <CardTitle>Course-style topic names</CardTitle>
             <CardDescription>
-              Each topic is given the name from this list that is closest in meaning, if one is
-              close enough; otherwise it keeps a name made from its keywords. One name per line.
-              Applies to sessions run after saving.
+              Each NUC discipline has its own list. A review names each topic after the closest name
+              in its programme&apos;s discipline list, if one is close enough; otherwise the topic
+              keeps a name made from its keywords. One name per line. Applies to reviews run after
+              saving.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Field data-invalid={!!errors.topic_names}>
-              <FieldLabel htmlFor="topic_names">Topic names</FieldLabel>
+          <CardContent className="space-y-4">
+            <Field>
+              <FieldLabel htmlFor="topic_names_discipline">Discipline</FieldLabel>
+              <Select
+                value={namesDiscipline}
+                onValueChange={(next) => setNamesDiscipline(next as NucDiscipline)}
+              >
+                <SelectTrigger id="topic_names_discipline" className="w-full max-w-md">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {disciplineOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.name} ({namesCount(option.value)} names)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field data-invalid={!!namesError}>
+              <FieldLabel htmlFor="topic_names">
+                Topic names for {disciplineName(namesDiscipline)}
+              </FieldLabel>
               <Textarea
+                key={namesDiscipline}
                 id="topic_names"
                 rows={14}
-                aria-invalid={!!errors.topic_names}
-                {...register('topic_names')}
+                aria-invalid={!!namesError}
+                {...register(`topic_names.${namesDiscipline}`)}
               />
               {hint(
-                'topic_name_catalogue',
-                'Standard computing course and topic names (ACM/IEEE CS2023 areas and common NUC course titles).',
+                'topic_name_catalogues',
+                'Common NUC course titles of the discipline and current areas of practice employers ask for.',
               )}
-              <FieldError errors={[errors.topic_names]} />
+              <FieldError errors={[namesError]} />
             </Field>
           </CardContent>
         </Card>

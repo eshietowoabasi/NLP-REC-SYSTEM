@@ -938,7 +938,7 @@ Access: admin. Any subset of the settings; only the keys sent change.
 | `min_topic_size` | 2–100 |
 | `evidence_per_recommendation` | 1–20 |
 | `max_documents_per_session` | 1–200 |
-| `topic_name_catalogue` | list of course-style names (2–120 characters, at most 400, duplicates dropped) |
+| `topic_name_catalogues` | `{ "<nuc discipline>": [names] }`: course-style names per NUC discipline (2–120 characters, at most 400 per discipline, duplicates dropped). Send only the disciplines to change; the others keep their lists. Unknown disciplines are a 422. |
 | `nuc_course_exclusions` | `{ "code_prefixes": [2–4 letters], "title_keywords": [2–80 chars] }`, at most 30 each; duplicates dropped, prefixes upper-cased |
 | `credit_unit_allowance` | 1–300, or `null` to clear |
 

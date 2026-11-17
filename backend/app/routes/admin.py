@@ -45,7 +45,7 @@ from app.schemas.admin import (
 )
 from app.schemas.documents import UserRef
 from app.schemas.users import UserCreate, UserListQuery, UserOut, UserUpdate
-from app.settings import SETTING_DEFINITIONS
+from app.settings import PER_DISCIPLINE_SETTINGS, SETTING_DEFINITIONS, get_setting
 from app.utils.csv_export import csv_cell
 from app.utils.errors import ApiError
 from app.utils.responses import success
@@ -127,7 +127,7 @@ def _settings_json() -> list[dict[str, Any]]:
         result.append(
             SettingOut(
                 key=definition.key,
-                value=row.value if row else definition.default,
+                value=get_setting(definition.key) if row else definition.default,
                 default=definition.default,
                 description=definition.description,
                 updated_at=row.updated_at if row else None,
@@ -156,6 +156,10 @@ def update_settings() -> tuple[Response, int]:
         previous = (
             row.value if row else next(d.default for d in SETTING_DEFINITIONS if d.key == key)
         )
+        if key in PER_DISCIPLINE_SETTINGS:
+            # Only the disciplines sent change; the others keep their lists.
+            previous = get_setting(key)
+            value = {**previous, **value}
         if previous == value:
             continue
         if row is None:

@@ -12,6 +12,7 @@ from sqlalchemy import select
 from app.audit import AuditAction, record_audit
 from app.extensions import db
 from app.models import AuditLog, Setting, SkillPattern, StopWord
+from app.models.enums import NucDiscipline
 from app.settings import get_setting
 from tests.conftest import ApiClient
 
@@ -82,18 +83,36 @@ def test_course_exclusions_are_normalised(admin: ApiClient) -> None:
     }
 
 
-def test_topic_name_catalogue_is_editable_and_deduplicated(admin: ApiClient) -> None:
-    assert len(get_setting("topic_name_catalogue")) >= 100  # seeded course-style names
+def test_topic_names_are_kept_per_discipline_and_edited_one_at_a_time(admin: ApiClient) -> None:
+    catalogues = get_setting("topic_name_catalogues")
+    assert len(catalogues["computing"]) >= 100  # seeded course-style names
+    assert "Infection Prevention and Control" in catalogues["allied_health_sciences"]
+    assert set(catalogues) == {str(d) for d in NucDiscipline}
 
     response = admin.put(
         "/api/admin/settings",
-        json={"topic_name_catalogue": [" Cloud Computing ", "cloud computing", "Data Mining"]},
+        json={
+            "topic_name_catalogues": {
+                "allied_health_sciences": [" Wound Care ", "wound care", "Midwifery"]
+            }
+        },
     )
 
     assert response.status_code == 200, response.get_json()
-    assert get_setting("topic_name_catalogue") == ["Cloud Computing", "Data Mining"]
-    too_short = admin.put("/api/admin/settings", json={"topic_name_catalogue": ["x"]})
+    after = get_setting("topic_name_catalogues")
+    assert after["allied_health_sciences"] == ["Wound Care", "Midwifery"]
+    # The other disciplines keep their lists.
+    assert after["computing"] == catalogues["computing"]
+    shown = next(
+        s for s in response.get_json()["data"]["settings"] if s["key"] == "topic_name_catalogues"
+    )
+    assert shown["value"]["engineering_and_technology"] == catalogues["engineering_and_technology"]
+    too_short = admin.put("/api/admin/settings", json={"topic_name_catalogues": {"law": ["x"]}})
     assert too_short.status_code == 422
+    unknown = admin.put(
+        "/api/admin/settings", json={"topic_name_catalogues": {"astrology": ["Star Charts"]}}
+    )
+    assert unknown.status_code == 422
 
 
 def test_new_session_defaults_follow_the_settings(admin: ApiClient, login_as) -> None:

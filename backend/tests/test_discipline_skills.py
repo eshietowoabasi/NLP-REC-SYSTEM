@@ -6,7 +6,8 @@ from sqlalchemy import select
 
 from app.extensions import db
 from app.models import AuditLog, NucDiscipline, Programme, SkillLabel, SkillPattern
-from app.tasks.analysis import load_skill_patterns
+from app.seed.discipline_topic_names import DISCIPLINE_TOPIC_NAMES
+from app.tasks.analysis import load_naming, load_skill_patterns
 from tests.conftest import ApiClient
 
 
@@ -122,3 +123,24 @@ def test_moving_a_pattern_between_lists_is_audited_and_checked(login_as) -> None
     assert to_general.get_json()["data"]["discipline"] is None
     log = db.session.scalar(select(AuditLog).where(AuditLog.action_type == "skill_pattern.updated"))
     assert log.detail["discipline"] == {"from": "sciences", "to": None}
+
+
+def test_topics_are_named_from_the_programmes_discipline_list(app) -> None:
+    nursing = load_naming("fake-model", NucDiscipline.ALLIED_HEALTH_SCIENCES)
+    computing = load_naming("fake-model", "computing")
+
+    assert nursing is not None and computing is not None
+    assert "Infection Prevention and Control" in nursing.names
+    assert "Software Testing and Quality Assurance" not in nursing.names
+    assert "Software Testing and Quality Assurance" in computing.names
+    assert nursing.name_vectors.shape[0] == len(nursing.names)
+    # A programme without a discipline keeps keyword titles.
+    assert load_naming("fake-model", None) is None
+
+
+def test_every_discipline_has_its_own_topic_names() -> None:
+    for discipline in NucDiscipline:
+        names = DISCIPLINE_TOPIC_NAMES[discipline]
+        assert len(names) >= 15, discipline
+        assert len({name.lower() for name in names}) == len(names), discipline
+        assert all(2 <= len(name) <= 120 for name in names), discipline
