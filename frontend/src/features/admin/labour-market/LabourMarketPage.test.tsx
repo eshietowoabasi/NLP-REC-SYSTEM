@@ -39,18 +39,18 @@ const run = (overrides: Partial<HarvestRun> = {}): HarvestRun => ({
   ...overrides,
 })
 
-const state = (latest: HarvestRun | null): HarvestState => ({
+const state = (latest: HarvestRun | null, fieldSlugs = ['medical']): HarvestState => ({
   programme: { id: 2, name: nursing.name, discipline_code: 'NSC' },
-  profile: { search_terms: ['nurse', 'nursing'], field_slugs: ['medical'] },
+  profile: { search_terms: ['nurse', 'nursing'], field_slugs: fieldSlugs },
   latest_run: latest,
 })
 
-function setup(latest: HarvestRun | null) {
+function setup(latest: HarvestRun | null, fieldSlugs?: string[]) {
   mockApi({
     'GET /auth/me': ok(adminUser),
     'GET /health': ok(healthyStatus),
     'GET /programmes': ok([nursing]),
-    'GET /harvest/programmes/:id': ok(state(latest)),
+    'GET /harvest/programmes/:id': ok(state(latest, fieldSlugs)),
   })
   return renderApp('/admin/labour-market')
 }
@@ -95,5 +95,12 @@ describe('LabourMarketPage', () => {
 
     expect(await screen.findByText('Failed')).toBeInTheDocument()
     expect(screen.getByText(/stopped unexpectedly/)).toBeVisible()
+  })
+
+  it('collects with job titles alone, since fields are optional', async () => {
+    setup(null, [])
+
+    expect(await screen.findByLabelText('MyJobMag fields (optional)')).toHaveValue('')
+    expect(screen.getByRole('button', { name: /Collect jobs now/ })).toBeEnabled()
   })
 })

@@ -1,4 +1,11 @@
-"""Polite, programme-profile-driven MyJobMag collector."""
+"""Polite, programme-profile-driven MyJobMag collector.
+
+Adverts are found in two ways, in this order: the listing for each job title in the programme's
+search terms (``/jobs-by-title/nurse``), which holds only adverts with that title, then the
+listing of each chosen job field (``/jobs-by-field/medical``), which mixes many professions and
+is filtered by title. Every advert is fetched once, respecting robots.txt with a pause between
+requests.
+"""
 
 from __future__ import annotations
 
@@ -20,6 +27,8 @@ USER_AGENT = "SkillBridge academic curriculum research " "(University of Uyo)"
 MIN_WORDS = 80
 
 FIELD_RE = re.compile(r"^[a-z0-9-]+$")
+
+NON_SLUG_RE = re.compile(r"[^a-z0-9]+")
 
 EMAIL_RE = re.compile(
     r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b",
@@ -69,6 +78,17 @@ def title_matches(
     text = normalise(title)
 
     return any(normalise(term) in text for term in search_terms if normalise(term))
+
+
+def title_slug(term: str) -> str:
+    """The MyJobMag title-listing slug of a search term: "Registered Nurse" → "registered-nurse"."""
+    return NON_SLUG_RE.sub("-", normalise(term)).strip("-")
+
+
+def listing_urls(kind: str, slug: str, pages: int) -> list[str]:
+    """Listing pages of a job title (``kind="title"``) or field, first page first."""
+    base = f"{BASE_URL}/jobs-by-{kind}/{slug}"
+    return [base if page == 1 else f"{base}/{page}" for page in range(1, pages + 1)]
 
 
 def split_title(value: str) -> tuple[str, str]:
@@ -159,13 +179,18 @@ def parse_listing(page_html: str):
 
     seen = set()
 
-    for entry in soup.select("li.job-info"):
-        link = entry.select_one("h2 a[href]")
+    links = [entry.select_one("h2 a[href]") for entry in soup.select("li.job-info")]
+    if not links:
+        # Other listing layouts: any titled link to an advert.
+        links = [link for link in soup.select("a[href]") if link.get_text(strip=True)]
 
+    for link in links:
         if link is None:
             continue
 
         href = str(link.get("href") or "").split("#")[0]
+        if href.startswith(BASE_URL):
+            href = href[len(BASE_URL) :]
 
         if not href.startswith("/job/"):
             continue
@@ -309,6 +334,9 @@ class MyJobMagClient:
             timeout=25,
         )
 
+        if response.status_code == 404:
+            raise LookupError(f"{url} does not exist")
+
         if response.status_code in {
             403,
             429,
@@ -328,6 +356,11 @@ def collect_jobs(
     target_count: int,
     pages_per_field: int,
 ) -> Collection:
+    """Collect up to ``target_count`` adverts whose title matches a search term.
+
+    ``pages_per_field`` listing pages are read for each search term's title listing and then
+    for each field; fields are optional. A title with no listing (404) is skipped.
+    """
     terms = [normalise(term) for term in search_terms if normalise(term)]
 
     fields = [
@@ -337,36 +370,38 @@ def collect_jobs(
     if not terms:
         raise ValueError("Add at least one job-search term.")
 
-    if not fields:
-        raise ValueError("Add at least one MyJobMag field.")
+    sources: list[tuple[str, str]] = []
+    for kind, slugs in (("title", [title_slug(term) for term in terms]), ("field", fields)):
+        for slug in slugs:
+            if slug and (kind, slug) not in sources:
+                sources.append((kind, slug))
 
     client = MyJobMagClient()
 
     result = Collection(adverts=[])
 
-    seen_urls = set()
+    seen_urls: set[str] = set()
 
-    for field in fields:
-        for page in range(
-            1,
-            pages_per_field + 1,
-        ):
+    for kind, slug in sources:
+        for listing_url in listing_urls(kind, slug, pages_per_field):
             if len(result.adverts) >= target_count:
                 return result
 
-            listing_url = f"{BASE_URL}/jobs-by-field/" f"{field}/{page}"
-
             try:
                 listing_html = client.get(listing_url)
+            except LookupError:
+                break  # no such title listing, or no more pages
             except PermissionError:
                 result.skipped += 1
                 continue
 
+            found_any = False
             for (
                 url,
                 listed_title,
                 _company,
             ) in parse_listing(listing_html):
+                found_any = True
                 if len(result.adverts) >= target_count:
                     return result
 
@@ -387,7 +422,7 @@ def collect_jobs(
 
                 try:
                     job_html = client.get(url)
-                except PermissionError:
+                except (PermissionError, LookupError):
                     result.skipped += 1
                     continue
 
@@ -408,5 +443,8 @@ def collect_jobs(
                     continue
 
                 result.adverts.append(advert)
+
+            if not found_any:
+                break  # an empty page: the listing has ended
 
     return result

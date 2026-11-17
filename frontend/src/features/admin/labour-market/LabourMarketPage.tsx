@@ -176,14 +176,15 @@ export function ProgrammeHarvester({ programmeId }: { programmeId: number }) {
           <CardTitle>Search profile</CardTitle>
 
           <CardDescription>
-            The profile is editable, so SkillBridge is not limited to predefined disciplines.
+            The job titles SkillBridge looks for. Each title is searched on its own, then any job
+            fields you add are browsed for more.
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-5">
           <div className="space-y-2">
             <label htmlFor="job-search-terms" className="text-sm font-bold text-ink">
-              Relevant job titles / keywords
+              Job titles
             </label>
 
             <textarea
@@ -196,14 +197,14 @@ export function ProgrammeHarvester({ programmeId }: { programmeId: number }) {
             />
 
             <p className="text-xs text-muted-foreground">
-              Separate terms with commas. Only adverts whose job titles match these terms are
-              imported.
+              Separate titles with commas. Each one is searched on MyJobMag, and only adverts whose
+              job title contains one of them are imported.
             </p>
           </div>
 
           <div className="space-y-2">
             <label htmlFor="job-fields" className="text-sm font-bold text-ink">
-              MyJobMag fields
+              MyJobMag fields (optional)
             </label>
 
             <textarea
@@ -215,7 +216,10 @@ export function ProgrammeHarvester({ programmeId }: { programmeId: number }) {
               className="w-full rounded-xl border border-input bg-white p-3 text-sm text-ink outline-none focus:border-ring focus:ring-3 focus:ring-ring/25"
             />
 
-            <p className="text-xs text-muted-foreground">Examples: {FIELD_EXAMPLES.join(', ')}.</p>
+            <p className="text-xs text-muted-foreground">
+              Browsed after the job titles, for adverts the title search misses. Examples:{' '}
+              {FIELD_EXAMPLES.join(', ')}.
+            </p>
           </div>
 
           {save.isError && (
@@ -267,7 +271,7 @@ export function ProgrammeHarvester({ programmeId }: { programmeId: number }) {
 
               <div className="space-y-1">
                 <label htmlFor="pages" className="text-xs font-bold text-ink">
-                  Pages per field
+                  Pages per search
                 </label>
 
                 <Input
@@ -290,7 +294,7 @@ export function ProgrammeHarvester({ programmeId }: { programmeId: number }) {
             <Button
               className="w-full"
               onClick={collect}
-              disabled={running || start.isPending || !terms.trim() || !fields.trim()}
+              disabled={running || start.isPending || !terms.trim()}
             >
               {running || start.isPending ? (
                 <Loader2 className="animate-spin" aria-hidden="true" />
@@ -342,7 +346,7 @@ export function ProgrammeHarvester({ programmeId }: { programmeId: number }) {
 
                 {latest.phase === 'ready' && latest.imported_count === 0 && (
                   <p className="text-sm text-muted-foreground">
-                    No new adverts were found. Try more job titles or more pages per field.
+                    No new adverts were found. Try more job titles or more pages per search.
                   </p>
                 )}
 

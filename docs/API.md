@@ -535,14 +535,17 @@ job has ended or disappeared, or that have been going for over 20 minutes, are m
 
 ### `PATCH /api/harvest/programmes/{id}`
 
-Access: admin. JSON `{ "search_terms": [...] (≤ 40), "field_slugs": [...] (≤ 20, MyJobMag field
-slugs) }`. **200** with the saved profile.
+Access: admin. JSON `{ "search_terms": [...] (≤ 40, job titles), "field_slugs": [...] (≤ 20,
+MyJobMag field slugs, optional) }`. **200** with the saved profile.
 
 ### `POST /api/harvest/programmes/{id}/runs`
 
-Access: admin, planner (planners start collections from New analysis; only admins change the
-profile). JSON `{ "target_count" (1–30, default 10), "pages_per_field" (1–5, default 2) }`.
-**202** with the queued run. **422** if the profile has no search terms or fields (the message
+Access: admin, planner (planners start collections from New review; only admins change the
+profile). JSON `{ "target_count" (1–30, default 10), "pages_per_field" (1–5, default 2: listing
+pages read per search, i.e. per job title and per field) }`. The collector reads each search
+term's title listing (`/jobs-by-title/<term>`) first, then each field's listing, and imports
+adverts whose title contains a search term. **202** with the queued run. **422** if the profile
+has no search terms (the message
 asks the user to get an admin to set it up); **409** if a
 run for this programme is already queued or running. Clients poll `GET
 /api/harvest/programmes/{id}` while the latest run's `phase` is `queued`, `collecting` or

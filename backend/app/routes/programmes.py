@@ -146,7 +146,7 @@ def readiness_json(programme: Programme) -> dict:
         or 0
     )
     discipline = programme.nuc_discipline
-    job_search = bool(programme.job_search_terms and programme.job_field_slugs)
+    job_search = bool(programme.job_search_terms)
     return {
         "programme_id": programme.id,
         "nuc_core": (
