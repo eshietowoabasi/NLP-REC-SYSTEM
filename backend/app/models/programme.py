@@ -8,6 +8,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.extensions import db
+from app.models.enums import NucDiscipline, enum_type
 from app.utils.time import utcnow
 
 # Which programmes a planner or viewer works on. Admins need no rows: they see everything.
@@ -35,6 +36,10 @@ class Programme(db.Model):
     name: Mapped[str] = mapped_column(sa.String(160), unique=True, index=True)
     discipline_code: Mapped[str | None] = mapped_column(sa.String(32), unique=True)
     faculty: Mapped[str | None] = mapped_column(sa.String(160))
+    # The NUC CCMAS discipline: chooses the programme's skills list (plus general skills).
+    nuc_discipline: Mapped[NucDiscipline | None] = mapped_column(
+        enum_type(NucDiscipline, "nuc_discipline"), nullable=True
+    )
     description: Mapped[str | None] = mapped_column(sa.Text)
     job_search_terms: Mapped[list[str]] = mapped_column(
         sa.JSON, default=list, server_default=sa.text("'[]'::json"), nullable=False

@@ -10,7 +10,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.extensions import db
-from app.models.enums import SkillLabel, enum_type
+from app.models.enums import NucDiscipline, SkillLabel, enum_type
 from app.utils.time import utcnow
 
 
@@ -35,12 +35,19 @@ class SkillPattern(db.Model):
     """
 
     __tablename__ = "skill_patterns"
-    __table_args__ = (sa.UniqueConstraint("label", "pattern"),)
+    __table_args__ = (
+        # The same phrase may belong to several disciplines; NULL (general) counts as a value.
+        sa.UniqueConstraint("label", "pattern", "discipline", postgresql_nulls_not_distinct=True),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     label: Mapped[SkillLabel] = mapped_column(enum_type(SkillLabel, "label"))
     pattern: Mapped[Any] = mapped_column(JSONB)
     canonical_name: Mapped[str] = mapped_column(sa.String(128), index=True)
+    # The NUC discipline whose programmes use this pattern; None: every programme (general).
+    discipline: Mapped[NucDiscipline | None] = mapped_column(
+        enum_type(NucDiscipline, "discipline"), nullable=True, index=True
+    )
     is_active: Mapped[bool] = mapped_column(default=True, server_default=sa.true())
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True), default=utcnow, server_default=sa.func.now()
