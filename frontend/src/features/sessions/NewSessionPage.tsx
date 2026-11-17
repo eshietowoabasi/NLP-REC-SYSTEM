@@ -194,7 +194,7 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
         to="/sessions"
         className="inline-flex items-center gap-1.5 text-[13px] font-bold text-primary hover:underline"
       >
-        <ArrowLeft className="size-4" aria-hidden="true" /> Analyses
+        <ArrowLeft className="size-4" aria-hidden="true" /> Reviews
       </Link>
       <PageHeader
         title="New analysis session"

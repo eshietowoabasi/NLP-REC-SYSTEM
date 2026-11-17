@@ -147,7 +147,7 @@ export function SessionsPage() {
         </EmptyState>
       ) : (
         <TableCard>
-          <Table aria-label="Analyses">
+          <Table aria-label="Reviews">
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>

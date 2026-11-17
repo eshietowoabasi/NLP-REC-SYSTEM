@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/features/auth/useAuth'
 import { DownloadReportButton } from '@/features/reports/DownloadReportButton'
 import { cn } from '@/lib/utils'
-import type { SessionProgress as Progress } from '@/types/api'
+import { useSession } from '@/features/sessions/api'
+import type { SessionProgress as Progress, SessionStatus, SessionSummary } from '@/types/api'
 
 import { useSessionProgress } from './api'
 
@@ -23,19 +24,52 @@ const REPORT_TEXT = {
 interface Step {
   label: string
   detail: string
-  to: string
+  /** Where the step leads; null while it cannot be opened yet. */
+  to: string | null
   done: boolean
 }
 
-function steps(sessionId: number, p: Progress): Step[] {
+const ANALYSIS_TEXT: Record<SessionStatus, (s: SessionSummary) => string> = {
+  pending: () => 'not started',
+  processing: (s) => `${s.progress_percent}% done`,
+  completed: (s) => plural(s.recommendation_count, 'topic') + ' found',
+  failed: () => 'stopped, see why',
+}
+
+function steps(session: SessionSummary, p: Progress | undefined): Step[] {
+  const id = session.id
+  const ready = session.status === 'completed' && p !== undefined
+  const evidence: Step = {
+    label: 'Evidence',
+    detail: plural(session.document_count, 'document'),
+    to: `/sessions/${id}`,
+    done: session.document_count > 0,
+  }
+  const analyse: Step = {
+    label: 'Analyse',
+    detail: ANALYSIS_TEXT[session.status](session),
+    to: session.status === 'completed' ? `/sessions/${id}/evidence` : `/sessions/${id}`,
+    done: session.status === 'completed',
+  }
+  if (!ready) {
+    return [
+      evidence,
+      analyse,
+      { label: 'Review', detail: 'after the analysis', to: null, done: false },
+      { label: 'Design courses', detail: 'after reviewing', to: null, done: false },
+      { label: 'Report', detail: 'at the end', to: null, done: false },
+    ]
+  }
   const reviewDone = p.total > 0 && p.reviewed === p.total
   const designDone = p.accepted > 0 && p.accepted_with_courses === p.accepted
   const report = p.latest_report?.status ?? 'none'
   return [
+    evidence,
+    analyse,
     {
       label: 'Review',
       detail: `${p.reviewed} of ${p.total} reviewed`,
-      to: `/sessions/${sessionId}/recommendations${reviewDone ? '' : '?decision=undecided'}`,
+      to: `/sessions/${id}/recommendations${reviewDone ? '' : '?decision=undecided'}`,
       done: reviewDone,
     },
     {
@@ -44,73 +78,112 @@ function steps(sessionId: number, p: Progress): Step[] {
         p.accepted > 0
           ? `${plural(p.courses, 'course')} designed · ${p.accepted} accepted`
           : `${plural(p.courses, 'course')} designed`,
-      to: `/sessions/${sessionId}/recommendations?decision=accepted`,
+      to: `/sessions/${id}/recommendations?decision=accepted`,
       done: designDone,
     },
     {
       label: 'Report',
       detail: REPORT_TEXT[report],
-      to: `/reports?session=${sessionId}`,
+      to: `/reports?session=${id}`,
       done: report === 'completed',
     },
   ]
 }
 
 /**
- * The review workflow of a completed session: ① Review → ② Design courses → ③ Report, with
- * live counts, links to each step and a banner suggesting the next one.
+ * The five steps of a review: ① Evidence → ② Analyse → ③ Review → ④ Design courses →
+ * ⑤ Report, with live counts and links, shown on every page of a review. Once the analysis is
+ * complete a banner suggests the next step. On phones only the current step is spelled out.
  */
 export function SessionProgress({ sessionId }: { sessionId: number }) {
-  const progress = useSessionProgress(sessionId)
+  const session = useSession(sessionId)
+  const completed = session.data?.status === 'completed'
+  const progress = useSessionProgress(sessionId, completed)
   const { canEdit } = useAuth()
-  if (!progress.data || progress.data.session_status !== 'completed') return null
+  if (!session.data) return null
   const p = progress.data
-  const list = steps(sessionId, p)
+  const list = steps(session.data, completed ? p : undefined)
   const current = list.findIndex((step) => !step.done)
-  const allReviewed = p.total > 0 && p.reviewed === p.total
-  const coursesMissing = p.accepted - p.accepted_with_courses
+  const allReviewed = completed && p !== undefined && p.total > 0 && p.reviewed === p.total
+  const coursesMissing = p ? p.accepted - p.accepted_with_courses : 0
 
   return (
     <div className="space-y-3">
-      <nav aria-label="Session progress">
-        <ol className="grid gap-3 sm:grid-cols-3">
-          {list.map((step, index) => (
-            <li key={step.label}>
-              <Link
-                to={step.to}
-                aria-label={`Step ${index + 1}: ${step.label}, ${step.detail}${step.done ? ' (done)' : ''}`}
-                aria-current={index === current ? 'step' : undefined}
-                className={cn(
-                  'flex h-full items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3 transition-colors hover:border-input-line focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none',
-                  index === current && 'border-2 border-primary px-[15px] py-[11px]',
-                )}
-              >
+      <nav
+        aria-label="Session progress"
+        className="animate-rise overflow-hidden rounded-[18px] night-grid px-3 py-3 text-white sm:px-4"
+      >
+        <ol className="grid grid-cols-5 gap-1.5">
+          {list.map((step, index) => {
+            const isCurrent = index === current
+            const label = `Step ${index + 1}: ${step.label}, ${step.detail}${step.done ? ' (done)' : ''}`
+            const body = (
+              <>
                 <span
                   className={cn(
-                    'flex size-8 shrink-0 items-center justify-center rounded-full bg-divider text-sm font-extrabold text-ink',
-                    step.done && 'bg-green-tint text-green',
-                    index === current && 'bg-primary text-primary-foreground',
+                    'relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border border-night-line bg-night-raised num text-[13px] font-semibold text-night-text',
+                    step.done && 'border-transparent bg-emerald-500/20 text-emerald-300',
+                    isCurrent &&
+                      'border-transparent bg-terracotta text-white shadow-[0_0_0_4px_rgba(214,98,58,0.25)]',
                   )}
                   aria-hidden="true"
                 >
                   {step.done ? <Check className="size-4" strokeWidth={2.6} /> : index + 1}
                 </span>
-                <span className="flex min-w-0 flex-1 flex-col gap-1">
-                  <span className="block text-sm font-extrabold text-ink">{step.label}</span>
-                  {index === 0 && p.total > 0 && (
-                    <span className="block h-1.5 rounded-full bg-divider" aria-hidden="true">
-                      <span
-                        className="block h-1.5 rounded-full bg-primary"
-                        style={{ width: `${Math.round((p.reviewed / p.total) * 100)}%` }}
-                      />
-                    </span>
+                <span
+                  className={cn(
+                    'hidden min-w-0 flex-1 flex-col gap-0.5 text-center md:flex lg:text-left',
                   )}
-                  <span className="block text-xs text-body-soft">{step.detail}</span>
+                >
+                  <span className="truncate text-[13px] font-bold text-white">{step.label}</span>
+                  <span className="truncate text-[11.5px] text-night-muted">{step.detail}</span>
                 </span>
-              </Link>
-            </li>
-          ))}
+              </>
+            )
+            const shape = cn(
+              'relative flex h-full flex-col items-center gap-2 rounded-xl px-1.5 py-2 lg:flex-row lg:gap-3 lg:px-3',
+              isCurrent && 'bg-night-hover',
+              !step.to && 'opacity-55',
+            )
+            return (
+              <li key={step.label} className="relative">
+                {index > 0 && (
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'absolute top-[23px] right-1/2 left-[-50%] h-px bg-night-line lg:hidden',
+                      list[index - 1].done && 'bg-emerald-400/50',
+                    )}
+                  />
+                )}
+                {step.to ? (
+                  <Link
+                    to={step.to}
+                    aria-label={label}
+                    aria-current={isCurrent ? 'step' : undefined}
+                    className={cn(
+                      shape,
+                      'transition-colors hover:bg-night-hover focus-visible:ring-3 focus-visible:ring-ember/50 focus-visible:outline-none',
+                    )}
+                  >
+                    {body}
+                  </Link>
+                ) : (
+                  <span aria-label={label} role="group" className={shape}>
+                    {body}
+                  </span>
+                )}
+              </li>
+            )
+          })}
         </ol>
+        {current >= 0 && (
+          <p className="mt-2 text-center text-[12px] text-night-muted md:hidden">
+            Step {current + 1} of 5:{' '}
+            <span className="font-bold text-white">{list[current].label}</span> ·{' '}
+            {list[current].detail}
+          </p>
+        )}
       </nav>
 
       {allReviewed && coursesMissing > 0 && (
@@ -118,8 +191,9 @@ export function SessionProgress({ sessionId }: { sessionId: number }) {
           <PartyPopper aria-hidden="true" />
           <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
             <span>
-              <strong>All reviewed.</strong> You accepted {p.accepted}
-              {p.accepted_with_courses > 0 && ` (${p.accepted_with_courses} already designed)`}.
+              <strong>All reviewed.</strong> You accepted {p?.accepted}
+              {p && p.accepted_with_courses > 0 && ` (${p.accepted_with_courses} already designed)`}
+              .
             </span>
             {canEdit && (
               <Button size="sm" asChild>

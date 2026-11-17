@@ -232,22 +232,30 @@ describe('RecommendationsPage', () => {
     )
   })
 
-  it('shows the three workflow steps with live counts and links', async () => {
+  it('shows the five workflow steps with live counts and links', async () => {
     reviewApi(plannerUser)
     renderApp('/sessions/5/recommendations')
 
     const steps = within(await screen.findByRole('navigation', { name: 'Session progress' }))
-    const review = steps.getByRole('link', { name: 'Step 1: Review, 2 of 3 reviewed' })
+    expect(steps.getByRole('link', { name: /Step 1: Evidence, .* \(done\)/ })).toHaveAttribute(
+      'href',
+      '/sessions/5',
+    )
+    expect(steps.getByRole('link', { name: /Step 2: Analyse, .* \(done\)/ })).toHaveAttribute(
+      'href',
+      '/sessions/5/evidence',
+    )
+    const review = await steps.findByRole('link', { name: 'Step 3: Review, 2 of 3 reviewed' })
     expect(review).toHaveAttribute('href', '/sessions/5/recommendations?decision=undecided')
     expect(review).toHaveAttribute('aria-current', 'step')
     expect(
-      steps.getByRole('link', { name: 'Step 2: Design courses, 0 courses designed · 1 accepted' }),
+      steps.getByRole('link', { name: 'Step 4: Design courses, 0 courses designed · 1 accepted' }),
     ).toBeInTheDocument()
-    expect(steps.getByRole('link', { name: /Step 3: Report/ })).toHaveAttribute(
+    expect(steps.getByRole('link', { name: /Step 5: Report/ })).toHaveAttribute(
       'href',
       '/reports?session=5',
     )
-    expect(steps.getByText('report not generated')).toBeInTheDocument()
+    expect(steps.getAllByText('report not generated')[0]).toBeInTheDocument()
     expect(screen.queryByText('All reviewed.')).not.toBeInTheDocument()
   })
 
