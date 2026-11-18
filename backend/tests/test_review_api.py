@@ -20,9 +20,9 @@ from tests.review_data import ReviewSession, build_review_session
 
 
 @pytest.fixture
-def review(make_user) -> ReviewSession:
+def review(planner) -> ReviewSession:
     """A completed session with three recommendations, built directly in the database."""
-    return build_review_session(make_user("planner", username="owner"))
+    return build_review_session(planner.user)  # planners see only their own reviews
 
 
 @pytest.fixture

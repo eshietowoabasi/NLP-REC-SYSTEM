@@ -78,11 +78,39 @@ def test_planners_only_see_their_programmes_reviews(
     )
     assert decision.status_code == 404
 
-    computing_planner = login_as("planner", username="cs-planner")
-    assert computing_planner.get(f"/api/sessions/{session_id}").status_code == 200
-    assert computing_planner.get(f"/api/sessions/{session_id}/keywords").status_code == 200
+    computing_viewer = login_as("viewer", username="cs-viewer")
+    assert computing_viewer.get(f"/api/sessions/{session_id}").status_code == 200
+    assert computing_viewer.get(f"/api/sessions/{session_id}/keywords").status_code == 200
     admin = login_as("admin")
     assert admin.get(f"/api/sessions/{session_id}").status_code == 200
+
+
+def test_planners_only_see_the_reviews_they_started(
+    computing_review: ReviewSession, login_as
+) -> None:
+    """Synthetic: another planner of the same programme cannot see or change a review; its
+    owner can."""
+    session_id = computing_review.session.id
+    recommendation_id = computing_review.recommendations[0].id
+    other = login_as("planner", username="cs-other")
+    assert other.get("/api/sessions").get_json()["data"]["items"] == []
+    assert other.get(f"/api/sessions/{session_id}").status_code == 404
+    assert other.get(f"/api/sessions/{session_id}/recommendations").status_code == 404
+    assert other.get(f"/api/recommendations/{recommendation_id}").status_code == 404
+    assert (
+        other.patch(
+            f"/api/recommendations/{recommendation_id}/decision", json={"decision": "accepted"}
+        ).status_code
+        == 404
+    )
+    summary = other.get("/api/dashboard/summary").get_json()["data"]
+    assert summary["sessions"]["total"] == 0
+
+    owner = login_as("planner", username="cs-owner-login")
+    computing_review.session.created_by_id = owner.user.id
+    db.session.commit()
+    assert owner.get(f"/api/sessions/{session_id}").status_code == 200
+    assert [s["id"] for s in owner.get("/api/sessions").get_json()["data"]["items"]] == [session_id]
 
 
 def test_the_library_shows_own_and_general_documents_only(
@@ -281,7 +309,7 @@ def test_a_programmes_reviews_include_those_from_before_programmes(
     login_as, computing_review: ReviewSession
 ) -> None:
     # build_review_session leaves programme_id empty, like sessions created before 0006.
-    planner = login_as("planner", username="cs-reader")
+    planner = login_as("viewer", username="cs-reader")  # viewers see the whole programme
     computing = default_programme().id
 
     listed = planner.get(f"/api/sessions?programme_id={computing}").get_json()["data"]["items"]

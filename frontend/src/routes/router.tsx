@@ -1,6 +1,7 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
 
 import { AppShell } from '@/components/layout/AppShell'
+import { loadScreen } from '@/lib/newVersion'
 
 import { RequireAuth, RequireRole } from './guards'
 import type { RouteHandle } from './handle'
@@ -15,7 +16,7 @@ const title = (value: string, crumb = 'Workspace') =>
  * module to React Router's `lazy` route property.
  */
 const page = <M,>(load: () => Promise<M>, pick: (module: M) => React.ComponentType) => ({
-  lazy: () => load().then((module) => ({ Component: pick(module) })),
+  lazy: () => loadScreen(load).then((module) => ({ Component: pick(module) })),
 })
 
 export const routes: RouteObject[] = [
