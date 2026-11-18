@@ -50,3 +50,12 @@ class HarvestRunRequest(BaseModel):
         ge=1,
         le=5,
     )
+
+    #: The planner's own job titles to search as well, for this run only.
+    extra_terms: list[str] = Field(default_factory=list, max_length=10)
+
+    @field_validator("extra_terms")
+    @classmethod
+    def _clean_terms(cls, value: list[str]) -> list[str]:
+        cleaned = [" ".join(term.split())[:64] for term in value]
+        return list(dict.fromkeys(term for term in cleaned if len(term) >= 2))

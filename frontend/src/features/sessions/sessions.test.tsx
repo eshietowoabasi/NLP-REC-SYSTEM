@@ -186,8 +186,9 @@ describe('NewSessionPage', () => {
       programme_id: 1,
       status: 'running',
       phase: 'collecting',
-      target_count: 15,
+      target_count: 20,
       pages_per_field: 2,
+      extra_terms: [],
       examined_count: 12,
       found_count: 3,
       imported_count: 0,
@@ -225,12 +226,13 @@ describe('NewSessionPage', () => {
 
     await waitFor(() => expect(server.calls('POST', '/harvest/programmes/1/runs')).toHaveLength(1))
     expect(server.calls('POST', '/harvest/programmes/1/runs')[0].body).toEqual({
-      target_count: 15,
+      target_count: 20,
       pages_per_field: 2,
+      extra_terms: [],
     })
     expect(await screen.findByText(/Finding current jobs for/)).toBeInTheDocument()
     expect(
-      screen.getByText(/Searching MyJobMag for software developer, data analyst/),
+      screen.getByText(/Searching MyJobMag for job titles like software developer, data analyst/),
     ).toBeVisible()
   })
 

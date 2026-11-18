@@ -24,6 +24,7 @@ from app.schemas.harvest import (
     HarvestProfileUpdate,
     HarvestRunRequest,
 )
+from app.tasks.harvest import job_fields
 from app.tasks.queue import enqueue
 from app.utils.errors import ApiError
 from app.utils.responses import success
@@ -111,6 +112,8 @@ def harvest_state(
             "profile": {
                 "search_terms": programme.job_search_terms or [],
                 "field_slugs": programme.job_field_slugs or [],
+                # The job fields actually searched (the discipline's usual one if none is set).
+                "search_fields": job_fields(programme),
             },
             "latest_run": run_json(latest),
         }
@@ -161,7 +164,7 @@ def start_harvest(
     if not programme.is_active:
         raise ApiError("CONFLICT", "This programme has been retired.", 409)
 
-    if not programme.job_search_terms:
+    if not programme.job_search_terms and not job_fields(programme):
         raise ApiError(
             "VALIDATION_ERROR",
             "Job collection is not set up for this programme yet. Ask an admin to add job"
@@ -207,6 +210,7 @@ def start_harvest(
             "programme_id": programme.id,
             "target_count": run.target_count,
             "pages_per_field": run.pages_per_field,
+            "extra_terms": data.extra_terms,
         },
     )
     db.session.commit()
@@ -214,6 +218,7 @@ def start_harvest(
     job_id = enqueue(
         "app.tasks.harvest.harvest_programme_jobs",
         run.id,
+        data.extra_terms,
         timeout=HARVEST_JOB_TIMEOUT,
     )
     run = db.session.get(JobHarvestRun, run.id)

@@ -17,7 +17,9 @@ from app.models import (
     DocumentStatus,
     FileType,
     JobHarvestRun,
+    NucDiscipline,
     Programme,
+    SkillPattern,
     SourceCategory,
 )
 from app.services.harvesting.myjobmag import (
@@ -128,9 +130,43 @@ def ingest_harvested_batch_with_retry(
         )
 
 
+#: MyJobMag job fields searched for a discipline when its programme names none.
+DEFAULT_JOB_FIELDS: dict[NucDiscipline, list[str]] = {
+    NucDiscipline.COMPUTING: ["information-technology"],
+    NucDiscipline.ENGINEERING_AND_TECHNOLOGY: ["engineering"],
+    NucDiscipline.ALLIED_HEALTH_SCIENCES: ["medical"],
+    NucDiscipline.MEDICINE_AND_DENTISTRY: ["medical"],
+    NucDiscipline.BASIC_MEDICAL_SCIENCES: ["medical"],
+    NucDiscipline.PHARMACEUTICAL_SCIENCE: ["medical"],
+}
+
+
+def job_fields(programme: Programme) -> list[str]:
+    """The programme's MyJobMag job fields, or its discipline's usual field."""
+    if programme.job_field_slugs:
+        return list(programme.job_field_slugs)
+    return list(DEFAULT_JOB_FIELDS.get(programme.nuc_discipline, []))
+
+
+def programme_skill_names(programme: Programme) -> list[str]:
+    """Names of the active skills on the programme's skills list (general + its discipline)."""
+    disciplines = [SkillPattern.discipline.is_(None)]
+    if programme.nuc_discipline is not None:
+        disciplines.append(SkillPattern.discipline == programme.nuc_discipline)
+    names = db.session.scalars(
+        select(SkillPattern.canonical_name)
+        .where(SkillPattern.is_active.is_(True), or_(*disciplines))
+        .distinct()
+    )
+    return [name for name in names if name]
+
+
 def harvest_programme_jobs(
     run_id: int,
+    extra_terms: list[str] | None = None,
 ) -> None:
+    """Collect current adverts for a run: the programme's job titles plus ``extra_terms`` (the
+    planner's own), and its whole job field filtered by its skills."""
     run = db.session.get(
         JobHarvestRun,
         run_id,
@@ -164,10 +200,11 @@ def harvest_programme_jobs(
 
     try:
         collection = collect_jobs(
-            list(programme.job_search_terms or []),
-            list(programme.job_field_slugs or []),
+            list(programme.job_search_terms or []) + list(extra_terms or []),
+            job_fields(programme),
             run.target_count,
             run.pages_per_field,
+            skill_names=programme_skill_names(programme),
         )
 
         run.examined_count = collection.examined

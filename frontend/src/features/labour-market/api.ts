@@ -39,14 +39,18 @@ export function useStartHarvest() {
       programmeId,
       targetCount,
       pagesPerField,
+      extraTerms = [],
     }: {
       programmeId: number
       targetCount: number
       pagesPerField: number
+      /** The planner's own job titles, searched as well in this run. */
+      extraTerms?: string[]
     }) =>
       apiPost<HarvestRun>(`/harvest/programmes/${programmeId}/runs`, {
         target_count: targetCount,
         pages_per_field: pagesPerField,
+        extra_terms: extraTerms,
       }),
 
     onSuccess: (_data, variables) =>
