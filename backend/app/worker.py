@@ -19,6 +19,7 @@ from rq.timeouts import TimerDeathPenalty, UnixSignalDeathPenalty
 from app import create_app
 from app.extensions import db, get_redis
 from app.models import Document, SourceCategory
+from app.settings import upgrade_raised_defaults
 from app.tasks.queue import background_queue_name
 
 INGEST = "app.tasks.ingestion.ingest_document"
@@ -51,6 +52,8 @@ def main() -> None:
         name = app.config["RQ_QUEUE_NAME"]
         queue = Queue(name, connection=connection)
         background = Queue(background_queue_name(name), connection=connection)
+        for key in upgrade_raised_defaults():
+            app.logger.info("Setting %s moved to its new default", key)
         moved = move_nuc_core_loading(queue, background)
         if moved:
             app.logger.info("Moved %d NUC core loading jobs to the background queue", moved)

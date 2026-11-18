@@ -106,3 +106,26 @@ def get_setting(key: str) -> Any:
         # A stored list replaces the default for its discipline only.
         return {**DEFAULT_SETTINGS[key], **row.value}
     return row.value
+
+
+#: Defaults that were raised in a later version: ``key → (old default, new default)``. A stored
+#: value still equal to the old default was never chosen by an admin, so it follows the new one.
+RAISED_DEFAULTS: dict[str, tuple[Any, Any]] = {
+    "max_documents_per_session": (50, 1000),
+}
+
+
+def upgrade_raised_defaults() -> list[str]:
+    """Move stored settings that still hold an old default to the new default (run when the
+    worker starts, so existing installations follow). Returns the keys changed; commits."""
+    from app.models.configuration import Setting
+
+    changed = []
+    for key, (old, new) in RAISED_DEFAULTS.items():
+        row = db.session.get(Setting, key)
+        if row is not None and row.value == old:
+            row.value = new
+            changed.append(key)
+    if changed:
+        db.session.commit()
+    return changed

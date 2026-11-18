@@ -50,6 +50,8 @@ import type { DocumentSummary, SessionDefaults, UploadCategory } from '@/types/a
 import { formatWeight } from '@/features/review/labels'
 
 import { JobCollectionPanel } from './JobCollectionPanel'
+import { useHarvestState } from '@/features/labour-market/api'
+import { isHarvestActive } from '@/features/labour-market/labels'
 import { useCreateSession, useReadyDocuments, useSessionDefaults } from './api'
 
 const WEIGHT_TOLERANCE = 0.001
@@ -572,7 +574,16 @@ function DocumentPicker({
   const processing = (library.data?.items ?? []).filter((d) =>
     IN_PROGRESS.includes(d.processing_status),
   )
-  const documents = useReadyDocuments(programmeId, processing.length > 0 ? 3000 : false)
+  // While a job collection is running or its adverts are being prepared, new adverts keep
+  // arriving: refresh the list so they appear (and are ticked) as soon as they are ready.
+  const harvest = useHarvestState(programmeId > 0 ? programmeId : null)
+  const harvestRun = harvest.data?.latest_run ?? null
+  const collecting =
+    harvestRun !== null && (isHarvestActive(harvestRun) || harvestRun.phase === 'preparing')
+  const documents = useReadyDocuments(
+    programmeId,
+    processing.length > 0 || collecting ? 3000 : false,
+  )
   // Polling stops when the last upload is ready, possibly just before the ready list would
   // have picked it up, so fetch the list once more at that moment.
   const wasProcessing = useRef(false)
@@ -670,7 +681,10 @@ function DocumentPicker({
               selected.length > maxDocuments && 'text-destructive',
             )}
           >
-            {selected.length} of {maxDocuments} selected
+            {selected.length} of {(documents.data ?? []).length} selected
+            <span className="ml-1.5 font-normal text-muted-ink">
+              (up to {maxDocuments} per review)
+            </span>
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
