@@ -14,6 +14,7 @@ from app.extensions import db
 from app.models import Programme, UserRole
 from app.schemas.auth import ChangePasswordRequest, LoginRequest
 from app.schemas.users import RegisterRequest, UserCreate, UserOut
+from app.tasks.queue import enqueue
 from app.utils.errors import ApiError
 from app.utils.responses import success
 from app.utils.validation import parse_body
@@ -41,9 +42,35 @@ def csrf_token() -> tuple[Response, int]:
     return success({"csrf_token": generate_csrf()})
 
 
+def auto_load_catalogue() -> None:
+    """Create the catalogue's programmes and, at most once an hour, queue loading their NUC
+    cores. Never fails the request: sign-up must work even if this cannot run."""
+    if not current_app.config.get("AUTO_LOAD_NUC_CATALOGUE", True):
+        return
+    from app.nuc_catalogue import BUNDLED_CATALOGUE, catalogue_status, ensure_catalogue_programmes
+
+    try:
+        ensure_catalogue_programmes(BUNDLED_CATALOGUE)
+        redis = current_app.extensions["redis"]
+        if redis.get("nuc-catalogue:auto-load"):
+            return
+        if catalogue_status(BUNDLED_CATALOGUE)["missing"] == 0:
+            return
+        if redis.set("nuc-catalogue:auto-load", "1", nx=True, ex=3600):
+            enqueue("app.tasks.catalogue.load_bundled_catalogue", timeout=1800)
+    except Exception:  # noqa: BLE001 - logged; the list below still answers
+        db.session.rollback()
+        current_app.logger.exception("Could not prepare the NUC catalogue")
+
+
 @bp.get("/register/programmes")
 def register_programmes() -> tuple[Response, int]:
-    """The programmes a new account can choose (active ones, by name). No login needed."""
+    """The programmes a new account can choose (active ones, by name). No login needed.
+
+    Every NUC programme shipped with SkillBridge is listed: missing ones are created here, and
+    their NUC cores are queued for processing once (see ``auto_load_catalogue``).
+    """
+    auto_load_catalogue()
     programmes = db.session.scalars(
         select(Programme).where(Programme.is_active.is_(True)).order_by(Programme.name)
     )

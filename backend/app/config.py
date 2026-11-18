@@ -120,6 +120,7 @@ class TestingConfig(BaseConfig):
     SECRET_KEY = "test-secret-key"
     BCRYPT_ROUNDS = 4  # fast hashing; the algorithm is the same
     TASKS_EAGER = True
+    AUTO_LOAD_NUC_CATALOGUE = False  # tests load the catalogue explicitly
     SQLALCHEMY_DATABASE_URI = resolve_test_database_url()
     # Same Redis server as development, but logical database 15.
     REDIS_URL = _env("TEST_REDIS_URL") or BaseConfig.REDIS_URL.rsplit("/", 1)[0] + "/15"
