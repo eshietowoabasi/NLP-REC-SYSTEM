@@ -1,5 +1,63 @@
 [
  {
+  "discipline": "Computing",
+  "nuc_discipline": "computing",
+  "degree": "B.Sc.",
+  "programme": "Computer Science",
+  "file": "Computing - Computer Science (CCMAS 2023).pdf",
+  "pages": [
+   27,
+   55
+  ],
+  "words": 10091,
+  "bytes": 559623,
+  "job_titles": [
+   "software developer",
+   "software engineer",
+   "data analyst",
+   "backend developer",
+   "frontend developer"
+  ]
+ },
+ {
+  "discipline": "Allied Health Sciences",
+  "nuc_discipline": "allied_health_sciences",
+  "degree": "B.",
+  "programme": "Nursing Science",
+  "file": "Allied Health Sciences - Nursing Science (CCMAS 2023).pdf",
+  "pages": [
+   367,
+   411
+  ],
+  "words": 16650,
+  "bytes": 756442,
+  "job_titles": [
+   "nurse",
+   "nursing",
+   "midwife",
+   "registered nurse"
+  ]
+ },
+ {
+  "discipline": "Engineering and Technology",
+  "nuc_discipline": "engineering_and_technology",
+  "degree": "B.Eng.",
+  "programme": "Chemical Engineering",
+  "file": "Engineering and Technology - Chemical Engineering (CCMAS 2023).pdf",
+  "pages": [
+   198,
+   231
+  ],
+  "words": 14041,
+  "bytes": 1028261,
+  "job_titles": [
+   "chemical engineer",
+   "process engineer",
+   "production engineer",
+   "plant engineer"
+  ]
+ },
+ {
   "discipline": "Allied Health Sciences",
   "nuc_discipline": "allied_health_sciences",
   "degree": "B.Aud",
@@ -169,25 +227,6 @@
   "discipline": "Allied Health Sciences",
   "nuc_discipline": "allied_health_sciences",
   "degree": "B.",
-  "programme": "Nursing Science",
-  "file": "Allied Health Sciences - Nursing Science (CCMAS 2023).pdf",
-  "pages": [
-   367,
-   411
-  ],
-  "words": 16650,
-  "bytes": 756442,
-  "job_titles": [
-   "nurse",
-   "nursing",
-   "midwife",
-   "registered nurse"
-  ]
- },
- {
-  "discipline": "Allied Health Sciences",
-  "nuc_discipline": "allied_health_sciences",
-  "degree": "B.",
   "programme": "Human Nutrition and Dietetics",
   "file": "Allied Health Sciences - Human Nutrition and Dietetics (CCMAS 2023).pdf",
   "pages": [
@@ -308,26 +347,6 @@
   "job_titles": [
    "speech therapist",
    "speech and language therapist"
-  ]
- },
- {
-  "discipline": "Computing",
-  "nuc_discipline": "computing",
-  "degree": "B.Sc.",
-  "programme": "Computer Science",
-  "file": "Computing - Computer Science (CCMAS 2023).pdf",
-  "pages": [
-   27,
-   55
-  ],
-  "words": 10091,
-  "bytes": 559623,
-  "job_titles": [
-   "software developer",
-   "software engineer",
-   "data analyst",
-   "backend developer",
-   "frontend developer"
   ]
  },
  {
@@ -514,25 +533,6 @@
    "biomedical engineer",
    "biomedical technician",
    "medical equipment engineer"
-  ]
- },
- {
-  "discipline": "Engineering and Technology",
-  "nuc_discipline": "engineering_and_technology",
-  "degree": "B.Eng.",
-  "programme": "Chemical Engineering",
-  "file": "Engineering and Technology - Chemical Engineering (CCMAS 2023).pdf",
-  "pages": [
-   198,
-   231
-  ],
-  "words": 14041,
-  "bytes": 1028261,
-  "job_titles": [
-   "chemical engineer",
-   "process engineer",
-   "production engineer",
-   "plant engineer"
   ]
  },
  {
