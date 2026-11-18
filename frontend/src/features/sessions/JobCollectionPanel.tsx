@@ -1,7 +1,8 @@
 import { BriefcaseBusiness, Check, Loader2, RefreshCw, TriangleAlert } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 import { useAuth } from '@/features/auth/useAuth'
 import { useHarvestState, useStartHarvest } from '@/features/labour-market/api'
@@ -10,13 +11,21 @@ import { cn } from '@/lib/utils'
 import type { HarvestRun } from '@/types/api'
 
 /** Adverts collected per run, and how old the last run may be before a review collects again. */
-const TARGET_ADVERTS = 15
+const TARGET_ADVERTS = 20
 const PAGES_PER_SEARCH = 2
 const FRESH_FOR_MS = 6 * 60 * 60 * 1000
 
 function isFresh(run: HarvestRun | null | undefined) {
   if (!run || run.phase === 'failed') return false
   return Date.now() - new Date(run.created_at).getTime() < FRESH_FOR_MS
+}
+
+/** "information-technology" → "Information Technology". */
+function fieldLabel(slug: string) {
+  return slug
+    .split('-')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
 }
 
 function minutesAgo(iso: string | null) {
@@ -46,18 +55,29 @@ export function JobCollectionPanel({
   const autoStarted = useRef<number | null>(null)
   const run = state.data?.latest_run ?? null
   const terms = state.data?.profile.search_terms ?? []
+  const fields = state.data?.profile.search_fields ?? []
   const active = isHarvestActive(run)
+  const [extra, setExtra] = useState('')
+  const extraTerms = extra
+    .split(',')
+    .map((term) => term.trim())
+    .filter((term) => term.length >= 2)
 
-  const collect = () => {
+  const collect = (withExtra = false) => {
     onCollecting()
-    start.mutate({ programmeId, targetCount: TARGET_ADVERTS, pagesPerField: PAGES_PER_SEARCH })
+    start.mutate({
+      programmeId,
+      targetCount: TARGET_ADVERTS,
+      pagesPerField: PAGES_PER_SEARCH,
+      extraTerms: withExtra ? extraTerms : [],
+    })
   }
 
   // Collect automatically once per programme when the step opens.
   useEffect(() => {
     if (!canEdit || !state.data || autoStarted.current === programmeId) return
     autoStarted.current = programmeId
-    if (terms.length === 0) return
+    if (terms.length === 0 && fields.length === 0) return
     if (isHarvestActive(run)) {
       onCollecting()
       return
@@ -77,13 +97,19 @@ export function JobCollectionPanel({
   let progress: number | null = null
   if (state.isPending) {
     detail = 'Checking for recent job adverts…'
-  } else if (terms.length === 0) {
+  } else if (terms.length === 0 && fields.length === 0) {
     icon = <TriangleAlert className="size-5" aria-hidden="true" />
     detail = `Job collection is not set up for ${name} yet (an admin adds the job titles in Programmes). You can still upload documents below.`
   } else if (start.isPending || run?.phase === 'queued' || run?.phase === 'collecting') {
     icon = <Loader2 className="size-5 animate-spin" aria-hidden="true" />
     title = `Finding current jobs for ${name}`
-    detail = `Searching MyJobMag for ${terms.slice(0, 4).join(', ')}${terms.length > 4 ? '…' : ''}. ${run?.examined_count ?? 0} adverts looked at, ${run?.found_count ?? 0} matching so far.`
+    const searched = [
+      fields.length ? `all ${fields.map(fieldLabel).join(' and ')} jobs` : '',
+      terms.length
+        ? `job titles like ${terms.slice(0, 3).join(', ')}${terms.length > 3 ? ' and more' : ''}`
+        : '',
+    ].filter(Boolean)
+    detail = `Searching MyJobMag for ${searched.join(' and ')}. ${run?.examined_count ?? 0} adverts looked at, ${run?.found_count ?? 0} kept so far.`
     progress = run ? Math.min(95, (run.found_count / Math.max(run.target_count, 1)) * 100) : 5
   } else if (run?.phase === 'preparing') {
     icon = <Loader2 className="size-5 animate-spin" aria-hidden="true" />
@@ -110,6 +136,8 @@ export function JobCollectionPanel({
   }
 
   const failed = run?.phase === 'failed' || start.isError
+  const canCollect = canEdit && (terms.length > 0 || fields.length > 0)
+  const busy = active || start.isPending
 
   return (
     <section
@@ -136,14 +164,46 @@ export function JobCollectionPanel({
             {start.isError ? start.error.message : detail}
           </p>
         </div>
-        {canEdit && terms.length > 0 && !active && !start.isPending && (
-          <Button type="button" variant="outline" size="sm" onClick={collect}>
+        {canCollect && !busy && (
+          <Button type="button" variant="outline" size="sm" onClick={() => collect()}>
             <RefreshCw aria-hidden="true" /> Collect {run ? 'again' : 'jobs'}
           </Button>
         )}
       </div>
       {progress !== null && (
         <Progress value={progress} aria-label="Job collection progress" className="h-1.5" />
+      )}
+      {canCollect && (
+        <form
+          className="flex flex-col gap-2 border-t border-line pt-3 sm:flex-row sm:items-center"
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (extraTerms.length > 0 && !busy) collect(true)
+          }}
+        >
+          <label
+            htmlFor="extra-job-titles"
+            className="text-[13px] font-semibold text-ink sm:shrink-0"
+          >
+            Other job titles to search
+          </label>
+          <Input
+            id="extra-job-titles"
+            value={extra}
+            onChange={(event) => setExtra(event.target.value)}
+            placeholder="e.g. business analyst, ERP consultant"
+            className="h-9 bg-white"
+          />
+          <Button
+            type="submit"
+            size="sm"
+            variant="outline"
+            className="sm:shrink-0"
+            disabled={busy || extraTerms.length === 0}
+          >
+            Search these too
+          </Button>
+        </form>
       )}
     </section>
   )

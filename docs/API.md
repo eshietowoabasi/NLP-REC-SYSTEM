@@ -539,7 +539,9 @@ usual, so it can be picked for a session.
 ### `GET /api/harvest/programmes/{id}`
 
 Access: any. `{ "programme": { "id", "name", "discipline_code" }, "profile": { "search_terms",
-"field_slugs" }, "latest_run": Run | null }`.
+"field_slugs", "search_fields" }, "latest_run": Run | null }`. `search_fields` are the job fields
+actually searched: the profile's own, or the discipline's usual MyJobMag field when it names none
+(computing → `information-technology`, engineering → `engineering`, health → `medical`).
 
 Run object: `{ "id", "programme_id", "status" (queued|running|completed|failed), "phase",
 "target_count", "pages_per_field", "examined_count", "found_count", "imported_count",
@@ -566,10 +568,13 @@ MyJobMag field slugs, optional) }`. **200** with the saved profile.
 
 Access: admin, planner (planners start collections from New review; only admins change the
 profile). JSON `{ "target_count" (1–30, default 10), "pages_per_field" (1–5, default 2: listing
-pages read per search, i.e. per job title and per field) }`. The collector reads each search
-term's title listing (`/jobs-by-title/<term>`) first, then each field's listing, and imports
-adverts whose title contains a search term. **202** with the queued run. **422** if the profile
-has no search terms (the message
+pages read per search, i.e. per job title and per field), "extra_terms": [...] (optional, ≤ 10:
+the planner's own job titles, searched as well in this run only) }`. The collector reads the
+job-title listings (`/jobs-by-title/<term>`) for up to half the target, then the whole job field
+(`/jobs-by-field/<field>`), then titles again for any room left. A title-listing advert is kept
+when its title contains a search term; a field advert also when it asks for at least two skills
+on the programme's skills list, so relevant adverts with other titles are found too. **202**
+with the queued run. **422** if the programme has neither search terms nor a job field (the message
 asks the user to get an admin to set it up); **409** if a
 run for this programme is already queued or running. Clients poll `GET
 /api/harvest/programmes/{id}` while the latest run's `phase` is `queued`, `collecting` or

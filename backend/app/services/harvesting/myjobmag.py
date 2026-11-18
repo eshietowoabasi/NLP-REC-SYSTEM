@@ -1,9 +1,10 @@
 """Polite, programme-profile-driven MyJobMag collector.
 
-Adverts are found in two ways, in this order: the listing for each job title in the programme's
-search terms (``/jobs-by-title/nurse``), which holds only adverts with that title, then the
-listing of each chosen job field (``/jobs-by-field/medical``), which mixes many professions and
-is filtered by title. Every advert is fetched once, respecting robots.txt with a pause between
+Adverts are found in two ways: the listing for each job title in the programme's search terms
+(``/jobs-by-title/nurse``), which holds only adverts with that title, and the listing of the
+programme's job field (``/jobs-by-field/medical``), which covers adverts with any title and is
+filtered by the programme's job titles and skills (see :func:`collect_jobs`).
+Every advert is fetched once, respecting robots.txt with a pause between
 requests.
 """
 
@@ -25,6 +26,9 @@ BASE_URL = "https://www.myjobmag.com"
 USER_AGENT = "SkillBridge academic curriculum research " "(University of Uyo)"
 
 MIN_WORDS = 80
+
+#: Distinct programme skills an advert from a job field must ask for to be kept.
+MIN_SKILL_HITS = 2
 
 FIELD_RE = re.compile(r"^[a-z0-9-]+$")
 
@@ -350,101 +354,96 @@ class MyJobMagClient:
         return response.text
 
 
+def skill_hits(text: str, skill_names: list[str]) -> int:
+    """How many distinct skills from ``skill_names`` an advert mentions (whole words)."""
+    lowered = normalise(text)
+    return sum(
+        1
+        for name in skill_names
+        if re.search(rf"(?<![a-z0-9]){re.escape(name)}(?![a-z0-9])", lowered)
+    )
+
+
 def collect_jobs(
     search_terms: list[str],
     field_slugs: list[str],
     target_count: int,
     pages_per_field: int,
+    skill_names: list[str] | None = None,
 ) -> Collection:
-    """Collect up to ``target_count`` adverts whose title matches a search term.
+    """Collect up to ``target_count`` current adverts for a programme.
 
-    ``pages_per_field`` listing pages are read for each search term's title listing and then
-    for each field; fields are optional. A title with no listing (404) is skipped.
+    Title listings (``/jobs-by-title/<term>``) give adverts with the programme's job titles.
+    Field listings (``/jobs-by-field/<field>``) cover the programme's whole job field, so adverts
+    with other titles are found too: one is kept when its title matches a search term or, when
+    ``skill_names`` are given, when its text asks for at least ``MIN_SKILL_HITS`` of the
+    programme's skills. With fields, title listings fill at most half the target first, the field
+    then fills the rest, and titles take any room left. A listing that does not exist is skipped.
     """
     terms = [normalise(term) for term in search_terms if normalise(term)]
-
+    skills = sorted({normalise(name) for name in skill_names or [] if len(normalise(name)) >= 3})
     fields = [
         field.strip().lower() for field in field_slugs if FIELD_RE.fullmatch(field.strip().lower())
     ]
-
-    if not terms:
+    if not terms and not fields:
         raise ValueError("Add at least one job-search term.")
 
-    sources: list[tuple[str, str]] = []
-    for kind, slugs in (("title", [title_slug(term) for term in terms]), ("field", fields)):
-        for slug in slugs:
-            if slug and (kind, slug) not in sources:
-                sources.append((kind, slug))
-
+    title_sources = list(dict.fromkeys(("title", t) for t in (title_slug(x) for x in terms) if t))
+    field_sources = list(dict.fromkeys(("field", f) for f in fields))
     client = MyJobMagClient()
-
     result = Collection(adverts=[])
-
     seen_urls: set[str] = set()
 
-    for kind, slug in sources:
-        for listing_url in listing_urls(kind, slug, pages_per_field):
-            if len(result.adverts) >= target_count:
-                return result
+    def relevant(title: str) -> bool:
+        return title_matches(title, terms)
 
-            try:
-                listing_html = client.get(listing_url)
-            except LookupError:
-                break  # no such title listing, or no more pages
-            except PermissionError:
-                result.skipped += 1
-                continue
-
-            found_any = False
-            for (
-                url,
-                listed_title,
-                _company,
-            ) in parse_listing(listing_html):
-                found_any = True
-                if len(result.adverts) >= target_count:
-                    return result
-
-                result.examined += 1
-
-                if url in seen_urls:
-                    result.skipped += 1
-                    continue
-
-                seen_urls.add(url)
-
-                if not title_matches(
-                    listed_title,
-                    terms,
-                ):
-                    result.skipped += 1
-                    continue
-
+    def take(sources: list[tuple[str, str]], cap: int) -> None:
+        for kind, slug in sources:
+            for listing_url in listing_urls(kind, slug, pages_per_field):
+                if len(result.adverts) >= cap:
+                    return
                 try:
-                    job_html = client.get(url)
-                except (PermissionError, LookupError):
+                    listing_html = client.get(listing_url)
+                except LookupError:
+                    break  # no such listing, or no more pages
+                except PermissionError:
                     result.skipped += 1
                     continue
+                found_any = False
+                for url, listed_title, _company in parse_listing(listing_html):
+                    found_any = True
+                    if len(result.adverts) >= cap:
+                        return
+                    if url in seen_urls:
+                        result.skipped += 1
+                        continue
+                    seen_urls.add(url)
+                    result.examined += 1
+                    by_title = relevant(listed_title)
+                    if not by_title and not (kind == "field" and skills):
+                        result.skipped += 1
+                        continue
+                    try:
+                        job_html = client.get(url)
+                    except (PermissionError, LookupError):
+                        result.skipped += 1
+                        continue
+                    advert = parse_job_page(job_html, url)
+                    if advert is None:
+                        result.skipped += 1
+                        continue
+                    if not (
+                        relevant(advert.title)
+                        or (kind == "field" and skill_hits(advert.text, skills) >= MIN_SKILL_HITS)
+                    ):
+                        result.skipped += 1
+                        continue
+                    result.adverts.append(advert)
+                if not found_any:
+                    break  # an empty page: the listing has ended
 
-                advert = parse_job_page(
-                    job_html,
-                    url,
-                )
-
-                if advert is None:
-                    result.skipped += 1
-                    continue
-
-                if not title_matches(
-                    advert.title,
-                    terms,
-                ):
-                    result.skipped += 1
-                    continue
-
-                result.adverts.append(advert)
-
-            if not found_any:
-                break  # an empty page: the listing has ended
-
+    if field_sources:
+        take(title_sources, -(-target_count // 2))
+        take(field_sources, target_count)
+    take(title_sources, target_count)
     return result

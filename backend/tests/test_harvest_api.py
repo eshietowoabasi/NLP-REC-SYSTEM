@@ -48,11 +48,14 @@ def programme_id(app) -> int:
 
 @pytest.fixture
 def fake_collector(monkeypatch):
-    def collect(search_terms, field_slugs, target_count, pages_per_field):
+    def collect(search_terms, field_slugs, target_count, pages_per_field, skill_names=None):
+        calls.append({"terms": search_terms, "fields": field_slugs, "skills": skill_names})
         adverts = [synthetic_advert(n) for n in range(1, target_count + 1)]
         return Collection(adverts=adverts, examined=target_count + 2, skipped=2)
 
+    calls: list[dict] = []
     monkeypatch.setattr("app.tasks.harvest.collect_jobs", collect)
+    return calls
 
 
 def add_run(programme_id: int, user_id: int, **fields) -> JobHarvestRun:
@@ -216,3 +219,22 @@ def test_collection_without_a_profile_explains_who_can_set_it_up(login_as, app):
 
     assert response.status_code == 422
     assert "Ask an admin" in response.get_json()["error"]["message"]
+
+
+def test_planners_add_their_own_job_titles_and_the_whole_field_is_searched(
+    login_as, programme_id, fake_collector
+):
+    """Synthetic: a run searches the programme's titles plus the planner's own, its job field
+    and its skills list."""
+    planner = login_as(UserRole.PLANNER)
+    response = planner.post(
+        f"/api/harvest/programmes/{programme_id}/runs",
+        json={"target_count": 2, "extra_terms": ["  midwife ", "midwife", "x"]},
+    )
+    assert response.status_code == 202
+    (call,) = fake_collector
+    assert call["terms"] == ["nurse", "nursing", "midwife"]
+    assert call["fields"] == ["medical"]
+    assert isinstance(call["skills"], list)
+    state = planner.get(f"/api/harvest/programmes/{programme_id}").get_json()["data"]
+    assert state["profile"]["search_fields"] == ["medical"]

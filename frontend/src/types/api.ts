@@ -912,6 +912,8 @@ export interface UserListParams {
 export interface HarvestProfile {
   search_terms: string[]
   field_slugs: string[]
+  /** The MyJobMag job fields actually searched (the discipline's usual one if none is set). */
+  search_fields?: string[]
 }
 
 /** queued → collecting → preparing (adverts being processed) → ready; or failed. */

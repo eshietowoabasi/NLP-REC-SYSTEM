@@ -199,3 +199,41 @@ def test_listing_parser_reads_absolute_links_without_the_usual_layout():
     html = f'<div><a href="{BASE}/job/x"><img></a><a href="{BASE}/job/x">Nurse at Y</a></div>'
 
     assert list(parse_listing(html)) == [(f"{BASE}/job/x", "Nurse", "Y")]
+
+
+def test_a_job_field_adds_adverts_with_other_titles_that_ask_for_the_skills(monkeypatch):
+    """Synthetic: a field advert with an unlisted title is kept when it asks for two of the
+    programme's skills, and dropped when it does not."""
+
+    def advert_with(title: str, text: str) -> str:
+        body = " ".join([text] * 20)
+        return (
+            '<html><head><script type="application/ld+json">'
+            f'{{"@type": "JobPosting", "title": "{title}", "description": "<p>{body}</p>"}}'
+            "</script></head></html>"
+        )
+
+    site = FakeSite(
+        {
+            f"{BASE}/jobs-by-title/software-developer": _listing(
+                ("s1", "Software Developer at Synthetic Bank")
+            ),
+            f"{BASE}/jobs-by-field/information-technology": _listing(
+                ("f1", "Platform Associate at Synthetic Telco"),
+                ("f2", "Sales Associate at Synthetic Store"),
+            ),
+            f"{BASE}/job/s1": _advert("Software Developer"),
+            f"{BASE}/job/f1": advert_with(
+                "Platform Associate", "You will work with Python and SQL on cloud systems."
+            ),
+            f"{BASE}/job/f2": advert_with("Sales Associate", "You will sell phones in a store."),
+        }
+    )
+    result = collect_from(
+        site,
+        monkeypatch,
+        search_terms=["software developer"],
+        field_slugs=["information-technology"],
+        skill_names=["Python", "SQL", "Docker"],
+    )
+    assert [a.title for a in result.adverts] == ["Software Developer", "Platform Associate"]
