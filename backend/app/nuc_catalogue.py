@@ -98,6 +98,52 @@ def _busy_or_loaded(programme: Programme, label: str) -> str | None:
     return None
 
 
+def _new_programme(entry: dict[str, Any], taken: set[str]) -> Programme:
+    name = str(entry["programme"]).strip()
+    return Programme(
+        name=name,
+        discipline_code=programme_code(name, taken),
+        nuc_discipline=NucDiscipline(entry["nuc_discipline"]),
+        job_search_terms=list(entry.get("job_titles") or []),
+        job_field_slugs=[],
+        description=f"{entry.get('degree', '')} {name}, NUC CCMAS ({entry['discipline']}).".strip(),
+    )
+
+
+def ensure_catalogue_programmes(folder: Path = BUNDLED_CATALOGUE) -> list[str]:
+    """Create every catalogue programme that does not exist yet (no NUC core, just the
+    programme), so people can choose it when they sign up. Commits; returns the names added."""
+    index = folder / "_index.json"
+    if not index.exists():
+        return []
+    entries: list[dict[str, Any]] = json.loads(index.read_text("utf-8"))
+    existing = {name.lower() for name in db.session.scalars(select(Programme.name))}
+    missing = [e for e in entries if str(e["programme"]).strip().lower() not in existing]
+    if not missing:
+        return []
+    admin_id = db.session.scalar(
+        select(User.id)
+        .where(User.role == UserRole.ADMIN, User.is_active.is_(True))
+        .order_by(User.id)
+    )
+    taken = {code for code in db.session.scalars(select(Programme.discipline_code)) if code}
+    created: list[str] = []
+    for entry in missing:
+        programme = _new_programme(entry, taken)
+        db.session.add(programme)
+        db.session.flush()
+        record_audit(
+            AuditAction.PROGRAMME_CREATED,
+            "programme",
+            programme.id,
+            {"name": programme.name, "source": "nuc-catalogue"},
+            user_id=admin_id,
+        )
+        created.append(programme.name)
+    db.session.commit()
+    return created
+
+
 def load_catalogue(
     folder: Path,
     *,
@@ -125,14 +171,7 @@ def load_catalogue(
             continue
         programme = _find_programme(name)
         if programme is None:
-            programme = Programme(
-                name=name,
-                discipline_code=programme_code(name, taken),
-                nuc_discipline=NucDiscipline(entry["nuc_discipline"]),
-                job_search_terms=list(entry.get("job_titles") or []),
-                job_field_slugs=[],
-                description=f"{entry.get('degree', '')} {name}, NUC CCMAS ({entry['discipline']}).",
-            )
+            programme = _new_programme(entry, taken)
             db.session.add(programme)
             db.session.flush()
             record_audit(

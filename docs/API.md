@@ -158,6 +158,8 @@ Access: public. Returns a CSRF token for the current session.
 ### `GET /api/auth/register/programmes`
 
 Access: anyone. Active programmes a new account can choose: `[{ "id", "name", "discipline_code" }]`.
+Every programme in the bundled NUC catalogue is created here if missing, and loading their NUC
+cores is queued (at most once an hour) while any is not loaded (`AUTO_LOAD_NUC_CATALOGUE`, off in tests).
 
 ### `POST /api/auth/register`
 
