@@ -78,7 +78,7 @@ export function EvidencePage() {
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
-                  className="h-[38px] rounded-full border border-input-line bg-white px-4 text-[13px] font-bold text-ink data-active:border-ink data-active:bg-ink data-active:text-white"
+                  className="h-[38px] rounded-full border border-input-line bg-white px-4 text-[13px] font-bold text-ink data-active:border-ink data-active:bg-ink data-active:text-white!"
                 >
                   {tab.label}
                 </TabsTrigger>
