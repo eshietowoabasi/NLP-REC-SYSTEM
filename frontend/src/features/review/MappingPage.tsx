@@ -39,17 +39,14 @@ import type { MappingRequest, RecommendationDetail } from '@/types/api'
 
 import { useDeleteMapping, useRecommendation, useSaveMapping } from './api'
 import { EmptyPanel, ErrorPanel, LoadingBlock, OverlapBadge } from './components'
+import { COURSE_CODE, COURSE_CODE_MESSAGE, normaliseCode } from './courseCode'
 import { formatOutOf100 } from './labels'
 
-const COURSE_CODE = /^([A-Za-z]{2,4})\s*(\d{3}[A-Za-z]?)$/
 const MAX_PREREQUISITES = 10
 const MAX_OUTCOMES = 15
 
 const mappingSchema = z.object({
-  course_code: z
-    .string()
-    .trim()
-    .regex(COURSE_CODE, 'Use a course code like “CSC 419” (2–4 letters, then 3 digits).'),
+  course_code: z.string().trim().regex(COURSE_CODE, COURSE_CODE_MESSAGE),
   course_title: z.string().trim().min(1, 'Enter the course title.').max(255),
   credit_units: z.union([z.literal(1), z.literal(2), z.literal(3)], {
     error: 'Choose 1, 2 or 3 credit units.',
@@ -67,12 +64,6 @@ const mappingSchema = z.object({
     ),
 })
 type MappingValues = z.infer<typeof mappingSchema>
-
-/** "csc419" → "CSC 419", mirroring the server's normalisation. */
-function normaliseCode(value: string) {
-  const match = COURSE_CODE.exec(value.trim().replace(/\s+/g, ' '))
-  return match ? `${match[1].toUpperCase()} ${match[2].toUpperCase()}` : value.trim()
-}
 
 export function MappingPage() {
   const id = Number(useParams().recommendationId)

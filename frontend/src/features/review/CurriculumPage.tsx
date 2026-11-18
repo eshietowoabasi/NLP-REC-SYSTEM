@@ -20,7 +20,7 @@ import { useAuth } from '@/features/auth/useAuth'
 import { DownloadReportButton } from '@/features/reports/DownloadReportButton'
 import type { ProposedCurriculum } from '@/types/api'
 
-import { useCurriculum } from './api'
+import { useCurriculum, useRecommendations } from './api'
 import {
   CompletedSessionGate,
   EmptyPanel,
@@ -28,55 +28,110 @@ import {
   LoadingBlock,
   OverlapBadge,
   SessionReviewHeader,
+  StepFooter,
 } from './components'
 import { formatOutOf100 } from './labels'
+import { QuickCourseForm } from './QuickCourseForm'
 
 export function CurriculumPage() {
   const sessionId = Number(useParams().sessionId)
   return (
-    <CompletedSessionGate sessionId={sessionId} title="Proposed courses">
+    <CompletedSessionGate sessionId={sessionId} title="Design courses">
       {(session) => (
         <div className="mx-auto max-w-6xl space-y-5">
           <SessionReviewHeader
             sessionId={session.id}
             sessionName={session.session_name}
-            title="Proposed courses"
+            title="Design courses"
           />
           <CurriculumView sessionId={session.id} />
+          <StepFooter sessionId={session.id} step={4} />
         </div>
       )}
     </CompletedSessionGate>
   )
 }
 
+/**
+ * Design courses (step 4): every accepted topic on one page. Topics without a course get a
+ * quick form (code, title, units, one outcome); designed courses are listed below with the total
+ * against the 30% allowance.
+ */
 function CurriculumView({ sessionId }: { sessionId: number }) {
   const curriculum = useCurriculum(sessionId)
+  const accepted = useRecommendations(sessionId, { decision: 'accepted', hide_duplicates: false })
   const { canEdit } = useAuth()
-  if (curriculum.isPending) return <LoadingBlock label="Loading the proposed courses" />
-  if (curriculum.isError) {
+  if (curriculum.isPending || accepted.isPending) {
+    return <LoadingBlock label="Loading the accepted topics and their courses" />
+  }
+  if (curriculum.isError || accepted.isError) {
     return (
       <ErrorPanel
-        title="Could not load the proposed courses"
-        error={curriculum.error}
-        onRetry={() => void curriculum.refetch()}
+        title="Could not load the accepted topics and their courses"
+        error={(curriculum.error ?? accepted.error) as Error}
+        onRetry={() => {
+          void curriculum.refetch()
+          void accepted.refetch()
+        }}
       />
     )
   }
   const data = curriculum.data
-  if (data.courses.length === 0) {
+  const waiting = accepted.data.items.filter((item) => item.course === null)
+  if (data.courses.length === 0 && waiting.length === 0) {
     return (
-      <EmptyPanel icon={BookOpen} title="No courses yet">
-        Accept recommendations and design their courses; they appear here with their credit units.{' '}
+      <EmptyPanel icon={BookOpen} title="No accepted topics yet">
+        Accept topics in Review topics; each accepted topic becomes a course here.{' '}
         <Link to={`/sessions/${sessionId}/recommendations`} className="underline">
-          Review recommendations
+          Review topics
         </Link>
       </EmptyPanel>
     )
   }
   return (
+    <div className="space-y-5">
+      <p className="page-lead">
+        One row per accepted topic. Give each a code, a title and its units; the units count towards
+        the 30% allowance.
+      </p>
+      <AllowanceCard curriculum={data} />
+      {waiting.length > 0 && (
+        <section aria-labelledby="waiting-title" className="space-y-3">
+          <h3 id="waiting-title" className="card-title">
+            Waiting for a course <span className="num text-muted-ink">({waiting.length})</span>
+          </h3>
+          {canEdit ? (
+            <div className="space-y-3">
+              {waiting.map((recommendation) => (
+                <QuickCourseForm key={recommendation.id} recommendation={recommendation} />
+              ))}
+            </div>
+          ) : (
+            <ul className="list-disc space-y-1 pl-5 text-sm text-body">
+              {waiting.map((recommendation) => (
+                <li key={recommendation.id}>{recommendation.topic_title}</li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+      {data.courses.length > 0 && <CoursesTable sessionId={sessionId} curriculum={data} />}
+    </div>
+  )
+}
+
+function CoursesTable({
+  sessionId,
+  curriculum: data,
+}: {
+  sessionId: number
+  curriculum: ProposedCurriculum
+}) {
+  const { canEdit } = useAuth()
+  return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="page-lead">Courses designed for accepted recommendations of this session.</p>
+        <h3 className="card-title">Proposed courses</h3>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" asChild>
             <Link to={`/reports?session=${sessionId}`}>
@@ -95,7 +150,6 @@ function CurriculumView({ sessionId }: { sessionId: number }) {
           )}
         </div>
       </div>
-      <AllowanceCard curriculum={data} />
       <TableCard>
         <Table aria-label="Proposed courses">
           <TableHeader>
