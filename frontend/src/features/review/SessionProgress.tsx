@@ -1,10 +1,9 @@
 import { ArrowRight, Check, PartyPopper } from 'lucide-react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/features/auth/useAuth'
-import { DownloadReportButton } from '@/features/reports/DownloadReportButton'
 import { cn } from '@/lib/utils'
 import { useSession } from '@/features/sessions/api'
 import type { SessionProgress as Progress, SessionStatus, SessionSummary } from '@/types/api'
@@ -78,17 +77,24 @@ function steps(session: SessionSummary, p: Progress | undefined): Step[] {
         p.accepted > 0
           ? `${plural(p.courses, 'course')} designed · ${p.accepted} accepted`
           : `${plural(p.courses, 'course')} designed`,
-      to: `/sessions/${id}/recommendations?decision=accepted`,
+      to: `/sessions/${id}/curriculum`,
       done: designDone,
     },
     {
       label: 'Report',
       detail: REPORT_TEXT[report],
-      to: `/reports?session=${id}`,
+      to: `/sessions/${id}/report`,
       done: report === 'completed',
     },
   ]
 }
+
+const PAGE_STEPS: [string, number][] = [
+  ['/evidence', 1],
+  ['/recommendations', 2],
+  ['/curriculum', 3],
+  ['/report', 4],
+]
 
 /**
  * The five steps of a review: ① Evidence → ② Analyse → ③ Review → ④ Design courses →
@@ -96,6 +102,7 @@ function steps(session: SessionSummary, p: Progress | undefined): Step[] {
  * complete a banner suggests the next step. On phones only the current step is spelled out.
  */
 export function SessionProgress({ sessionId }: { sessionId: number }) {
+  const { pathname } = useLocation()
   const session = useSession(sessionId)
   const completed = session.data?.status === 'completed'
   const progress = useSessionProgress(sessionId, completed)
@@ -103,7 +110,9 @@ export function SessionProgress({ sessionId }: { sessionId: number }) {
   if (!session.data) return null
   const p = progress.data
   const list = steps(session.data, completed ? p : undefined)
-  const current = list.findIndex((step) => !step.done)
+  // The step of the page being viewed; on the review's own page, Analyse until it completes.
+  const current =
+    PAGE_STEPS.find(([suffix]) => pathname.endsWith(suffix))?.[1] ?? (completed ? 0 : 1)
   const allReviewed = completed && p !== undefined && p.total > 0 && p.reviewed === p.total
   const coursesMissing = p ? p.accepted - p.accepted_with_courses : 0
 
@@ -177,7 +186,7 @@ export function SessionProgress({ sessionId }: { sessionId: number }) {
             )
           })}
         </ol>
-        {current >= 0 && (
+        {list[current] && (
           <p className="mt-2 text-center text-[12px] text-night-muted md:hidden">
             Step {current + 1} of 5:{' '}
             <span className="font-bold text-white">{list[current].label}</span> ·{' '}
@@ -197,7 +206,7 @@ export function SessionProgress({ sessionId }: { sessionId: number }) {
             </span>
             {canEdit && (
               <Button size="sm" asChild>
-                <Link to={`/sessions/${sessionId}/recommendations?decision=accepted`}>
+                <Link to={`/sessions/${sessionId}/curriculum`}>
                   Design their courses <ArrowRight aria-hidden="true" />
                 </Link>
               </Button>
@@ -215,17 +224,11 @@ export function SessionProgress({ sessionId }: { sessionId: number }) {
                 ? `Every accepted topic has a course (${plural(p.courses, 'course')}).`
                 : 'Every recommendation has been reviewed.'}
             </span>
-            {canEdit ? (
-              <DownloadReportButton sessionId={sessionId} size="sm">
-                Download your report
-              </DownloadReportButton>
-            ) : (
-              <Button size="sm" variant="outline" asChild>
-                <Link to={`/reports?session=${sessionId}`}>
-                  View reports <ArrowRight aria-hidden="true" />
-                </Link>
-              </Button>
-            )}
+            <Button size="sm" asChild>
+              <Link to={`/sessions/${sessionId}/report`}>
+                Get the report <ArrowRight aria-hidden="true" />
+              </Link>
+            </Button>
           </AlertDescription>
         </Alert>
       )}

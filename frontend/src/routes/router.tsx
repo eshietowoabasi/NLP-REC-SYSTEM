@@ -101,7 +101,7 @@ export const routes: RouteObject[] = [
               () => import('@/features/review/EvidencePage'),
               (m) => m.EvidencePage,
             ),
-            handle: title('Evidence', 'Reviews'),
+            handle: title('Analysis results', 'Reviews'),
           },
           {
             path: 'sessions/:sessionId/recommendations',
@@ -109,7 +109,7 @@ export const routes: RouteObject[] = [
               () => import('@/features/review/RecommendationsPage'),
               (m) => m.RecommendationsPage,
             ),
-            handle: title('Suggested topics', 'Reviews'),
+            handle: title('Review topics', 'Reviews'),
           },
           {
             path: 'sessions/:sessionId/curriculum',
@@ -117,7 +117,15 @@ export const routes: RouteObject[] = [
               () => import('@/features/review/CurriculumPage'),
               (m) => m.CurriculumPage,
             ),
-            handle: title('Proposed courses', 'Reviews'),
+            handle: title('Design courses', 'Reviews'),
+          },
+          {
+            path: 'sessions/:sessionId/report',
+            ...page(
+              () => import('@/features/review/ReportStepPage'),
+              (m) => m.ReportStepPage,
+            ),
+            handle: title('Report', 'Reviews'),
           },
           {
             path: 'recommendations/:recommendationId',

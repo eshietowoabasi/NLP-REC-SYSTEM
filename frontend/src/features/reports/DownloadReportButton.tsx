@@ -3,15 +3,17 @@ import { Download, Loader2 } from 'lucide-react'
 import { useState, type ComponentProps } from 'react'
 
 import { Button } from '@/components/ui/button'
+import type { ReportFormat } from '@/types/api'
 
 import { generateAndDownload } from './download'
 
-/** One click: a Word report with every section, downloaded when ready. */
+/** One click: a report with every section (Word unless `format` says PDF), downloaded when ready. */
 export function DownloadReportButton({
   sessionId,
+  format = 'docx',
   children = 'Download report',
   ...props
-}: { sessionId: number } & Omit<ComponentProps<typeof Button>, 'onClick'>) {
+}: { sessionId: number; format?: ReportFormat } & Omit<ComponentProps<typeof Button>, 'onClick'>) {
   const queryClient = useQueryClient()
   const [pending, setPending] = useState(false)
   return (
@@ -21,7 +23,7 @@ export function DownloadReportButton({
       onClick={async () => {
         setPending(true)
         try {
-          await generateAndDownload(queryClient, sessionId)
+          await generateAndDownload(queryClient, sessionId, { format })
         } finally {
           setPending(false)
         }

@@ -27,6 +27,7 @@ import { formatDateTime } from '@/lib/format'
 import { NotFoundPage } from '@/routes/NotFoundPage'
 import type { SessionDetail } from '@/types/api'
 import { formatPercent, formatWeight } from '@/features/review/labels'
+import { StepFooter } from '@/features/review/components'
 import { SessionProgress } from '@/features/review/SessionProgress'
 
 import { useRetrySession, useRunSession, useSession } from './api'
@@ -34,6 +35,13 @@ import { DeleteSessionDialog } from './DeleteSessionDialog'
 import { SessionStatusBadge } from './SessionStatusBadge'
 import { StageTracker } from './StageTracker'
 import { PIPELINE_STAGES } from './stages'
+
+/** How long the last run took, from its stage timings ("2 min 14 s"). */
+function formatDuration(session: SessionDetail) {
+  const seconds = Math.round(Object.values(session.stage_timings).reduce((a, b) => a + (b ?? 0), 0))
+  if (seconds < 60) return `${seconds} s`
+  return `${Math.floor(seconds / 60)} min ${seconds % 60} s`
+}
 
 export function SessionDetailPage() {
   const params = useParams()
@@ -165,17 +173,17 @@ function SessionView({ session }: { session: SessionDetail }) {
             <div className="flex flex-wrap gap-2">
               <Button size="sm" asChild>
                 <Link to={`/sessions/${session.id}/recommendations`}>
-                  <ListChecks aria-hidden="true" /> View suggested topics
+                  <ListChecks aria-hidden="true" /> Review the topics
                 </Link>
               </Button>
               <Button size="sm" variant="outline" asChild>
                 <Link to={`/sessions/${session.id}/evidence`}>
-                  <BarChart3 aria-hidden="true" /> View evidence
+                  <BarChart3 aria-hidden="true" /> See the analysis results
                 </Link>
               </Button>
               <Button size="sm" variant="outline" asChild>
                 <Link to={`/sessions/${session.id}/curriculum`}>
-                  <BookOpen aria-hidden="true" /> Proposed courses
+                  <BookOpen aria-hidden="true" /> Design courses
                 </Link>
               </Button>
             </div>
@@ -196,17 +204,50 @@ function SessionView({ session }: { session: SessionDetail }) {
                 Working on it
               </span>
             )}
-            <CardTitle className="text-xl">Analysis steps</CardTitle>
+            <CardTitle className="text-xl">
+              {session.status === 'completed' ? 'Analysis finished' : 'Analysis steps'}
+            </CardTitle>
             <CardDescription>
               {session.status === 'pending'
                 ? 'The analysis has not been run yet.'
                 : session.status === 'processing'
                   ? 'Running. This page updates every few seconds.'
-                  : 'Stages of the last run.'}
+                  : session.status === 'completed'
+                    ? `Took ${formatDuration(session)}.`
+                    : 'Stages of the last run.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="sm:px-8">
-            <StageTracker session={session} />
+            {session.status === 'completed' ? (
+              <div className="space-y-4">
+                <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {[
+                    ['Documents read', session.document_count],
+                    ['Topics found', session.topic_count ?? 0],
+                    ['Topics to review', session.recommendation_count],
+                    ['NUC core', session.nuc_core_version?.version_label ?? '—'],
+                  ].map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="flex flex-col gap-1 rounded-[14px] bg-sand px-4 py-3"
+                    >
+                      <dt className="text-xs text-muted-ink">{label}</dt>
+                      <dd className="num text-lg font-semibold text-ink">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <details className="group">
+                  <summary className="cursor-pointer text-[13px] font-bold text-primary">
+                    Show the 8 stages of the analysis
+                  </summary>
+                  <div className="pt-3">
+                    <StageTracker session={session} />
+                  </div>
+                </details>
+              </div>
+            ) : (
+              <StageTracker session={session} />
+            )}
           </CardContent>
         </Card>
         {running && (
@@ -279,6 +320,14 @@ function SessionView({ session }: { session: SessionDetail }) {
           </CardContent>
         </Card>
       </div>
+
+      {session.status === 'completed' && (
+        <StepFooter
+          sessionId={session.id}
+          step={1}
+          nextHint="Charts of what was found. Or go straight to Review topics."
+        />
+      )}
 
       <DeleteSessionDialog
         session={deleting ? session : null}
