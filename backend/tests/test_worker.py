@@ -36,7 +36,8 @@ def test_worker_listens_on_configured_queue(monkeypatch: pytest.MonkeyPatch) -> 
     worker.main()
 
     (started,) = FakeWorker.instances
-    assert [q.name for q in started.queues] == ["default"]
+    # Planner jobs first; NUC catalogue loading only when nothing else waits.
+    assert [q.name for q in started.queues] == ["default", "default-background"]
     assert started.work_kwargs == {"with_scheduler": False}
     expected = TimerDeathPenalty if os.name == "nt" else UnixSignalDeathPenalty
     assert started.death_penalty_class is expected

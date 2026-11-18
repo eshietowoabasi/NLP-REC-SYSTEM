@@ -226,7 +226,7 @@ def load_catalogue(
             summary.failed.append(f"{name}: {exc}")
             report(f"FAILED {name}: {exc}")
             continue
-        enqueue("app.tasks.ingestion.ingest_document", document.id)
+        enqueue("app.tasks.ingestion.ingest_document", document.id, background=True)
         summary.queued.append(name)
         report(f"queued {name}")
     return summary

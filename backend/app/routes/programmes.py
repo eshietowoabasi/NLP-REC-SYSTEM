@@ -186,7 +186,7 @@ def load_nuc_catalogue() -> tuple[Response, int]:
 
     record_audit(AuditAction.NUC_CORE_UPLOADED, "nuc_catalogue", None, {"source": "catalogue"})
     db.session.commit()
-    enqueue("app.tasks.catalogue.load_bundled_catalogue", timeout=1800)
+    enqueue("app.tasks.catalogue.load_bundled_catalogue", timeout=1800, background=True)
     return success(catalogue_status(), 202)
 
 

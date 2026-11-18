@@ -57,7 +57,7 @@ def auto_load_catalogue() -> None:
         if catalogue_status(BUNDLED_CATALOGUE)["missing"] == 0:
             return
         if redis.set("nuc-catalogue:auto-load", "1", nx=True, ex=3600):
-            enqueue("app.tasks.catalogue.load_bundled_catalogue", timeout=1800)
+            enqueue("app.tasks.catalogue.load_bundled_catalogue", timeout=1800, background=True)
     except Exception:  # noqa: BLE001 - logged; the list below still answers
         db.session.rollback()
         current_app.logger.exception("Could not prepare the NUC catalogue")
