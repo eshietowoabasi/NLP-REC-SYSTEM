@@ -155,6 +155,16 @@ Access: public. Returns a CSRF token for the current session.
 
 **200** `{ "csrf_token": "IjNk..." }`
 
+### `GET /api/auth/register/programmes`
+
+Access: anyone. Active programmes a new account can choose: `[{ "id", "name", "discipline_code" }]`.
+
+### `POST /api/auth/register`
+
+Access: anyone. JSON `{ "full_name", "email", "username", "password", "programme_ids": [id, ...] }`
+(at least one active programme). Creates a **planner** for those programmes and signs it in.
+**201** `{ "user", "csrf_token" }`; **409** for a taken username or email; **422** otherwise.
+
 ### `POST /api/auth/login`
 
 Access: public (CSRF token required). Logs in with a username **or** email (case-insensitive).
@@ -449,6 +459,18 @@ distinct active skills each list has.
 programme may use. A session may only use its own programme's documents and general ones;
 others are refused with 422 on `document_ids` ("“…” belongs to Computer Science, not Nursing
 Science."). Migration `0010_document_programmes` gave existing documents the default programme.
+
+### `GET /api/programmes/catalogue`
+
+Access: admin. The NUC programmes shipped with SkillBridge (`backend/nuc_catalogue/`, one PDF per
+programme cut from the CCMAS 2023 documents of Computing, Engineering and Technology, and Allied
+Health Sciences): `{ "available", "ready", "processing", "missing" }`.
+
+### `POST /api/programmes/catalogue/load`
+
+Access: admin. **202**. In the background, creates every catalogue programme that does not exist
+(with its NUC discipline and starter job titles) and queues its NUC core section. Programmes that
+already have this NUC core are skipped. Same as `flask --app wsgi load-nuc-cores <folder>`.
 
 ### `GET /api/programmes/readiness`
 
