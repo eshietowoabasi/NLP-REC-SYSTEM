@@ -86,7 +86,9 @@ cosmetic. **Programme access** (`app/access.py`): admins reach every programme; 
 viewers only their assigned programmes (`User.programmes`). Load records with
 `get_visible_session` / `get_visible_document` / `require_programme` and filter lists with
 `session_condition()` / `document_condition()` / `programme_condition()`; out-of-scope records
-are 404. Test users from `make_user` get the default programme unless `programmes=[...]`.
+are 404. Reviews are personal: planners see only sessions they created (`session_condition`,
+`get_visible_session`); viewers see the whole programme. Test users from `make_user` get the
+default programme unless `programmes=[...]`.
 
 ## API conventions
 

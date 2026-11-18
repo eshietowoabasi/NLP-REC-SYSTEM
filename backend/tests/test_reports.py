@@ -319,8 +319,8 @@ def test_pdf_renders_with_weasyprint() -> None:
 
 
 @pytest.fixture
-def review(make_user) -> ReviewSession:
-    return build_review_session(make_user("planner", username="owner"))
+def review(planner) -> ReviewSession:
+    return build_review_session(planner.user)  # planners see only their own reviews
 
 
 @pytest.fixture

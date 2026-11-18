@@ -5,6 +5,10 @@ them (``programme_members``); what they may *do* there is still decided by their
 (``@role_required``). General documents, which belong to no programme, are visible to
 everyone.
 
+Reviews (analysis sessions) are personal: a planner sees only the reviews they started, so ten
+planners in one programme never see or change each other's work. Viewers (read-only) see every
+review in their programmes, and admins see everything.
+
 Anything outside a user's programmes answers 404, as if it did not exist, so the API does not
 reveal other departments' work. Sessions created before programmes existed have no
 ``programme_id`` and count as the default programme's.
@@ -13,7 +17,7 @@ reveal other departments' work. Sessions created before programmes existed have 
 from __future__ import annotations
 
 from flask_login import current_user
-from sqlalchemy import ColumnElement, false, or_, select, true
+from sqlalchemy import ColumnElement, and_, false, or_, select, true
 
 from app.extensions import db
 from app.models import AnalysisSession, Document, Programme, UserRole
@@ -62,8 +66,14 @@ def document_condition() -> ColumnElement[bool]:
     return or_(general, Document.programme_id.in_(scope)) if scope else general
 
 
+def own_reviews_only() -> bool:
+    """True when the user sees only the reviews they started (planners)."""
+    return current_user.role == UserRole.PLANNER
+
+
 def session_condition() -> ColumnElement[bool]:
-    """WHERE clause keeping sessions of the user's programmes (legacy ones: the default's)."""
+    """WHERE clause keeping the sessions the user may see: in their programmes (legacy ones
+    count as the default's) and, for planners, started by them."""
     scope = programme_scope()
     if scope is None:
         return true()
@@ -73,6 +83,8 @@ def session_condition() -> ColumnElement[bool]:
     default_id = _default_programme_id()
     if default_id in scope:
         condition = or_(condition, AnalysisSession.programme_id.is_(None))
+    if own_reviews_only():
+        condition = and_(condition, AnalysisSession.created_by_id == current_user.id)
     return condition
 
 
@@ -89,18 +101,25 @@ def session_programme_id(session: AnalysisSession) -> int | None:
     return session.programme_id if session.programme_id is not None else _default_programme_id()
 
 
+def _may_see(session: AnalysisSession) -> bool:
+    if not can_see_programme(session_programme_id(session)):
+        return False
+    return not own_reviews_only() or session.created_by_id == current_user.id
+
+
 def get_visible_session(session_id: int) -> AnalysisSession:
-    """The analysis session, or 404 if it does not exist or is outside the user's programmes."""
+    """The analysis session, or 404 if it does not exist, is outside the user's programmes or,
+    for a planner, was started by someone else."""
     session = db.session.get(AnalysisSession, session_id)
-    if session is None or not can_see_programme(session_programme_id(session)):
+    if session is None or not _may_see(session):
         raise ApiError("NOT_FOUND", "Analysis session not found.", 404)
     return session
 
 
 def can_see_session(session_id: int) -> bool:
-    """True if the session exists and belongs to one of the user's programmes."""
+    """True if the session exists and the user may see it (see :func:`get_visible_session`)."""
     session = db.session.get(AnalysisSession, session_id)
-    return session is not None and can_see_programme(session_programme_id(session))
+    return session is not None and _may_see(session)
 
 
 def get_visible_document(document_id: int) -> Document:
@@ -130,6 +149,7 @@ __all__ = [
     "get_visible_session",
     "programme_condition",
     "in_programme_condition",
+    "own_reviews_only",
     "programme_scope",
     "require_programme",
     "session_condition",
