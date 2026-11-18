@@ -230,7 +230,7 @@ function EditForm({
 const WHY = 'Why this is recommended:'
 
 /** The description, with its "Why this is recommended:" opening in bold. */
-function Description({ text }: { text: string }) {
+export function Description({ text }: { text: string }) {
   const why = text.startsWith(WHY)
   return (
     <p className="max-w-3xl text-[15px] leading-relaxed text-[#2e2620]">
@@ -247,7 +247,7 @@ function Description({ text }: { text: string }) {
 }
 
 /** "Example from a job advert (Title, MyJobMag, Sep 2026): “…”", as an amber quote block. */
-function ExampleQuote({ evidence }: { evidence: Evidence | undefined }) {
+export function ExampleQuote({ evidence }: { evidence: Evidence | undefined }) {
   if (!evidence) return null
   const { document } = evidence
   const kind = DOCUMENT_TYPE[document.source_category] ?? 'document'

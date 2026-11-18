@@ -186,7 +186,11 @@ are 404. Test users from `make_user` get the default programme unless `programme
   ("Title, job advert (MyJobMag, Sep 2026)"), never the file name.
 - Review workflow (Phase 6): decisions go through `DecisionControl` (review/DecisionControl.tsx);
   every session page shows `SessionProgress`, the five review steps (Evidence → Analyse →
-  Review → Design courses → Report; steps after the analysis are not links until it completes); reports download in one
+  Review → Design courses → Report; the page being viewed is highlighted; steps after the analysis
+  are not links until it completes) and ends with `StepFooter` (Back / Next). Step pages:
+  `/sessions/:id` (evidence + analysis), `/evidence` (analysis results), `/recommendations`
+  (`TopicReview`: list + chosen topic side by side, keys A/R/L and ↑↓, `?topic=`), `/curriculum`
+  (`QuickCourseForm` per accepted topic + proposed courses), `/report` (`ReportStepPage`); reports download in one
   click via `DownloadReportButton` / `generateAndDownload` (reports/download.ts). Scores are shown
   out of 100 with the helpers in `review/labels.ts`; "flagged" is displayed as "Discuss later".
 - SkillBridge design (Phase 6, `docs/design/skillbridge-design/DESIGN_SPEC.md`): use the brand tokens in

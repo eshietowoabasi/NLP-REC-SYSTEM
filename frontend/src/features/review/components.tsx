@@ -1,13 +1,14 @@
 import {
   AlertTriangle,
   ArrowLeft,
+  ArrowRight,
   CircleDashed,
   Hourglass,
   type LucideIcon,
   Sparkles,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Link, NavLink } from 'react-router'
+import { Link } from 'react-router'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -350,42 +351,72 @@ export function SessionReviewHeader({
   sessionName?: string
   title: string
 }) {
-  const links = [
-    { to: `/sessions/${sessionId}/recommendations`, label: 'Suggested topics' },
-    { to: `/sessions/${sessionId}/evidence`, label: 'Evidence' },
-    { to: `/sessions/${sessionId}/curriculum`, label: 'Proposed courses' },
-  ]
   return (
     <div className="space-y-4">
       <Link
-        to={`/sessions/${sessionId}`}
+        to="/sessions"
         className="inline-flex items-center gap-1.5 text-[13px] font-bold text-primary hover:underline"
       >
-        <ArrowLeft className="size-4" aria-hidden="true" /> {sessionName ?? 'Analysis session'}
+        <ArrowLeft className="size-4" aria-hidden="true" /> Reviews
       </Link>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col gap-1">
+        {sessionName && <p className="text-[13px] font-bold text-muted-ink">{sessionName}</p>}
         <h2 className="page-title">{title}</h2>
-        <nav
-          aria-label="Session review"
-          className="flex max-w-full gap-1 overflow-x-auto rounded-[14px] bg-sand-deep p-1 sm:gap-1.5"
-        >
-          {links.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              className={({ isActive }) =>
-                cn(
-                  'flex h-10 shrink-0 items-center rounded-[10px] px-3 text-sm font-semibold whitespace-nowrap text-body-soft hover:text-ink focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none sm:px-[18px]',
-                  isActive && 'bg-white font-extrabold text-ink',
-                )
-              }
-            >
-              {link.label}
-            </NavLink>
-          ))}
-        </nav>
       </div>
       <SessionProgress sessionId={sessionId} />
     </div>
+  )
+}
+
+/** The pages of a review, in order (the five steps). */
+const REVIEW_STEPS: readonly { label: string; path: string }[] = [
+  { label: 'Evidence', path: '' },
+  { label: 'Analyse', path: '/evidence' },
+  { label: 'Review topics', path: '/recommendations' },
+  { label: 'Design courses', path: '/curriculum' },
+  { label: 'Report', path: '/report' },
+]
+
+/**
+ * Back / Next at the foot of every review step (1 to 5), so a planner can go from the evidence
+ * to the report without the menus. `nextHint` says what is left on this step, if anything.
+ */
+export function StepFooter({
+  sessionId,
+  step,
+  nextHint,
+}: {
+  sessionId: number
+  step: 1 | 2 | 3 | 4 | 5
+  nextHint?: string
+}) {
+  const back = REVIEW_STEPS[step - 2]
+  const next = REVIEW_STEPS[step]
+  const path = (target: { path: string }) => `/sessions/${sessionId}${target.path}`
+  return (
+    <nav
+      aria-label="Review steps"
+      className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5"
+    >
+      {back ? (
+        <Button variant="outline" asChild>
+          <Link to={path(back)}>
+            <ArrowLeft aria-hidden="true" /> Back: {back.label}
+          </Link>
+        </Button>
+      ) : (
+        <span />
+      )}
+      {next && (
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {nextHint && <span className="text-[13px] text-muted-ink">{nextHint}</span>}
+          <Button asChild>
+            <Link to={path(next)}>
+              Next: {next.label} <ArrowRight aria-hidden="true" />
+            </Link>
+          </Button>
+        </div>
+      )}
+    </nav>
   )
 }

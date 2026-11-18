@@ -38,6 +38,7 @@ import {
   ScoreLevelText,
   ScoreMeter,
   SessionReviewHeader,
+  StepFooter,
 } from './components'
 import { formatPercent, SKILL_LABELS, toPoints } from './labels'
 import { RankedBarChart } from './RankedBarChart'
@@ -55,13 +56,13 @@ const TABS = [
 export function EvidencePage() {
   const sessionId = Number(useParams().sessionId)
   return (
-    <CompletedSessionGate sessionId={sessionId} title="Evidence">
+    <CompletedSessionGate sessionId={sessionId} title="Analysis results">
       {(session) => (
         <div className="mx-auto max-w-6xl space-y-5">
           <SessionReviewHeader
             sessionId={session.id}
             sessionName={session.session_name}
-            title="Evidence"
+            title="Analysis results"
           />
           <div className="grid items-start gap-[18px] xl:grid-cols-[minmax(0,1fr)_300px]">
             <p className="self-center page-lead">
@@ -96,6 +97,11 @@ export function EvidencePage() {
               <OverlapTab sessionId={session.id} />
             </TabsContent>
           </Tabs>
+          <StepFooter
+            sessionId={session.id}
+            step={2}
+            nextHint="You do not need these charts to decide."
+          />
         </div>
       )}
     </CompletedSessionGate>

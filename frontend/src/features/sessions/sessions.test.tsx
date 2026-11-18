@@ -255,7 +255,12 @@ describe('SessionDetailPage', () => {
     expect(
       screen.getByText(/7 recommendations from 7 topics found in 9 documents/),
     ).toBeInTheDocument()
-    expect(screen.getByText('Synthetic core v1')).toBeInTheDocument()
+    expect(screen.getAllByText('Synthetic core v1')).not.toHaveLength(0)
+    expect(screen.getByText('Analysis finished')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Next: Analyse/ })).toHaveAttribute(
+      'href',
+      '/sessions/5/evidence',
+    )
   })
 
   it('shows 404 for an unknown session', async () => {
