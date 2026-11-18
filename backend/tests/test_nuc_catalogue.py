@@ -85,3 +85,29 @@ def test_admins_load_the_bundled_catalogue_in_the_background(login_as, monkeypat
     assert started.status_code == 202
     assert calls == ["app.tasks.catalogue.load_bundled_catalogue"]
     assert login_as("planner").post("/api/programmes/catalogue/load").status_code == 403
+
+
+def test_catalogue_skips_a_programme_whose_nuc_core_is_still_processing(app, make_user, tmp_path):
+    """Synthetic: a programme with an unfinished NUC core is skipped, not a crash."""
+    from app.models import Document, DocumentStatus, UserRole
+    from app.nuc_catalogue import _busy_or_loaded, catalogue_status
+    from app.sessions import default_programme
+    from tests.review_data import make_document
+
+    admin = make_user(UserRole.ADMIN)
+    programme = default_programme()
+    document = make_document(admin.id, "Pending core", "nuc_core")
+    document.processing_status = DocumentStatus.PARSING
+    db.session.add(
+        NucCoreVersion(
+            programme_id=programme.id,
+            document_id=document.id,
+            version_label="CCMAS 2023",
+            is_active=False,
+            uploaded_by_id=admin.id,
+        )
+    )
+    db.session.commit()
+    assert _busy_or_loaded(programme, "CCMAS 2023") == "a NUC core is still being processed"
+    assert isinstance(db.session.get(Document, document.id), Document)
+    catalogue_status()

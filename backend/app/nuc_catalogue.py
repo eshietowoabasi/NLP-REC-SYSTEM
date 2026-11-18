@@ -93,7 +93,7 @@ def _busy_or_loaded(programme: Programme, label: str) -> str | None:
     for version, document in rows:
         if version.is_active and version.version_label == label:
             return "already has this NUC core"
-        if document.processing_status in (DocumentStatus.UPLOADED, DocumentStatus.PROCESSING):
+        if document.processing_status in (DocumentStatus.UPLOADED, DocumentStatus.PARSING):
             return "a NUC core is still being processed"
     return None
 
@@ -253,7 +253,7 @@ def catalogue_status(folder: Path = BUNDLED_CATALOGUE) -> dict[str, Any]:
         if any(active for active, _ in statuses):
             counts["ready"] += 1
         elif any(
-            status in (DocumentStatus.UPLOADED, DocumentStatus.PROCESSING) for _, status in statuses
+            status in (DocumentStatus.UPLOADED, DocumentStatus.PARSING) for _, status in statuses
         ):
             counts["processing"] += 1
         else:
