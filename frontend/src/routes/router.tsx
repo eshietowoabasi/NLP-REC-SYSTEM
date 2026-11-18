@@ -28,6 +28,14 @@ export const routes: RouteObject[] = [
     handle: title('Sign in'),
   },
   {
+    path: '/register',
+    ...page(
+      () => import('@/features/auth/RegisterPage'),
+      (m) => m.RegisterPage,
+    ),
+    handle: title('Create account'),
+  },
+  {
     element: <RequireAuth />,
     children: [
       {

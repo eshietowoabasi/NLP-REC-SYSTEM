@@ -77,6 +77,29 @@ def register_cli(app: Flask) -> None:
         db.session.commit()
         click.echo(f"Updated {updated} of {len(rows)} manifest entries.")
 
+    @app.cli.command("load-nuc-cores")
+    @click.argument("folder", type=click.Path(exists=True, file_okay=False))
+    @click.option("--label", default="CCMAS 2023", show_default=True, help="Version label.")
+    @click.option("--only", multiple=True, help="Only programmes whose name contains this.")
+    def load_nuc_cores_command(folder: str, label: str, only: tuple[str, ...]) -> None:
+        """Create programmes and load their NUC cores from FOLDER (one PDF per programme).
+
+        FOLDER holds the programme sections cut from the CCMAS documents and an _index.json
+        describing them (see app/nuc_catalogue.py). Safe to run again: programmes that already
+        have this NUC core are skipped. Processing happens in the worker.
+        """
+        from pathlib import Path
+
+        from app.nuc_catalogue import load_catalogue
+
+        summary = load_catalogue(
+            Path(folder), version_label=label, only=list(only), report=click.echo
+        )
+        click.echo(
+            f"Created {len(summary.created)} programmes; queued {len(summary.queued)} NUC cores; "
+            f"skipped {len(summary.skipped)}; failed {len(summary.failed)}."
+        )
+
     @app.cli.command("extract-courses")
     def extract_courses_command() -> None:
         """(Re)build the course list of every NUC core document (course-level overlap).

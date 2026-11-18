@@ -169,6 +169,27 @@ def readiness_json(programme: Programme) -> dict:
     }
 
 
+@bp.get("/catalogue")
+@role_required(UserRole.ADMIN)
+def nuc_catalogue() -> tuple[Response, int]:
+    """The NUC programmes shipped with SkillBridge: how many have their NUC core loaded."""
+    from app.nuc_catalogue import catalogue_status
+
+    return success(catalogue_status())
+
+
+@bp.post("/catalogue/load")
+@role_required(UserRole.ADMIN)
+def load_nuc_catalogue() -> tuple[Response, int]:
+    """Create every catalogue programme and load its NUC core, in the background."""
+    from app.nuc_catalogue import catalogue_status
+
+    record_audit(AuditAction.NUC_CORE_UPLOADED, "nuc_catalogue", None, {"source": "catalogue"})
+    db.session.commit()
+    enqueue("app.tasks.catalogue.load_bundled_catalogue", timeout=1800)
+    return success(catalogue_status(), 202)
+
+
 @bp.get("/readiness")
 @login_required
 def list_readiness() -> tuple[Response, int]:

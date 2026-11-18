@@ -9,7 +9,7 @@ import {
   Search,
   Upload,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Controller,
   useForm,
@@ -49,6 +49,7 @@ import { cn } from '@/lib/utils'
 import type { DocumentSummary, SessionDefaults, UploadCategory } from '@/types/api'
 import { formatWeight } from '@/features/review/labels'
 
+import { JobCollectionPanel } from './JobCollectionPanel'
 import { useCreateSession, useReadyDocuments, useSessionDefaults } from './api'
 
 const WEIGHT_TOLERANCE = 0.001
@@ -83,7 +84,7 @@ type SessionForm = z.infer<ReturnType<typeof makeSchema>>
 
 const STEPS = [
   { title: 'Programme & name', fields: ['programme_id', 'session_name'] },
-  { title: 'Documents', fields: ['document_ids'] },
+  { title: 'Jobs & documents', fields: ['document_ids'] },
   { title: 'Settings', fields: ['weights', 'similarity_threshold', 'max_recommendations'] },
 ] as const
 
@@ -582,8 +583,11 @@ function DocumentPicker({
   }, [processing.length, refetchReady])
   // Documents uploaded from this page are ticked automatically as soon as they are ready.
   const knownIds = useRef<Set<number> | null>(null)
-  const openUpload = () => {
+  const rememberCurrent = useCallback(() => {
     knownIds.current = new Set((documents.data ?? []).map((d) => d.id))
+  }, [documents.data])
+  const openUpload = () => {
+    rememberCurrent()
     setUploadOpen(true)
   }
   useEffect(() => {
@@ -619,15 +623,21 @@ function DocumentPicker({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Select documents</CardTitle>
+        <CardTitle>Jobs and documents</CardTitle>
         <CardDescription>
-          Choose the documents to analyse, or upload new ones. You can use{' '}
+          Current job adverts are collected for you. Tick what to analyse, and upload any policy or
+          university documents you want included. You can use{' '}
           {programmeName ? `${programmeName} documents` : "the programme's documents"} and general
           documents (marked “All programmes”) that have finished processing. The programme's
           curriculum benchmark is used as the comparison baseline.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <JobCollectionPanel
+          programmeId={programmeId}
+          programmeName={programmeName}
+          onCollecting={rememberCurrent}
+        />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by category">
             <FilterChip active={category === null} onClick={() => setCategory(null)}>
