@@ -31,7 +31,8 @@ from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
-# The collection job's RQ timeout. Collecting is slow on purpose (2–3.5 s between requests).
+# The RQ timeout of one collection round. Collecting is slow on purpose (2–3.5 s between
+# requests); a large collection is many rounds, each queued by the previous one.
 HARVEST_JOB_TIMEOUT = 900
 # A run still active this long after it was created or started cannot still be working.
 STOPPED_AFTER = timedelta(seconds=HARVEST_JOB_TIMEOUT + 300)
@@ -54,8 +55,12 @@ def _job_has_ended(job_id: str) -> bool | None:
 
 
 def _has_stopped(run: JobHarvestRun) -> bool:
-    if run.rq_job_id and _job_has_ended(run.rq_job_id):
-        return True
+    if run.rq_job_id:
+        ended = _job_has_ended(run.rq_job_id)
+        if ended is not None:
+            # Redis knows: a large collection runs for a long time in rounds, each with its own
+            # job, so only the current round's job decides.
+            return ended
     # Fallback for a worker that died without RQ noticing, and for runs without a job id.
     began = run.started_at or run.created_at
     return utcnow() - began > STOPPED_AFTER

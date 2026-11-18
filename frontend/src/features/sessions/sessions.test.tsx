@@ -226,14 +226,12 @@ describe('NewSessionPage', () => {
 
     await waitFor(() => expect(server.calls('POST', '/harvest/programmes/1/runs')).toHaveLength(1))
     expect(server.calls('POST', '/harvest/programmes/1/runs')[0].body).toEqual({
-      target_count: 20,
+      target_count: 100,
       pages_per_field: 2,
       extra_terms: [],
     })
-    expect(await screen.findByText(/Finding current jobs for/)).toBeInTheDocument()
-    expect(
-      screen.getByText(/Searching MyJobMag for job titles like software developer, data analyst/),
-    ).toBeVisible()
+    expect(await screen.findByText(/Collecting 20 current .* job adverts/)).toBeInTheDocument()
+    expect(screen.getByText(/searches 2 .* job titles on MyJobMag/)).toBeVisible()
   })
 
   it('warns when there is no active NUC core and only allows Create', async () => {

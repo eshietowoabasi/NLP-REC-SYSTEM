@@ -539,7 +539,7 @@ usual, so it can be picked for a session.
 ### `GET /api/harvest/programmes/{id}`
 
 Access: any. `{ "programme": { "id", "name", "discipline_code" }, "profile": { "search_terms",
-"field_slugs", "search_fields" }, "latest_run": Run | null }`. `search_fields` are the job fields
+"field_slugs", "search_fields", "search_titles" }, "latest_run": Run | null }`. `search_fields` are the job fields
 actually searched: the profile's own, or the discipline's usual MyJobMag field when it names none
 (computing → `information-technology`, engineering → `engineering`, health → `medical`).
 
@@ -567,17 +567,24 @@ MyJobMag field slugs, optional) }`. **200** with the saved profile.
 ### `POST /api/harvest/programmes/{id}/runs`
 
 Access: admin, planner (planners start collections from New review; only admins change the
-profile). JSON `{ "target_count" (1–30, default 10), "pages_per_field" (1–5, default 2: listing
-pages read per search, i.e. per job title and per field), "extra_terms": [...] (optional, ≤ 10:
-the planner's own job titles, searched as well in this run only) }`. The collector reads the
-job-title listings (`/jobs-by-title/<term>`) for up to half the target, then the whole job field
-(`/jobs-by-field/<field>`), then titles again for any room left. A title-listing advert is kept
-when its title contains a search term; a field advert also when it asks for at least two skills
-on the programme's skills list, so relevant adverts with other titles are found too. **202**
-with the queued run. **422** if the programme has neither search terms nor a job field (the message
-asks the user to get an admin to set it up); **409** if a
-run for this programme is already queued or running. Clients poll `GET
-/api/harvest/programmes/{id}` while the latest run's `phase` is `queued`, `collecting` or
+profile). JSON `{ "target_count" (1–500, default 10), "pages_per_field" (1–5; kept for the
+command line), "extra_terms": [...] (optional, ≤ 10: the planner's own job titles, this run
+only) }`. **202** with the queued run.
+
+The system decides what belongs to the programme; nobody has to type job titles. It reads every
+advert in the programme's MyJobMag job field (`search_fields`) and the listings of its job titles
+(`search_titles`: the programme's own, its discipline's usual ones from
+`app/seed/discipline_job_titles.py`, and `extra_terms`). An advert is kept when its title contains
+one of those titles or when it asks for at least two skills of the programme's field (its
+discipline's skills list, without general workplace skills). Adverts collected before are not
+fetched again, so repeated collections keep adding new ones to the programme's pool.
+
+A collection runs in rounds of about 25 adverts (at most 4 minutes each): each round imports its
+adverts (they are processed at once, so they become ready while collection goes on) and queues
+the next round, until `target_count` new adverts are imported or every source has been read.
+Other jobs queued meanwhile run between rounds. **422** if the programme has neither job titles
+nor a job field; **409** if a run for this programme is already queued or running. Clients poll
+`GET /api/harvest/programmes/{id}` while the latest run's `phase` is `queued`, `collecting` or
 `preparing`. Starting a run and changing the profile are audited (`harvest.started`,
 `harvest.profile_updated`).
 
