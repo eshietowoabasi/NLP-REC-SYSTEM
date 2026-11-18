@@ -90,7 +90,7 @@ def test_defaults_report_settings_limit_and_nuc_core(planner: ApiClient, admin: 
 
     assert before["parameters"]["weights"] == {"ner": 0.40, "topic": 0.35, "novelty": 0.25}
     assert before["parameters"]["similarity_threshold"] == 0.80
-    assert before["max_documents"] == 50
+    assert before["max_documents"] == 1000
     assert before["nuc_core_version"] is None
     assert after["nuc_core_version"]["version_label"] == "Synthetic core v1"
 

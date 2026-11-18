@@ -11,7 +11,9 @@ import { cn } from '@/lib/utils'
 import type { HarvestRun } from '@/types/api'
 
 /** Adverts collected per run, and how old the last run may be before a review collects again. */
-const TARGET_ADVERTS = 20
+/** How many adverts one collection gathers; planners pick from these. */
+const SIZES = [50, 100, 200, 500] as const
+const DEFAULT_SIZE = 100
 const PAGES_PER_SEARCH = 2
 const FRESH_FOR_MS = 6 * 60 * 60 * 1000
 
@@ -44,18 +46,28 @@ export function JobCollectionPanel({
   programmeId,
   programmeName,
   onCollecting,
+  advertCount = 0,
+  unusedAdverts = 0,
+  onUseAll,
 }: {
   programmeId: number
   programmeName: string | null
   onCollecting: () => void
+  /** Ready job adverts of the programme (all collections so far). */
+  advertCount?: number
+  /** How many of them are not ticked yet. */
+  unusedAdverts?: number
+  onUseAll?: () => void
 }) {
   const { canEdit } = useAuth()
   const state = useHarvestState(programmeId > 0 ? programmeId : null)
   const start = useStartHarvest()
   const autoStarted = useRef<number | null>(null)
   const run = state.data?.latest_run ?? null
-  const terms = state.data?.profile.search_terms ?? []
-  const fields = state.data?.profile.search_fields ?? []
+  const profile = state.data?.profile
+  const terms = profile?.search_titles ?? profile?.search_terms ?? []
+  const fields = profile?.search_fields ?? []
+  const [size, setSize] = useState<number>(DEFAULT_SIZE)
   const active = isHarvestActive(run)
   const [extra, setExtra] = useState('')
   const extraTerms = extra
@@ -67,7 +79,7 @@ export function JobCollectionPanel({
     onCollecting()
     start.mutate({
       programmeId,
-      targetCount: TARGET_ADVERTS,
+      targetCount: size,
       pagesPerField: PAGES_PER_SEARCH,
       extraTerms: withExtra ? extraTerms : [],
     })
@@ -102,15 +114,12 @@ export function JobCollectionPanel({
     detail = `Job collection is not set up for ${name} yet (an admin adds the job titles in Programmes). You can still upload documents below.`
   } else if (start.isPending || run?.phase === 'queued' || run?.phase === 'collecting') {
     icon = <Loader2 className="size-5 animate-spin" aria-hidden="true" />
-    title = `Finding current jobs for ${name}`
-    const searched = [
-      fields.length ? `all ${fields.map(fieldLabel).join(' and ')} jobs` : '',
-      terms.length
-        ? `job titles like ${terms.slice(0, 3).join(', ')}${terms.length > 3 ? ' and more' : ''}`
-        : '',
-    ].filter(Boolean)
-    detail = `Searching MyJobMag for ${searched.join(' and ')}. ${run?.examined_count ?? 0} adverts looked at, ${run?.found_count ?? 0} kept so far.`
-    progress = run ? Math.min(95, (run.found_count / Math.max(run.target_count, 1)) * 100) : 5
+    title = `Collecting ${run?.target_count ?? size} current ${name} job adverts`
+    const how = fields.length
+      ? `SkillBridge reads every ${fields.map(fieldLabel).join(' and ')} advert on MyJobMag and keeps the ones that ask for ${name} skills, and searches ${terms.length} ${name} job titles.`
+      : `SkillBridge searches ${terms.length} ${name} job titles on MyJobMag.`
+    detail = `${how} ${run?.imported_count ?? 0} collected so far (${ready} ready to analyse), ${run?.examined_count ?? 0} adverts looked at. They are ticked below as they become ready.`
+    progress = run ? Math.min(97, (run.imported_count / Math.max(run.target_count, 1)) * 100) : 3
   } else if (run?.phase === 'preparing') {
     icon = <Loader2 className="size-5 animate-spin" aria-hidden="true" />
     title = 'Preparing the adverts'
@@ -125,12 +134,9 @@ export function JobCollectionPanel({
     icon = <Check className="size-5" aria-hidden="true" />
     title =
       total > 0
-        ? `${ready} current job advert${ready === 1 ? '' : 's'} collected ${minutesAgo(run.completed_at)}`
+        ? `${ready} new job advert${ready === 1 ? '' : 's'} collected ${minutesAgo(run.completed_at)}`
         : 'No new adverts this time'
-    detail =
-      total > 0
-        ? 'New adverts are listed below as job adverts, newest first. Untick any you do not want.'
-        : 'All matching adverts are already in the list below. Collect again later, or upload documents.'
+    detail = `${advertCount} ${name} job adverts collected in all so far. Collect more to analyse a bigger picture.`
   } else {
     detail = 'Collecting current adverts…'
   }
@@ -164,14 +170,57 @@ export function JobCollectionPanel({
             {start.isError ? start.error.message : detail}
           </p>
         </div>
-        {canCollect && !busy && (
-          <Button type="button" variant="outline" size="sm" onClick={() => collect()}>
-            <RefreshCw aria-hidden="true" /> Collect {run ? 'again' : 'jobs'}
-          </Button>
-        )}
       </div>
       {progress !== null && (
         <Progress value={progress} aria-label="Job collection progress" className="h-1.5" />
+      )}
+      {(canCollect || (onUseAll && unusedAdverts > 0)) && (
+        <div className="flex flex-col gap-2 border-t border-line pt-3 sm:flex-row sm:flex-wrap sm:items-center">
+          {canCollect && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[13px] font-semibold text-ink">Collect</span>
+              <div
+                role="radiogroup"
+                aria-label="How many adverts to collect"
+                className="flex gap-1"
+              >
+                {SIZES.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={size === value}
+                    disabled={busy}
+                    onClick={() => setSize(value)}
+                    className={cn(
+                      'rounded-lg border px-2.5 py-1 num text-xs font-bold transition-colors',
+                      size === value
+                        ? 'border-ink bg-ink text-white'
+                        : 'border-line bg-white text-ink hover:bg-sand',
+                    )}
+                  >
+                    {value}
+                  </button>
+                ))}
+              </div>
+              <span className="text-[13px] font-semibold text-ink">more adverts</span>
+              <Button type="button" size="sm" disabled={busy} onClick={() => collect()}>
+                <RefreshCw aria-hidden="true" /> {busy ? 'Collecting…' : 'Collect'}
+              </Button>
+            </div>
+          )}
+          {onUseAll && unusedAdverts > 0 && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="sm:ml-auto"
+              onClick={onUseAll}
+            >
+              Use all {advertCount} job adverts
+            </Button>
+          )}
+        </div>
       )}
       {canCollect && (
         <form

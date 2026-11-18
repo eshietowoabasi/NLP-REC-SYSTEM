@@ -10,7 +10,7 @@ from sqlalchemy import select
 from app.extensions import db
 from app.harvesting import STOPPED_AFTER, STOPPED_MESSAGE, expire_stopped_runs
 from app.models import AuditLog, Document, DocumentStatus, JobHarvestRun, UserRole
-from app.services.harvesting.myjobmag import Collection, JobAdvert
+from app.services.harvesting.myjobmag import Batch, JobAdvert
 from app.sessions import default_programme
 from app.utils.time import utcnow
 
@@ -48,13 +48,15 @@ def programme_id(app) -> int:
 
 @pytest.fixture
 def fake_collector(monkeypatch):
-    def collect(search_terms, field_slugs, target_count, pages_per_field, skill_names=None):
-        calls.append({"terms": search_terms, "fields": field_slugs, "skills": skill_names})
-        adverts = [synthetic_advert(n) for n in range(1, target_count + 1)]
-        return Collection(adverts=adverts, examined=target_count + 2, skipped=2)
+    """Synthetic: one round returns ``batch_size`` adverts and says every source is read."""
+
+    def collect(sources, cursor, titles, phrases, *, batch_size, deadline, is_known):
+        calls.append({"sources": sources, "terms": titles, "skills": phrases})
+        adverts = [synthetic_advert(n) for n in range(1, batch_size + 1)]
+        return Batch(adverts=adverts, examined=batch_size + 2, skipped=2, cursor=None)
 
     calls: list[dict] = []
-    monkeypatch.setattr("app.tasks.harvest.collect_jobs", collect)
+    monkeypatch.setattr("app.tasks.harvest.collect_batch", collect)
     return calls
 
 
@@ -233,8 +235,32 @@ def test_planners_add_their_own_job_titles_and_the_whole_field_is_searched(
     )
     assert response.status_code == 202
     (call,) = fake_collector
-    assert call["terms"] == ["nurse", "nursing", "midwife"]
-    assert call["fields"] == ["medical"]
-    assert isinstance(call["skills"], list)
+    assert call["terms"][:2] == ["nurse", "nursing"]
+    assert "midwife" in call["terms"]
+    assert call["sources"][0] == ["field", "medical"]
+    assert isinstance(call["skills"], dict)
     state = planner.get(f"/api/harvest/programmes/{programme_id}").get_json()["data"]
     assert state["profile"]["search_fields"] == ["medical"]
+
+
+def test_a_large_collection_runs_in_rounds_until_its_target(login_as, programme_id, monkeypatch):
+    """Synthetic: each round keeps a few adverts and hands a cursor to the next round, until
+    the target is reached."""
+    rounds: list[dict | None] = []
+
+    def collect(sources, cursor, titles, phrases, *, batch_size, deadline, is_known):
+        rounds.append(cursor)
+        start = 100 * len(rounds)
+        adverts = [synthetic_advert(start + n) for n in range(min(batch_size, 4))]
+        return Batch(adverts=adverts, examined=6, cursor={"index": 0, "page": len(rounds) + 1})
+
+    monkeypatch.setattr("app.tasks.harvest.collect_batch", collect)
+    planner = login_as(UserRole.PLANNER)
+    response = planner.post(
+        f"/api/harvest/programmes/{programme_id}/runs", json={"target_count": 10}
+    )
+    assert response.status_code == 202
+    run = planner.get(f"/api/harvest/programmes/{programme_id}").get_json()["data"]["latest_run"]
+    assert run["status"] == "completed"
+    assert run["imported_count"] == 10
+    assert rounds == [None, {"index": 0, "page": 2}, {"index": 0, "page": 3}]

@@ -914,6 +914,8 @@ export interface HarvestProfile {
   field_slugs: string[]
   /** The MyJobMag job fields actually searched (the discipline's usual one if none is set). */
   search_fields?: string[]
+  /** Every job title searched: the programme's and its discipline's usual ones. */
+  search_titles?: string[]
 }
 
 /** queued → collecting → preparing (adverts being processed) → ready; or failed. */

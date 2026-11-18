@@ -16,6 +16,7 @@ import random
 import re
 import time
 import urllib.robotparser
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import requests
@@ -364,6 +365,115 @@ def skill_hits(text: str, skill_names: list[str]) -> int:
     )
 
 
+def field_skill_hits(text: str, phrases: dict[str, list[str]]) -> int:
+    """How many distinct field skills an advert asks for; ``phrases`` maps each skill to the
+    phrases that name it (from the discipline's skills list)."""
+    lowered = normalise(text)
+    return sum(
+        1
+        for names in phrases.values()
+        if any(
+            re.search(rf"(?<![a-z0-9]){re.escape(phrase)}(?![a-z0-9])", lowered) for phrase in names
+        )
+    )
+
+
+#: Listing pages read per source at most (MyJobMag lists about 18 adverts a page).
+MAX_PAGES_PER_SOURCE = 40
+
+
+def plan_sources(search_terms: list[str], field_slugs: list[str]) -> list[list[str]]:
+    """Where to look, in order: the programme's job fields (every advert in the field, judged
+    by its skills), then each job title's listing. ``[kind, slug]`` pairs, JSON-friendly."""
+    fields = [f.strip().lower() for f in field_slugs if FIELD_RE.fullmatch(f.strip().lower())]
+    titles = [title_slug(term) for term in search_terms if normalise(term)]
+    sources = [["field", f] for f in dict.fromkeys(fields)]
+    sources += [["title", t] for t in dict.fromkeys(titles) if t]
+    return sources
+
+
+@dataclass
+class Batch:
+    """One round of collection: the adverts kept and where the next round starts."""
+
+    adverts: list[JobAdvert]
+    examined: int = 0
+    skipped: int = 0
+    known: int = 0
+    #: ``{"index", "page"}`` of the next listing page to read, or None when every source is done.
+    cursor: dict | None = None
+
+
+def collect_batch(
+    sources: list[list[str]],
+    cursor: dict | None,
+    search_terms: list[str],
+    skill_phrases: dict[str, list[str]],
+    *,
+    batch_size: int,
+    deadline: float,
+    is_known: Callable[[str], bool] = lambda _url: False,
+    min_skill_hits: int = MIN_SKILL_HITS,
+) -> Batch:
+    """Read listing pages from ``cursor`` until ``batch_size`` adverts are kept, the clock passes
+    ``deadline`` (``time.monotonic()``) or every source is done.
+
+    An advert is kept when its title contains a search term, or when it asks for at least
+    ``min_skill_hits`` distinct skills of the programme's field: that is how the system
+    recognises, say, a computing advert whatever it is called. Adverts already collected
+    (``is_known``) are not fetched again. Rounds always stop at the end of a listing page, so the
+    next round starts on a fresh page.
+    """
+    terms = [normalise(term) for term in search_terms if normalise(term)]
+    client = MyJobMagClient()
+    batch = Batch(adverts=[])
+    seen: set[str] = set()
+    index, page = (cursor or {}).get("index", 0), (cursor or {}).get("page", 1)
+
+    while index < len(sources):
+        if len(batch.adverts) >= batch_size or time.monotonic() > deadline:
+            batch.cursor = {"index": index, "page": page}
+            return batch
+        kind, slug = sources[index]
+        url = listing_urls(kind, slug, page)[-1]
+        try:
+            listing = parse_listing(client.get(url))
+        except LookupError:
+            listing = []  # no such listing, or no more pages
+        except PermissionError:
+            batch.skipped += 1
+            listing = []
+        if not listing or page >= MAX_PAGES_PER_SOURCE:
+            index, page = index + 1, 1
+        else:
+            page += 1
+        for advert_url, listed_title, _company in listing:
+            if advert_url in seen:
+                continue
+            seen.add(advert_url)
+            batch.examined += 1
+            if is_known(advert_url):
+                batch.known += 1
+                continue
+            by_title = title_matches(listed_title, terms)
+            if not by_title and kind != "field":
+                batch.skipped += 1
+                continue
+            try:
+                advert = parse_job_page(client.get(advert_url), advert_url)
+            except (PermissionError, LookupError):
+                advert = None
+            if advert is None or not (
+                title_matches(advert.title, terms)
+                or field_skill_hits(f"{advert.title} {advert.text}", skill_phrases)
+                >= min_skill_hits
+            ):
+                batch.skipped += 1
+                continue
+            batch.adverts.append(advert)
+    return batch
+
+
 def collect_jobs(
     search_terms: list[str],
     field_slugs: list[str],
@@ -371,15 +481,9 @@ def collect_jobs(
     pages_per_field: int,
     skill_names: list[str] | None = None,
 ) -> Collection:
-    """Collect up to ``target_count`` current adverts for a programme.
-
-    Title listings (``/jobs-by-title/<term>``) give adverts with the programme's job titles.
-    Field listings (``/jobs-by-field/<field>``) cover the programme's whole job field, so adverts
-    with other titles are found too: one is kept when its title matches a search term or, when
-    ``skill_names`` are given, when its text asks for at least ``MIN_SKILL_HITS`` of the
-    programme's skills. With fields, title listings fill at most half the target first, the field
-    then fills the rest, and titles take any room left. A listing that does not exist is skipped.
-    """
+    """Collect up to ``target_count`` current adverts in one go (used by small collections and
+    the command line). Title listings fill at most half the target when there are fields, the
+    fields fill the rest, and titles take any room left; ``pages_per_field`` pages per source."""
     terms = [normalise(term) for term in search_terms if normalise(term)]
     skills = sorted({normalise(name) for name in skill_names or [] if len(normalise(name)) >= 3})
     fields = [
@@ -393,9 +497,6 @@ def collect_jobs(
     client = MyJobMagClient()
     result = Collection(adverts=[])
     seen_urls: set[str] = set()
-
-    def relevant(title: str) -> bool:
-        return title_matches(title, terms)
 
     def take(sources: list[tuple[str, str]], cap: int) -> None:
         for kind, slug in sources:
@@ -419,7 +520,7 @@ def collect_jobs(
                         continue
                     seen_urls.add(url)
                     result.examined += 1
-                    by_title = relevant(listed_title)
+                    by_title = title_matches(listed_title, terms)
                     if not by_title and not (kind == "field" and skills):
                         result.skipped += 1
                         continue
@@ -429,11 +530,8 @@ def collect_jobs(
                         result.skipped += 1
                         continue
                     advert = parse_job_page(job_html, url)
-                    if advert is None:
-                        result.skipped += 1
-                        continue
-                    if not (
-                        relevant(advert.title)
+                    if advert is None or not (
+                        title_matches(advert.title, terms)
                         or (kind == "field" and skill_hits(advert.text, skills) >= MIN_SKILL_HITS)
                     ):
                         result.skipped += 1

@@ -57,7 +57,7 @@ SETTING_DEFINITIONS: tuple[SettingDefinition, ...] = (
         "Number of representative passages stored as evidence for each recommendation.",
     ),
     SettingDefinition(
-        "max_documents_per_session", 50, "Maximum number of documents in one session."
+        "max_documents_per_session", 1000, "Maximum number of documents in one session."
     ),
     SettingDefinition(
         "nuc_course_exclusions",

@@ -237,3 +237,58 @@ def test_a_job_field_adds_adverts_with_other_titles_that_ask_for_the_skills(monk
         skill_names=["Python", "SQL", "Docker"],
     )
     assert [a.title for a in result.adverts] == ["Software Developer", "Platform Associate"]
+
+
+def _skill_advert(title: str, text: str) -> str:
+    body = " ".join([text] * 20)
+    return (
+        '<html><head><script type="application/ld+json">'
+        f'{{"@type": "JobPosting", "title": "{title}", "description": "<p>{body}</p>"}}'
+        "</script></head></html>"
+    )
+
+
+def test_a_round_recognises_field_adverts_by_their_skills_and_resumes_later(monkeypatch):
+    """Synthetic: no job title is given; computing adverts are recognised by their skills,
+    adverts collected before are not fetched again, and a round stops at its size with a cursor
+    that the next round continues from."""
+    import time
+
+    from app.services.harvesting import myjobmag
+
+    field = f"{BASE}/jobs-by-field/information-technology"
+    site = FakeSite(
+        {
+            field: _listing(
+                ("a", "Platform Associate at Synthetic Telco"),
+                ("b", "Sales Associate at Synthetic Store"),
+                ("c", "Known Developer at Synthetic Bank"),
+            ),
+            f"{field}/2": _listing(("d", "Graduate Trainee at Synthetic Fintech")),
+            f"{BASE}/job/a": _skill_advert("Platform Associate", "Python and SQL on AWS."),
+            f"{BASE}/job/b": _skill_advert("Sales Associate", "Sell phones in a store."),
+            f"{BASE}/job/d": _skill_advert("Graduate Trainee", "Java, Docker and Kubernetes."),
+        }
+    )
+    monkeypatch.setattr(myjobmag, "MyJobMagClient", lambda: site)
+    phrases = {"Python": ["python"], "SQL": ["sql"], "Java": ["java"], "Docker": ["docker"]}
+    sources = myjobmag.plan_sources([], ["information-technology"])
+
+    first = myjobmag.collect_batch(
+        sources,
+        None,
+        [],
+        phrases,
+        batch_size=1,
+        deadline=time.monotonic() + 60,
+        is_known=lambda url: url.endswith("/job/c"),
+    )
+    assert [a.title for a in first.adverts] == ["Platform Associate"]
+    assert first.known == 1 and f"{BASE}/job/c" not in site.requested
+    assert first.cursor == {"index": 0, "page": 2}
+
+    second = myjobmag.collect_batch(
+        sources, first.cursor, [], phrases, batch_size=5, deadline=time.monotonic() + 60
+    )
+    assert [a.title for a in second.adverts] == ["Graduate Trainee"]
+    assert second.cursor is None

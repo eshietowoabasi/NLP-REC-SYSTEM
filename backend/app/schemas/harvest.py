@@ -42,7 +42,7 @@ class HarvestRunRequest(BaseModel):
     target_count: int = Field(
         default=10,
         ge=1,
-        le=30,
+        le=500,
     )
 
     pages_per_field: int = Field(

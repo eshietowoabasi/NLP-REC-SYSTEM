@@ -603,6 +603,9 @@ function DocumentPicker({
   const [category, setCategory] = useState<UploadCategory | null>(null)
   const [search, setSearch] = useState('')
   const chosen = new Set(selected)
+  const adverts = (documents.data ?? [])
+    .filter((d) => d.source_category === 'job_market')
+    .map((d) => d.id)
   const needle = search.trim().toLowerCase()
   const shown = (documents.data ?? []).filter(
     (d: DocumentSummary) =>
@@ -637,6 +640,13 @@ function DocumentPicker({
           programmeId={programmeId}
           programmeName={programmeName}
           onCollecting={rememberCurrent}
+          advertCount={adverts.length}
+          unusedAdverts={adverts.filter((id) => !chosen.has(id)).length}
+          onUseAll={() => {
+            const room = Math.max(0, maxDocuments - selected.length)
+            const added = adverts.filter((id) => !chosen.has(id)).slice(0, room)
+            onChange([...selected, ...added])
+          }}
         />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by category">
