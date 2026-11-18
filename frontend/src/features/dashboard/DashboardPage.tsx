@@ -156,19 +156,25 @@ function Overview({
   const curriculum = data.curriculum_session
 
   const action = canEdit ? (
-    review ? (
-      <Button size="lg" variant="secondary" className="bg-white text-ink hover:bg-sand" asChild>
-        <Link to={`/sessions/${review.id}/recommendations?decision=undecided`}>
-          Continue reviewing <ArrowRight aria-hidden="true" />
-        </Link>
-      </Button>
-    ) : (
+    <div className="flex flex-wrap gap-2">
       <Button size="lg" variant="secondary" className="bg-white text-ink hover:bg-sand" asChild>
         <Link to="/sessions/new">
           <Plus aria-hidden="true" /> Start a new review
         </Link>
       </Button>
-    )
+      {review && (
+        <Button
+          size="lg"
+          variant="outline"
+          className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+          asChild
+        >
+          <Link to={`/sessions/${review.id}/recommendations?decision=undecided`}>
+            Continue reviewing <ArrowRight aria-hidden="true" />
+          </Link>
+        </Button>
+      )}
+    </div>
   ) : null
 
   return (
@@ -189,7 +195,7 @@ function Overview({
           )
         }
       >
-        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
           <StatTile
             label="Documents"
             value={data.documents.total}
