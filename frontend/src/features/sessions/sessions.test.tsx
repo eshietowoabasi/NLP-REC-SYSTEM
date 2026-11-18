@@ -117,7 +117,8 @@ describe('NewSessionPage', () => {
     await user.click(screen.getByRole('button', { name: /Next/ }))
     await user.click(await screen.findByLabelText(/Synthetic cloud advert/))
     await user.click(screen.getByLabelText(/Synthetic ICT policy/))
-    expect(screen.getByText('2 of 50 selected')).toBeInTheDocument()
+    expect(screen.getByText(/^2 of \d+ selected/)).toBeInTheDocument()
+    expect(screen.getByText('(up to 50 per review)')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /Next/ }))
   }
 

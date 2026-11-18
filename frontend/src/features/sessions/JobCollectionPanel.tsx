@@ -134,9 +134,9 @@ export function JobCollectionPanel({
     icon = <Check className="size-5" aria-hidden="true" />
     title =
       total > 0
-        ? `${ready} new job advert${ready === 1 ? '' : 's'} collected ${minutesAgo(run.completed_at)}`
+        ? `${total} new job advert${total === 1 ? '' : 's'} collected ${minutesAgo(run.completed_at)}`
         : 'No new adverts this time'
-    detail = `${advertCount} ${name} job adverts collected in all so far. Collect more to analyse a bigger picture.`
+    detail = `${advertCount} ${name} job adverts are ready to analyse in all${run.documents_processing > 0 ? ` (${run.documents_processing} more still being prepared)` : ''}. Collect more to analyse a bigger picture.`
   } else {
     detail = 'Collecting current adverts…'
   }
