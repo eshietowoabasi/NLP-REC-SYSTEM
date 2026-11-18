@@ -198,8 +198,8 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
         <ArrowLeft className="size-4" aria-hidden="true" /> Reviews
       </Link>
       <PageHeader
-        title="New analysis session"
-        description="Choose a programme and the evidence to analyse. SkillBridge discovers the topics they discuss, compares them with that programme's curriculum benchmark and ranks possible curriculum additions."
+        title="New review"
+        description="Pick a programme, then the current job adverts and documents to analyse. SkillBridge finds the topics they discuss, compares them with the programme's NUC core and ranks what could be added to the university's 30%."
       />
 
       <ol className="flex flex-wrap items-center gap-3" aria-label="Steps">
@@ -237,10 +237,10 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
       {noBenchmark && (
         <Alert variant="warning">
           <AlertTriangle aria-hidden="true" />
-          <AlertTitle>No active curriculum benchmark</AlertTitle>
+          <AlertTitle>No active NUC core yet</AlertTitle>
           <AlertDescription>
-            You can create the analysis now, but it cannot run until an administrator uploads a
-            benchmark for the selected programme.
+            You can create the analysis now, but it cannot run until an administrator uploads a NUC
+            core for the selected programme.
           </AlertDescription>
         </Alert>
       )}
@@ -281,7 +281,7 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
                     </select>
 
                     <FieldDescription>
-                      SkillBridge uses this programme's curriculum benchmark for comparison.
+                      SkillBridge compares with this programme's NUC core.
                     </FieldDescription>
                   </Field>
                 )}
@@ -333,7 +333,7 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
                   <WeightsFields control={control} register={register} errors={errors} />
                   <Field data-invalid={!!errors.similarity_threshold}>
                     <FieldLabel htmlFor="similarity_threshold">
-                      “May already be in benchmark” above
+                      “May already be in NUC core” above
                     </FieldLabel>
                     <Input
                       id="similarity_threshold"
@@ -346,8 +346,8 @@ function NewSessionForm({ defaults }: { defaults: SessionDefaults }) {
                       {...register('similarity_threshold', { valueAsNumber: true })}
                     />
                     <FieldDescription>
-                      A topic more similar than this to a benchmark course is marked “May already be
-                      in benchmark”. 0.80 means 80% similar.
+                      A topic more similar than this to a NUC core course is marked “May already be
+                      in NUC core”. 0.80 means 80% similar.
                     </FieldDescription>
                     <FieldError errors={[errors.similarity_threshold]} />
                   </Field>
@@ -473,8 +473,8 @@ function AnalysisSummary({
         <span className="text-[13px]">
           {benchmark.data?.active?.version_label ??
             (programmeId > 0
-              ? 'No benchmark yet'
-              : (defaults.nuc_core_version?.version_label ?? 'No benchmark yet'))}
+              ? 'No NUC core yet'
+              : (defaults.nuc_core_version?.version_label ?? 'No NUC core yet'))}
         </span>
       </div>
     </aside>
@@ -628,8 +628,8 @@ function DocumentPicker({
           Current job adverts are collected for you. Tick what to analyse, and upload any policy or
           university documents you want included. You can use{' '}
           {programmeName ? `${programmeName} documents` : "the programme's documents"} and general
-          documents (marked “All programmes”) that have finished processing. The programme's
-          curriculum benchmark is used as the comparison baseline.
+          documents (marked “All programmes”) that have finished processing. Topics are compared
+          with the programme's NUC core.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

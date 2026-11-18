@@ -136,7 +136,7 @@ describe('ProgrammesPage', () => {
       'aria-selected',
       'true',
     )
-    expect(await screen.findByText('No active curriculum benchmark')).toBeInTheDocument()
+    expect(await screen.findByText('No active NUC core yet')).toBeInTheDocument()
   })
 
   it('adds a planner to the programme and removes one', async () => {

@@ -37,7 +37,7 @@ export function ProgrammeBenchmark({ programmeId }: { programmeId: number }) {
   if (state.isError) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>Could not load the curriculum benchmark</AlertTitle>
+        <AlertTitle>Could not load the NUC core</AlertTitle>
 
         <AlertDescription>{state.error.message}</AlertDescription>
       </Alert>
@@ -94,7 +94,7 @@ export function ProgrammeBenchmark({ programmeId }: { programmeId: number }) {
                   <div className="flex items-center gap-2">
                     <span className="font-extrabold text-ink">{active.version_label}</span>
 
-                    <Badge variant="success">Active benchmark</Badge>
+                    <Badge variant="success">Active</Badge>
                   </div>
 
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -103,16 +103,16 @@ export function ProgrammeBenchmark({ programmeId }: { programmeId: number }) {
                 </div>
 
                 <Button variant="outline" asChild>
-                  <Link to={`/documents/${active.document.id}`}>View benchmark</Link>
+                  <Link to={`/documents/${active.document.id}`}>View document</Link>
                 </Button>
               </div>
             ) : (
               <Alert variant="warning">
-                <AlertTitle>No active curriculum benchmark</AlertTitle>
+                <AlertTitle>No active NUC core yet</AlertTitle>
 
                 <AlertDescription>
                   Reviews for {programme.name}
-                  can be created, but cannot run until a benchmark has been uploaded and processed.
+                  can be created, but cannot run until a NUC core has been uploaded and processed.
                 </AlertDescription>
               </Alert>
             )}
@@ -121,12 +121,12 @@ export function ProgrammeBenchmark({ programmeId }: { programmeId: number }) {
 
         <Card>
           <CardHeader>
-            <CardTitle>Benchmark history</CardTitle>
+            <CardTitle>NUC core versions</CardTitle>
           </CardHeader>
 
           <CardContent>
             {versions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No benchmark versions uploaded yet.</p>
+              <p className="text-sm text-muted-foreground">No NUC core uploaded yet.</p>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
@@ -168,7 +168,7 @@ export function ProgrammeBenchmark({ programmeId }: { programmeId: number }) {
 
       <Card className="h-fit">
         <CardHeader>
-          <CardTitle>Upload benchmark</CardTitle>
+          <CardTitle>Upload NUC core</CardTitle>
 
           <CardDescription>
             Upload the CCMAS, accreditation framework, or another curriculum reference for this
@@ -179,7 +179,7 @@ export function ProgrammeBenchmark({ programmeId }: { programmeId: number }) {
         <CardContent>
           <form className="space-y-3" onSubmit={submitUpload}>
             <Input
-              aria-label="Benchmark version"
+              aria-label="NUC core version"
               placeholder="e.g. CCMAS 2023"
               value={versionLabel}
               onChange={(event) => setVersionLabel(event.target.value)}
@@ -187,7 +187,7 @@ export function ProgrammeBenchmark({ programmeId }: { programmeId: number }) {
             />
 
             <Input
-              aria-label="Benchmark document"
+              aria-label="NUC core document"
               type="file"
               accept=".pdf,.docx,.txt"
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}
@@ -202,7 +202,7 @@ export function ProgrammeBenchmark({ programmeId }: { programmeId: number }) {
               ) : (
                 <Upload aria-hidden="true" />
               )}
-              Upload benchmark
+              Upload NUC core
             </Button>
           </form>
         </CardContent>
