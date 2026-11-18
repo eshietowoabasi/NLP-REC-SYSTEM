@@ -180,6 +180,60 @@ describe('NewSessionPage', () => {
     })
   })
 
+  it('collects current jobs for the programme as soon as the documents step opens', async () => {
+    const run = {
+      id: 4,
+      programme_id: 1,
+      status: 'running',
+      phase: 'collecting',
+      target_count: 15,
+      pages_per_field: 2,
+      examined_count: 12,
+      found_count: 3,
+      imported_count: 0,
+      skipped_count: 9,
+      documents_ready: 0,
+      documents_processing: 0,
+      documents_failed: 0,
+      error_message: null,
+      created_at: '2026-11-18T03:00:00Z',
+      started_at: '2026-11-18T03:00:01Z',
+      completed_at: null,
+    }
+    let started = false
+    const server = sessionsApi(plannerUser, {
+      'GET /sessions/defaults': ok({
+        ...defaults,
+        default_programme_id: 1,
+        programmes: [{ id: 1, name: 'Synthetic Computer Science', discipline_code: 'CSC' }],
+      }),
+      'GET /harvest/programmes/:id': () =>
+        ok({
+          programme: { id: 1, name: 'Synthetic Computer Science', discipline_code: 'CSC' },
+          profile: { search_terms: ['software developer', 'data analyst'], field_slugs: [] },
+          latest_run: started ? run : null,
+        }),
+      'POST /harvest/programmes/:id/runs': () => {
+        started = true
+        return ok(run, 202)
+      },
+    })
+    const { user } = renderApp('/sessions/new')
+
+    await user.type(await screen.findByLabelText('Session name'), 'Synthetic review')
+    await user.click(screen.getByRole('button', { name: /Next/ }))
+
+    await waitFor(() => expect(server.calls('POST', '/harvest/programmes/1/runs')).toHaveLength(1))
+    expect(server.calls('POST', '/harvest/programmes/1/runs')[0].body).toEqual({
+      target_count: 15,
+      pages_per_field: 2,
+    })
+    expect(await screen.findByText(/Finding current jobs for/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Searching MyJobMag for software developer, data analyst/),
+    ).toBeVisible()
+  })
+
   it('warns when there is no active NUC core and only allows Create', async () => {
     sessionsApi(plannerUser, {
       'GET /sessions/defaults': ok({ ...defaults, nuc_core_version: null }),

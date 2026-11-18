@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import type { Programme, ProgrammeReadiness } from '@/types/api'
 
 import { AddProgrammeDialog } from './AddProgrammeDialog'
+import { NucCatalogueCard } from './NucCatalogueCard'
 import { ProgrammePeople } from './ProgrammePeople'
 
 const TABS: { value: ProgrammeTab; label: string }[] = [
@@ -93,6 +94,8 @@ export function ProgrammesPage() {
         }
         actions={<AddProgrammeDialog onCreated={(programme) => go(programme.id, 'core')} />}
       />
+
+      <NucCatalogueCard />
 
       {list.length === 0 ? (
         <p className="text-sm text-body-soft">No programmes yet. Add the first one.</p>
