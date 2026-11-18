@@ -73,3 +73,13 @@ class UserListQuery(PaginationQuery):
     is_active: Literal["true", "false"] | None = None
     search: str | None = Field(default=None, max_length=100)
     programme_id: int | None = Field(default=None, ge=1)
+
+
+class RegisterRequest(RequestModel):
+    """Self sign-up: a planner account for the chosen programmes."""
+
+    username: Username
+    email: Email
+    full_name: FullName
+    password: NewPassword
+    programme_ids: list[int] = Field(min_length=1, max_length=20)

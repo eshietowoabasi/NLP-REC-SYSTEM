@@ -1,17 +1,20 @@
-"""Authentication endpoints: login, logout, current user, password change, CSRF token."""
+"""Authentication endpoints: sign-up, login, logout, current user, password change, CSRF."""
 
 from __future__ import annotations
 
 from flask import Blueprint, Response, current_app, g, session
 from flask_login import current_user, login_user, logout_user
 from flask_wtf.csrf import generate_csrf
+from sqlalchemy import select
 
 from app.audit import AuditAction, record_audit
-from app.auth.accounts import authenticate, change_own_password
+from app.auth.accounts import authenticate, change_own_password, create_user
 from app.auth.decorators import login_required
 from app.extensions import db
+from app.models import Programme, UserRole
 from app.schemas.auth import ChangePasswordRequest, LoginRequest
-from app.schemas.users import UserOut
+from app.schemas.users import RegisterRequest, UserCreate, UserOut
+from app.utils.errors import ApiError
 from app.utils.responses import success
 from app.utils.validation import parse_body
 
@@ -36,6 +39,55 @@ def reset_session() -> None:
 def csrf_token() -> tuple[Response, int]:
     """Return a CSRF token; send it as ``X-CSRFToken`` on every state-changing request."""
     return success({"csrf_token": generate_csrf()})
+
+
+@bp.get("/register/programmes")
+def register_programmes() -> tuple[Response, int]:
+    """The programmes a new account can choose (active ones, by name). No login needed."""
+    programmes = db.session.scalars(
+        select(Programme).where(Programme.is_active.is_(True)).order_by(Programme.name)
+    )
+    return success(
+        [{"id": p.id, "name": p.name, "discipline_code": p.discipline_code} for p in programmes]
+    )
+
+
+@bp.post("/register")
+def register() -> tuple[Response, int]:
+    """Create a planner account for the chosen programmes and log it in.
+
+    Anyone can sign up as a planner; admins can deactivate accounts or change roles later.
+    """
+    data = parse_body(RegisterRequest)
+    active = set(
+        db.session.scalars(
+            select(Programme.id).where(
+                Programme.id.in_(data.programme_ids), Programme.is_active.is_(True)
+            )
+        )
+    )
+    if active != set(data.programme_ids):
+        raise ApiError(
+            "VALIDATION_ERROR",
+            "Some fields are invalid.",
+            422,
+            {"fields": {"programme_ids": ["Choose programmes from the list."]}},
+        )
+    user = create_user(
+        UserCreate(
+            username=data.username,
+            email=data.email,
+            full_name=data.full_name,
+            role=UserRole.PLANNER,
+            password=data.password,
+            programme_ids=data.programme_ids,
+        )
+    )
+    reset_session()
+    login_user(user)
+    session.permanent = True
+    db.session.commit()
+    return success({"user": user_json(user), "csrf_token": generate_csrf()}, 201)
 
 
 @bp.post("/login")
