@@ -685,7 +685,11 @@ function DocumentPicker({
             variant="outline"
             size="sm"
             disabled={shown.length === 0}
-            onClick={() => onChange([...new Set([...selected, ...shown.map((d) => d.id)])])}
+            onClick={() =>
+              onChange(
+                [...new Set([...selected, ...shown.map((d) => d.id)])].slice(0, maxDocuments),
+              )
+            }
           >
             Select all shown
           </Button>
